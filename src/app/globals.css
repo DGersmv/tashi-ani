@@ -4,15 +4,16 @@
   font-weight: 400;
   font-style: normal;
   font-display: swap;
-}
+} /* ChinaCyr наготове для меню и других мест! */
 
 body {
   background: #111820;
   color: #f6f8fa;
   margin: 0;
-  font-family: 'ChinaCyr', Arial, Helvetica, sans-serif;
+  font-family: 'Roboto', sans-serif; /* Roboto основной для чистоты */
 }
 
+/* КНОПКА-МЕНЮ */
 .menu-btn {
   width: 56px; height: 56px;
   border-radius: 50%;
@@ -24,9 +25,16 @@ body {
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  transition: background .23s;
+  transition: 
+    background .23s,
+    box-shadow .23s,
+    transform .22s cubic-bezier(.33,1.5,.75,1.02);
 }
-.menu-btn:hover { background: rgba(255,255,255,0.26); }
+.menu-btn:hover {
+  background: rgba(255,255,255,0.22);
+  box-shadow: 0 8px 42px #3ffb, 0 0px 24px #69fff8c0;
+  transform: translateY(-7px) scale(1.06);
+}
 .menu-btn .glare {
   position: absolute; left: 8px; top: 8px; width: 32px; height: 10px;
   border-radius: 50px; background: rgba(255,255,255,0.32);
@@ -35,6 +43,79 @@ body {
   pointer-events: none;
   transform: rotate(15deg);
 }
+.menu-btn .ring-anim {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 56px; height: 56px;
+  transform: translate(-50%, -50%) scale(0.9);
+  border-radius: 50%;
+  border: 2.5px solid #82fff2;
+  opacity: 0;
+  transition: opacity 0.23s, transform 0.23s;
+  pointer-events: none;
+  z-index: 1;
+}
+.menu-btn:hover .ring-anim {
+  opacity: 0.65;
+  transform: translate(-50%, -50%) scale(1.12);
+  filter: blur(2px) drop-shadow(0 0 10px #0ff9);
+}
+
+/* ГАМБУРГЕР (3 полоски) */
+.hamburger {
+  position: absolute;
+  left: 16px; top: 17px;
+  width: 24px; height: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 2;
+  opacity: 1;
+  /* pointer-events: none;  <-- ЭТО ЗАПРЕЩАЕТ КЛИКИ, УБРАЛ! */
+  transition: opacity .22s;
+}
+.menu-btn.open .hamburger { opacity: 0; }
+.bar {
+  width: 24px; height: 4px; /* Сделал полоску потолще для наглядности */
+  background: #fff;
+  border-radius: 4px;
+  margin: 0; padding: 0;
+  transition: 
+    transform 0.23s cubic-bezier(.65,0,.45,1.35), 
+    opacity 0.18s, 
+    background 0.13s;
+  opacity: 1;
+  display: block;
+  z-index: 5;
+}
+.bar1.open { transform: translateY(9px) rotate(45deg); }
+.bar2.open { opacity: 0; }
+.bar3.open { transform: translateY(-9px) rotate(-45deg); }
+
+/* КРЕСТИК */
+.menu-close {
+  position: absolute;
+  left: 17px; top: 11px;
+  width: 24px; height: 24px;
+  color: #fff;
+  font-size: 2.2em;
+  line-height: 24px;
+  font-weight: bold;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.75) rotate(-30deg);
+  transition: opacity 0.22s, transform 0.22s;
+  z-index: 3;
+  font-family: Arial, Helvetica, sans-serif; /* Оставили простой для крестика */
+  text-align: center;
+}
+.menu-close.open {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+  pointer-events: all;
+}
+
+/* ОСТАЛЬНОЕ МЕНЮ */
 .menu-strip {
   position: absolute;
   top: 0; right: 70px;
@@ -52,7 +133,7 @@ body {
   pointer-events: none;
   transform: scaleX(0.9) translateX(30px);
   transition: all .35s cubic-bezier(.62,.12,.45,1.18);
-  font-family: 'ChinaCyr', Arial, Helvetica, sans-serif;
+  font-family: 'ChinaCyr', Arial, Helvetica, sans-serif; /* Вернули ChinaCyr для меню — прорыв в стиле! */
   z-index: 10;
 }
 .menu-strip.open {
@@ -96,67 +177,32 @@ body {
   }
 }
 
-.menu-btn {
-  width: 56px !important; height: 56px !important;
-  border-radius: 50% !important;
-  border: none !important;
-  background: #222 !important;
-  box-shadow: 0 0 16px #08f8 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  position: relative !important;
-  cursor: pointer !important;
-  transition: background 0.23s, box-shadow 0.23s, transform 0.22s;
-}
-.menu-btn:hover {
-  background: #444 !important;
-  box-shadow: 0 0 36px #0ffb !important;
-  transform: translateY(-7px) scale(1.06) !important;
-}
-.hamburger {
-  position: absolute !important;
-  left: 16px !important; top: 17px !important;
-  width: 24px !important; height: 20px !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: space-between !important;
-  opacity: 1 !important;
-  transition: opacity .22s !important;
-}
-.menu-btn.open .hamburger { opacity: 0 !important; }
-.bar {
-  width: 24px !important; height: 4px !important;
-  background: #fff !important;
-  border-radius: 4px !important;
-  margin: 0 !important; padding: 0 !important;
-  transition: transform 0.23s, opacity 0.18s, background 0.13s !important;
-  opacity: 1 !important;
-  display: block !important;
-  z-index: 5 !important;
-}
-.bar1.open { transform: translateY(9px) rotate(45deg) !important; }
-.bar2.open { opacity: 0 !important; }
-.bar3.open { transform: translateY(-9px) rotate(-45deg) !important; }
-.menu-close {
-  position: absolute !important;
-  left: 17px !important; top: 11px !important;
-  width: 24px !important; height: 24px !important;
-  color: #fff !important;
-  font-size: 2.2em !important;
-  line-height: 24px !important;
-  font-weight: bold !important;
-  pointer-events: none !important;
-  opacity: 0 !important;
-  transform: scale(0.75) rotate(-30deg) !important;
-  transition: opacity 0.22s, transform 0.22s !important;
-  z-index: 3 !important;
-  font-family: Arial, Helvetica, sans-serif !important;
-  text-align: center !important;
-}
-.menu-close.open {
-  opacity: 1 !important;
-  transform: scale(1) rotate(0deg) !important;
-  pointer-events: all !important;
+/* Для отладки, убрать после проверки */
+.menu-btn, .hamburger, .bar, .menu-close, .ring-anim {
+  outline: 2px solid #fc0 !important;
 }
 
+.site-logo-glass {
+  /* Для hover-эффекта и адаптива */
+  transition: background .25s, box-shadow .25s, transform .20s;
+}
+.site-logo-glass:hover {
+  background: rgba(32,44,52,0.48);
+  box-shadow: 0 16px 40px 0 #12fffa22, 0 4px 18px #0ff7;
+  transform: scale(1.06) translateY(-4px);
+}
+@media (max-width: 600px) {
+  .site-logo-glass {
+    top: 8px !important;
+    left: 8px !important;
+    width: 72px !important;
+    height: 72px !important;
+    border-radius: 18px !important;
+    padding: 0 !important;
+  }
+  .site-logo-glass img {
+    width: 42px !important;
+    height: 42px !important;
+    padding: 3px !important;
+  }
+}

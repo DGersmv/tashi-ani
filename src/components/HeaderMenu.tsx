@@ -1,3 +1,4 @@
+// HeaderMenu.tsx
 "use client";
 import React, { useEffect, useState } from "react";
 
@@ -14,9 +15,9 @@ export default function HeaderMenu() {
 
   return (
     <header style={{
-      position: 'fixed',
-      top: 28,
-      right: 48,
+      position: 'absolute',
+      top: '32px',
+      right: '48px',
       zIndex: 100,
       display: "flex",
       alignItems: "center",

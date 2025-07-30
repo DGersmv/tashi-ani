@@ -1,39 +1,29 @@
-"use client";
+// page.tsx
+import CompanyDescription from "@/components/CompanyDescription";
 import GlassMapPanel from "@/components/GlassMapPanel";
+import GlassTextPanel from "@/components/GlassTextPanel";
 
 export default function Home() {
   return (
-    <main style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
-      {/* HeaderMenu и SiteLogo подключаются уже в RootLayout! */}
-      <GlassMapPanel />
-      <div style={{
-        marginTop: 130,
-        textAlign: 'center',
-        position: 'relative',
-        zIndex: 2,
-      }}>
-        <h1 style={{
-          fontSize: '2.3em',
-          marginBottom: 30,
-          fontWeight: 900,
-          letterSpacing: '0.04em',
-          fontFamily: "'ChinaCyr', Arial, Helvetica, sans-serif",
-        }}>
-          ПРОВЕРКА РАБОТЫ
-        </h1>
-        <div style={{
-          fontSize: '2em',
-          background: '#333',
-          color: '#fff',
-          borderRadius: '20px',
-          padding: '24px',
-          margin: '40px auto',
-          maxWidth: 680,
-          fontFamily: "'ChinaCyr', Arial, Helvetica, sans-serif",
-        }}>
-          Я вижу этот текст!
-        </div>
+    <div className="
+      w-full max-w-6xl mx-auto
+      grid grid-cols-1 lg:grid-cols-[auto_1fr]
+      gap-8 lg:gap-14
+      px-4 md:px-8 lg:px-12
+      pt-8
+      items-start
+    ">
+      {/* Левая панель */}
+      <div className="w-full flex justify-center lg:justify-start">
+        <GlassTextPanel>
+          <CompanyDescription />
+        </GlassTextPanel>
       </div>
-    </main>
+
+      {/* Правая панель с картой */}
+      <div className="w-full flex justify-center lg:justify-end">
+        <GlassMapPanel />
+      </div>
+    </div>
   );
 }

@@ -13,14 +13,10 @@ export default function GlassMapPanel() {
   const [loading, setLoading] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Колбэк для border
   const handleBorderComplete = useCallback(() => setBorderReady(true), []);
-  // Колбэк для панели
   const handlePanelAnimComplete = useCallback(() => setPanelReady(true), []);
-  // Колбэк для карты
   const handleLoaded = useCallback(() => setLoading(false), []);
 
-  // Panel padding чтобы не доходить до border (например, 5px)
   const panelPad = 5;
 
   return (
@@ -39,14 +35,12 @@ export default function GlassMapPanel() {
         pointerEvents: "none",
       }}
     >
-      {/* 1. SVG-бордер всегда виден */}
-<AnimatedGlassBorder
-  panelRef={panelRef as React.RefObject<HTMLDivElement>}
-  onComplete={handleBorderComplete}
-  duration={2.1}
-/>
+      <AnimatedGlassBorder
+        panelRef={panelRef}
+        onComplete={handleBorderComplete}
+        duration={2.1}
+      />
 
-      {/* 2. Панель появляется только после border, scale из правого-нижнего угла */}
       {borderReady && (
         <motion.div
           initial={{
@@ -83,18 +77,9 @@ export default function GlassMapPanel() {
           }}
           onAnimationComplete={handlePanelAnimComplete}
         >
-          {/* 3+4. Карта всегда рендерится после появления панели */}
           {panelReady && (
-            <div
-              style={{
-                position: "relative",
-                zIndex: 20,
-                width: "100%",
-                height: "100%",
-              }}
-            >
+            <div style={{ position: "relative", width: "100%", height: "100%" }}>
               <CesiumMap onLoaded={handleLoaded} />
-              {/* Лоадер всегда поверх карты, пока карта не загрузилась */}
               {loading && (
                 <div
                   style={{
