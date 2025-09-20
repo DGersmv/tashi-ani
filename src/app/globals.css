@@ -1,3 +1,4 @@
+/* =================== ШРИФТЫ =================== */
 @font-face {
   font-family: 'ChinaCyr';
   src: url('/fonts/ChinaCyr.ttf') format('truetype');
@@ -6,13 +7,80 @@
   font-display: swap;
 }
 
+/* =================== БАЗОВЫЕ УСТАНОВКИ =================== */
+/* управление скроллом */
+html { scrollbar-gutter: stable both-edges; }
+body { overflow-y: auto; }
+main { overflow-anchor: none; }
+
+/* фон, цвет и базовый шрифт */
 body {
   background: #111820;
   color: #f6f8fa;
   margin: 0;
+  font-family: var(--font-montserrat), Arial, Helvetica, sans-serif;
+}
+
+/* заголовки и меню — декоративный шрифт ChinaCyr */
+h1, h2, h3,
+.menu-strip {
   font-family: 'ChinaCyr', Arial, Helvetica, sans-serif;
 }
 
+/* =================== ГЛОБАЛЬНЫЕ УТИЛИТЫ =================== */
+html, body { overflow-x: hidden; }
+*, *::before, *::after { box-sizing: border-box; }
+
+/* =================== ПЕРЕМЕННЫЕ ОТСТУПОВ =================== */
+/* для мобильных → планшетов */
+:root {
+  --hero-top: 16px;                 /* меню статичное — почти без зазора */
+  --left-gutter: clamp(16px, 6vw, 24px);
+}
+
+
+/* ≥650px (планшет портрет) */
+@media (min-width: 650px) {
+  :root {
+    --hero-top: 96px;               /* отступ под меню и логотип */
+    --left-gutter: clamp(48px, 10vw, 120px);
+  }
+}
+
+/* ≥1024px (десктоп базовый) — основной сценарий */
+@media (min-width: 1024px) {
+  :root {
+    --hero-top: 130px;              /* уровень верха текста И карты */
+    --left-gutter: clamp(120px, 12vw, 220px);
+  }
+}
+
+/* ≥1440px (широкие) */
+@media (min-width: 1440px) {
+  :root {
+    --hero-top: 180px;
+    --left-gutter: clamp(100px, 10vw, 100px);
+  }
+}
+
+/* ≥1920px (очень широкие) */
+@media (min-width: 1920px) {
+  :root {
+    --hero-top: 180px;
+    --left-gutter: clamp(160px, 8.5vw, 260px);
+  }
+}
+
+
+/* =================== ОБЁРТКА КОНТЕНТА =================== */
+.page-wrap {
+  padding-top: var(--hero-top);        /* смещаем контент вниз под фикс-меню */
+  padding-left: var(--left-gutter);    /* большой левый отступ от логотипа */
+  padding-right: clamp(16px, 4vw, 48px); /* адаптивный правый отступ */
+  margin: 0;                           /* убираем авто-центрирование */
+}
+
+/* =================== КНОПКА МЕНЮ =================== */
 .menu-btn {
   width: 56px; height: 56px;
   border-radius: 50%;
@@ -35,71 +103,11 @@ body {
   pointer-events: none;
   transform: rotate(15deg);
 }
-.menu-strip {
-  position: absolute;
-  top: 0; right: 70px;
-  display: flex; align-items: center;
-  height: 60px;
-  min-width: 450px;
-  max-width: 90vw;
-  padding: 0 36px;
-  border-radius: 30px;
-  background: rgba(255,255,255,0.20);
-  box-shadow: 0 4px 48px #0057 0px 0px 80px 0px #fff6;
-  border: 1.5px solid rgba(255,255,255,0.17);
-  backdrop-filter: blur(22px) saturate(1.18);
-  opacity: 0;
-  pointer-events: none;
-  transform: scaleX(0.9) translateX(30px);
-  transition: all .35s cubic-bezier(.62,.12,.45,1.18);
-  font-family: 'ChinaCyr', Arial, Helvetica, sans-serif;
-  z-index: 10;
-}
-.menu-strip.open {
-  opacity: 1;
-  pointer-events: all;
-  transform: scaleX(1) translateX(0);
-}
-.menu-links {
-  display: flex; gap: 32px; align-items: center; height: 100%;
-}
-.menu-link {
-  color: #fff;
-  font-size: 1.24em;
-  font-weight: bold;
-  padding: 9px 18px;
-  border-radius: 12px;
-  text-decoration: none;
-  transition: background .15s, color .13s;
-  letter-spacing: .06em;
-}
-.menu-link:hover { background: rgba(255,255,255,0.20); color: #17242f; }
-.menu-login-btn {
-  background: rgba(255,255,255,0.21);
-  color: #fff;
-  font-size: 1.16em;
-  font-weight: bold;
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 13px;
-  padding: 9px 26px;
-  margin-left: 18px;
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  transition: background .17s, color .17s;
-}
-.menu-login-btn:hover { background: #49ffd5b8; color: #17242f; }
-@media (max-width: 650px) {
-  .menu-strip, .menu-strip.open {
-    min-width: 96vw; max-width: 98vw; left: 0; right: 0;
-    padding: 0 10vw;
-    border-radius: 16px;
-  }
-}
 
+/* активные стили кнопки меню (hover + open) */
 .menu-btn {
   width: 56px !important; height: 56px !important;
   border-radius: 50% !important;
-  border: none !important;
   background: #222 !important;
   box-shadow: 0 0 16px #08f8 !important;
   display: flex !important;
@@ -114,6 +122,8 @@ body {
   box-shadow: 0 0 36px #0ffb !important;
   transform: translateY(-7px) scale(1.06) !important;
 }
+
+/* гамбургер-иконка */
 .hamburger {
   position: absolute !important;
   left: 16px !important; top: 17px !important;
@@ -125,6 +135,8 @@ body {
   transition: opacity .22s !important;
 }
 .menu-btn.open .hamburger { opacity: 0 !important; }
+
+/* линии гамбургера */
 .bar {
   width: 24px !important; height: 4px !important;
   background: #fff !important;
@@ -138,6 +150,8 @@ body {
 .bar1.open { transform: translateY(9px) rotate(45deg) !important; }
 .bar2.open { opacity: 0 !important; }
 .bar3.open { transform: translateY(-9px) rotate(-45deg) !important; }
+
+/* иконка закрытия меню */
 .menu-close {
   position: absolute !important;
   left: 17px !important; top: 11px !important;
@@ -160,3 +174,87 @@ body {
   pointer-events: all !important;
 }
 
+/* =================== МЕНЮ-ПАНЕЛЬ =================== */
+.menu-strip {
+  position: fixed;           /* фикс сверху — вне потока */
+  top: 18px;
+  left: var(--left-gutter);  /* отступ от логотипа */
+  right: 24px;
+  display: flex;
+  align-items: center;
+  height: 60px;
+  padding: 0 24px;
+  border-radius: 30px;
+  background: rgba(255,255,255,0.20);
+  box-shadow: 0 4px 48px #0057;
+  border: 1.5px solid rgba(255,255,255,0.17);
+  backdrop-filter: blur(22px) saturate(1.18);
+  opacity: 0;
+  pointer-events: none;
+  transform: scaleX(0.96) translateX(14px);
+  transition: all .35s cubic-bezier(.62,.12,.45,1.18);
+  z-index: 260;              /* выше контента, ниже логотипа */
+}
+.menu-strip.open {
+  opacity: 1;
+  pointer-events: all;
+  transform: scaleX(1) translateX(0);
+}
+.menu-links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.menu-link  { color: #fff; font-weight: 700; padding: 9px 14px; border-radius: 12px; text-decoration: none; letter-spacing: .03em; font-size: clamp(14px, 1.15vw, 18px); }
+.menu-link:hover { background: rgba(255,255,255,0.20); color: #17242f; }
+
+/* =================== МОБИЛЬНОЕ МЕНЮ =================== */
+@media (max-width: 650px) {
+  .menu-strip, .menu-strip.open {
+    position: static;
+    width: 96vw;
+    margin: 8px auto 0;
+    left: auto; right: auto; top: auto;
+    height: auto;
+    padding: 10px 4vw;
+    border-radius: 16px;
+  }
+  .menu-links { justify-content: center; gap: 12px; }
+  .menu-link  { font-size: clamp(14px, 4vw, 18px); }
+}
+
+/* =================== ДОП. УТИЛИТЫ =================== */
+/* ограничение ширины для левой колонки */
+.left-col { max-width: 720px; }
+
+/* красивая анимация пульса */
+@keyframes pulse {
+  0%, 100% { opacity: 0.8; box-shadow: 0 0 16px #ff4d4d44; }
+  50% { opacity: 1; box-shadow: 0 0 32px #ff4d4d77; }
+}
+
+/* принудительно тянем текст влево */
+.force-left {
+  text-align: left !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 12px;
+  justify-self: start !important;
+  align-self: flex-start !important;
+}
+
+/* бегущая подпись как в твоём примере: animate-[scrollText_20s_linear_infinite] */
+@keyframes scrollText {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-100%); }
+}
+
+/* чтобы картинки не имели «лишних» пробелов/разрывов */
+img { display: block; }
+
+/* по желанию: чутка сгладим */
+* { -webkit-tap-highlight-color: transparent; }
+
+.cards-grid {
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 420px));
+  justify-content: center;
+}
+  

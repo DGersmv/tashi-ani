@@ -1,120 +1,87 @@
 "use client";
-import dynamic from "next/dynamic";
-import { useState, useCallback, useRef } from "react";
+import React from "react";
 import { motion } from "framer-motion";
-import AnimatedGlassBorder from "./AnimatedGlassBorder";
-import MapLoader from "./MapLoader";
-
-const CesiumMap = dynamic(() => import("./CesiumMap"), { ssr: false });
+import OpenGlobusViewer from "./OpenGlobusViewer";
+import { useViewMode } from "@/components/ui/ViewMode";
 
 export default function GlassMapPanel() {
-  const [borderReady, setBorderReady] = useState(false);
-  const [panelReady, setPanelReady] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  // Колбэк для border
-  const handleBorderComplete = useCallback(() => setBorderReady(true), []);
-  // Колбэк для панели
-  const handlePanelAnimComplete = useCallback(() => setPanelReady(true), []);
-  // Колбэк для карты
-  const handleLoaded = useCallback(() => setLoading(false), []);
-
-  // Panel padding чтобы не доходить до border (например, 5px)
-  const panelPad = 5;
+  const { setMode } = useViewMode();
+  const pad = 5;
 
   return (
-    <div
-      ref={panelRef}
-      style={{
-        position: "fixed",
-        right: 48,
-        top: "22vh",
-        zIndex: 40,
-        width: "50vw",
-        maxWidth: 960,
-        height: "42vh",
-        borderRadius: "2.2rem",
-        overflow: "visible",
-        pointerEvents: "none",
-      }}
-    >
-      {/* 1. SVG-бордер всегда виден */}
-<AnimatedGlassBorder
-  panelRef={panelRef as React.RefObject<HTMLDivElement>}
-  onComplete={handleBorderComplete}
-  duration={2.1}
-/>
-
-      {/* 2. Панель появляется только после border, scale из правого-нижнего угла */}
-      {borderReady && (
+    <div className="mapWrapper">
+      {/* Анимация появления без вертикального сдвига */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.44, 0.13, 0.35, 1.08] }}
+        style={{
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          borderRadius: "inherit",
+          overflow: "hidden",
+          pointerEvents: "auto",
+        }}
+      >
         <motion.div
-          initial={{
-            opacity: 0,
-            scale: 0.1,
-            x: "40%",
-            y: "40%",
-            borderRadius: "2.2rem",
-          }}
-          animate={{
-            opacity: 1,
-            scale: 1,
-            x: 0,
-            y: 0,
-            borderRadius: "2.2rem",
-          }}
-          transition={{
-            duration: 0.77,
-            ease: [0.44, 0.13, 0.35, 1.08],
-          }}
+          className="group cursor-pointer"
+          onClick={() => setMode("portfolio")}
+          whileHover={{ y: -6, scale: 1.015, filter: "saturate(1.06)" }}
+          transition={{ type: "spring", stiffness: 220, damping: 20 }}
           style={{
             position: "absolute",
-            inset: panelPad,
-            width: `calc(100% - ${panelPad * 2}px)`,
-            height: `calc(100% - ${panelPad * 2}px)`,
-            borderRadius: "2.2rem",
+            inset: pad,
+            borderRadius: "inherit",
             overflow: "hidden",
             background: "rgba(255,255,255,0.15)",
             backdropFilter: "blur(32px)",
             border: "2.5px solid rgba(36,250,255,0.16)",
-            boxShadow: "0 0 56px 18px #00fff944, 0 8px 30px #10c9e5b0",
-            zIndex: 50,
-            pointerEvents: "auto",
+            boxShadow: "0 0 56px 10px #00fff944, 0 6px 10px #10c9e5b0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
-          onAnimationComplete={handlePanelAnimComplete}
         >
-          {/* 3+4. Карта всегда рендерится после появления панели */}
-          {panelReady && (
-            <div
-              style={{
-                position: "relative",
-                zIndex: 20,
-                width: "100%",
-                height: "100%",
-              }}
-            >
-              <CesiumMap onLoaded={handleLoaded} />
-              {/* Лоадер всегда поверх карты, пока карта не загрузилась */}
-              {loading && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    zIndex: 30,
-                    background: "rgba(15,23,36,0.12)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "opacity 0.5s",
-                  }}
-                >
-                  <MapLoader />
-                </div>
-              )}
-            </div>
-          )}
+          {/* Контент карты */}
+          <div
+            style={{
+              position: "relative",
+              width: "100%",
+              height: "100%",
+              borderRadius: "inherit",
+              overflow: "hidden",
+              opacity: 0.5,
+              transition: "opacity 0.6s ease",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.5")}
+          >
+            <OpenGlobusViewer />
+          </div>
         </motion.div>
-      )}
+      </motion.div>
+
+ <style jsx>{`
+        .mapWrapper {
+          width: 96vw;
+          aspect-ratio: 21 / 12;
+          border-radius: 1.7rem;
+          margin: 0 auto;
+        }
+        @media (min-width: 1024px) {
+          .mapWrapper {
+            position: fixed;             /* фиксируем */
+            top: var(--hero-top);        /* тот же уровень, что и текст */
+            right: 3%;                   /* прижимаем вправо */
+            width: 30vw;
+            aspect-ratio: 21 / 9;
+            border-radius: 2.2rem;
+            margin: 0;                   /* убираем auto-margin */
+            z-index: 120;                /* поверх фона, но ниже меню */
+          }
+        }
+      `}</style>
     </div>
   );
 }
