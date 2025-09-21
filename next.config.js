@@ -1,14 +1,12 @@
-//** @type {import('next').NextConfig} */
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-
-  // включаем статический экспорт
-  output: 'export',
-
-  // игнорим ESLint-ошибки на прод-сборке
   eslint: { ignoreDuringBuilds: true },
 
-  // заголовки для статических ресурсов OpenGlobus из /public/external/og/...
+  images: {
+    domains: ['tile.openstreetmap.org'],
+  },
+
   async headers() {
     return [
       {
@@ -20,25 +18,6 @@ const nextConfig = {
       },
     ];
   },
-
-  // домены для next/image (карты/тайлы и пр.)
-  images: {
-    domains: ['tile.openstreetmap.org'],
-    // при экспорте нужно отключить оптимизацию
-    unoptimized: true,
-  },
-
-  /*
-  webpack: (config) => {
-    config.module.rules.push({
-      test: /\.(png|jpe?g|gif|svg)$/i,
-      type: 'asset/resource',
-      generator: { filename: 'static/[hash][ext][query]' },
-    });
-    return config;
-  },
-  */
 };
 
 module.exports = nextConfig;
-
