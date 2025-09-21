@@ -9,7 +9,7 @@ function SplitChinaHeadline({ text }: { text: string }) {
       style={{
         fontFamily: "'ChinaCyr', Arial, sans-serif",
         letterSpacing: "0.04em",
-        background: "linear-gradient(90deg, #3ffdfd 0%, #1ecce6 100%)",
+        background: "linear-gradient(90deg, #fac985ff 0%, #f4c542 100%)",
         WebkitBackgroundClip: "text",
         WebkitTextFillColor: "transparent",
         display: "inline-block",

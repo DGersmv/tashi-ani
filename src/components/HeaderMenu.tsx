@@ -90,10 +90,9 @@ export default function HeaderMenu() {
           </a>
 
           <button
-            type="button"
+           type="button"
             className="menu-link"
             onClick={() => setMode("home")}
-            style={{ ...linkFont, background: "none", border: 0, padding: 0, cursor: "pointer" }}
           >
             Главная
           </button>
@@ -102,11 +101,11 @@ export default function HeaderMenu() {
             Услуги
           </a>
 
+          
           <button
             type="button"
             className="menu-link"
             onClick={() => setMode("portfolio")}
-            style={{ ...linkFont, background: "none", border: 0, padding: 0, cursor: "pointer" }}
           >
             Портфолио
           </button>

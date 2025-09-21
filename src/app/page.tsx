@@ -71,7 +71,9 @@ export default function Home() {
             transition={{ duration: 0.35 }}
           
           >
+          <div className="page-wrap">
             <PortfolioMultiPanels />
+          </div>
           </motion.div>
         )}
       </AnimatePresence>

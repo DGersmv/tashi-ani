@@ -3,56 +3,66 @@
 import { useEffect, useRef, useState } from 'react';
 import useTourPoints from '@/lib/useTourPoints';
 
-// === ПАРАМЕТРЫ ПОВЕДЕНИЯ КАМЕРЫ ===
-const MIN_DIST_M = 150;            // ближе — считаем шумом/кластером и перескакиваем дальше
-const MAX_SCAN_AHEAD = 8;          // максимум точек вперёд, чтобы найти «далёкую»
-const ALT_NEAR = 1_500;            // высота камеры для близких перелётов (м)
-const ALT_FAR  = 220_000;          // высота камеры для дальних перелётов (м)
-const LOOK_REL_DOWN = 0.03;        // «наклон вниз»: высота цели = EYE_ALT * 3%
-const LOOK_AHEAD_MIN = 0.3;       // минимум «смотреть вперёд» (доля пути i→j)
-const LOOK_AHEAD_MAX = 0.45;       // максимум «смотреть вперёд»
-const DUR_MIN_MS = 3400;           // минимальная длительность полёта
-const DUR_MAX_MS = 5200;           // максимальная длительность полёта
-const PAUSE_NEAR_MS = 2500;         // пауза между близкими кадрами
-const PAUSE_FAR_MS  = 1800;        // пауза между дальними кадрами
+// ====== НАСТРОЙКИ ОРБИТЫ И ВЗГЛЯДА (РЕДАКТИРУЕМ В КОДЕ) ======
+const CENTER_LON = 30.36;         // центр — Санкт-Петербург (можно поправить)
+const CENTER_LAT = 59.94;
 
-// Ресурсы
+const EYE_ALT_M  = 10_000;        // высота зависания камеры (м)
+const ORBIT_R_M  = 5_000;        // радиус орбиты (м) — расстояние от центра
+const ORBIT_DEG_PER_SEC = 6;      // скорость вращения (град/сек)
+
+const LOOK_REL_UP = 0.1;         // «поднять взгляд»: доля от высоты камеры (0..0.4)
+const LOOK_AHEAD_M = 50_000;      // смотреть немного вперёд по курсу (м); 0 — строго в центр
+
+const TICK_MS = 40;               // шаг обновления анимации (мс)
+
+// ====== РЕСУРСЫ ======
 const DEFAULT_PATH = '/points/default.png';
 const OG_MARKER    = '/external/og/lib/res/marker.png';
 
 type TourPoint = { lon: number; lat: number; img?: string; name?: string };
 
-// === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
-const R_EARTH = 6371000; // м
+// ====== МАТЕМАТИКА ГЕОДЕЗИИ ======
+const R_EARTH = 6371000;
+const toRad = (d: number) => d * Math.PI / 180;
+const toDeg = (r: number) => r * 180 / Math.PI;
 
-function toRad(deg: number) { return deg * Math.PI / 180; }
-function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
-function clamp(v: number, a: number, b: number) { return Math.max(a, Math.min(b, v)); }
-function smooth01(x: number) { const t = clamp(x, 0, 1); return t * t * (3 - 2 * t); }
+// Смещение от (lon,lat) на distM по азимуту bearingDeg (0 — север, 90 — восток)
+function destPoint(lon: number, lat: number, bearingDeg: number, distM: number) {
+  const br = toRad(bearingDeg);
+  const φ1 = toRad(lat);
+  const λ1 = toRad(lon);
+  const δ = distM / R_EARTH;
 
-// Гаверсин для оценки расстояния (метры)
-function haversine(lon1: number, lat1: number, lon2: number, lat2: number) {
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const s1 = Math.sin(dLat/2), s2 = Math.sin(dLon/2);
-  const a = s1*s1 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * s2*s2;
-  return 2 * R_EARTH * Math.asin(Math.sqrt(a));
+  const sinφ1 = Math.sin(φ1), cosφ1 = Math.cos(φ1);
+  const sinδ = Math.sin(δ), cosδ = Math.cos(δ);
+
+  const sinφ2 = sinφ1 * cosδ + cosφ1 * sinδ * Math.cos(br);
+  const φ2 = Math.asin(sinφ2);
+
+  const y = Math.sin(br) * sinδ * cosφ1;
+  const x = cosδ - sinφ1 * sinφ2;
+  const λ2 = λ1 + Math.atan2(y, x);
+
+  return { lon: (toDeg(λ2) + 540) % 360 - 180, lat: toDeg(φ2) };
 }
 
 export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef     = useRef<any | null>(null);
-  const timerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loopRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Точки (для пинов), без перелётов
   const tourPts = (useTourPoints() || []) as TourPoint[];
   const ptsRef  = useRef<TourPoint[]>([]);
   useEffect(() => { ptsRef.current = tourPts; }, [tourPts]);
 
+  // Пауза анимации
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
   useEffect(() => { pausedRef.current = paused; }, [paused]);
 
-  // Есть ли кастомная иконка пина
+  // Кастомная иконка пина?
   const pinSrcRef = useRef<string>(OG_MARKER);
   useEffect(() => {
     let ignore = false;
@@ -66,10 +76,9 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
     if (!ready || !containerRef.current) return;
     let destroyed = false;
 
-    const clearT = () => { if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; } };
+    const stopLoop = () => { if (loopRef.current) { clearTimeout(loopRef.current); loopRef.current = null; } };
 
     (async () => {
-      // ESM-импорт OpenGlobus (Globe/XYZ/Vector/Entity/LonLat используются в оф. примерах)
       const og: any = await import('../../public/external/og/lib/og.es.js');
       if (destroyed) return;
       const { Globe, XYZ, Vector, Entity, LonLat } = og || {};
@@ -78,9 +87,9 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
         return;
       }
 
-      const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+      const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
 
-      // Базовый слой OSM
+      // Слои
       const osm = new XYZ('osm', {
         isBaseLayer: true,
         url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -88,10 +97,9 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
         crossOrigin: 'anonymous',
         maxZoom: 19
       });
-
-      // Векторный слой для маркеров
       const vect = new Vector('tour', { clampToGround: false, async: false, visibility: true });
 
+      // Маркеры
       (ptsRef.current || []).forEach((p, idx) => {
         vect.add(new Entity({
           name: p.name || `P${idx + 1}`,
@@ -100,12 +108,12 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
             src: p.img || pinSrcRef.current,
             width: 48,
             height: 48,
-            offset: [0, 16], // приподнимаем, чтобы не «резало» низ
+            offset: [0, 35],
           }
         }));
       });
 
-      // Инициализация глобуса
+      // Глобус
       const globe = new Globe({
         target: containerRef.current!,
         name: 'Earth',
@@ -120,86 +128,78 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
       // Подгон под контейнер
       setTimeout(() => window.dispatchEvent(new Event('resize')), 0);
 
-      // === Адаптивный перелёт ===
-      let step = 0;
+      // ===== Подлёт к СПб =====
+      const ell = globe.planet.ellipsoid;
 
-      const pickNextIndex = (i: number) => {
-        const list = ptsRef.current;
-        if (!list?.length) return i;
-        // ищем следующую точку не ближе MIN_DIST_M
-        for (let n = 1; n <= Math.min(MAX_SCAN_AHEAD, list.length - 1); n++) {
-          const j = (i + n) % list.length;
-          const d = haversine(list[i].lon, list[i].lat, list[j].lon, list[j].lat);
-          if (d >= MIN_DIST_M) return j;
-        }
-        // если все рядом — берём ближайшую следующую
-        return (i + 1) % list.length;
-      };
+      const centerLL = new LonLat(CENTER_LON, CENTER_LAT, Math.max(200, EYE_ALT_M * Math.max(LOOK_REL_UP, 0.06)));
+      const startAz  = 315; // северо-запад
+      const eye0     = destPoint(CENTER_LON, CENTER_LAT, startAz, ORBIT_R_M);
+      const eyeLL0   = new LonLat(eye0.lon, eye0.lat, EYE_ALT_M);
 
-      const fly = () => {
+      await new Promise<void>((resolve) => {
+        globe.planet.camera.flyCartesian(
+          ell.lonLatToCartesian(eyeLL0),
+          {
+            look: ell.lonLatToCartesian(centerLL),
+            duration: 2200,
+            completeCallback: () => resolve()
+          }
+        );
+      });
+
+      // ===== Бесконечная орбита =====
+      let angle = startAz;
+      const stepDeg = ORBIT_DEG_PER_SEC * (TICK_MS / 1000);
+
+      const tick = () => {
         if (destroyed || pausedRef.current || !globeRef.current) return;
-        const list = ptsRef.current;
-        if (!list?.length) return;
 
-        const i = step % list.length;
-        const j = pickNextIndex(i);
+        angle = (angle + stepDeg) % 360;
 
-        const a = list[i], b = list[j];
-        const dist = haversine(a.lon, a.lat, b.lon, b.lat);        // м
-        const norm = smooth01((dist - MIN_DIST_M) / (500_000 - MIN_DIST_M)); // до ~500 км
+        // Позиция камеры по орбите
+        const eyeGeo = destPoint(CENTER_LON, CENTER_LAT, angle, ORBIT_R_M);
+        const eyeLL  = new og.LonLat(eyeGeo.lon, eyeGeo.lat, EYE_ALT_M);
 
-        // 1) Высота камеры ~ от расстояния
-        const EYE_ALT = lerp(ALT_NEAR, ALT_FAR, norm);
+        // Куда смотреть: вперёд по курсу или строго в центр
+        let lookLon = CENTER_LON, lookLat = CENTER_LAT;
+        if (LOOK_AHEAD_M > 0.1) {
+          const ahead = destPoint(CENTER_LON, CENTER_LAT, angle, LOOK_AHEAD_M);
+          lookLon = ahead.lon; lookLat = ahead.lat;
+        }
+        const lookLL = new og.LonLat(lookLon, lookLat, Math.max(50, EYE_ALT_M * LOOK_REL_UP));
 
-        // 2) Куда смотреть: немного вперёд по дуге i→j + «вниз»
-        const t = lerp(LOOK_AHEAD_MIN, LOOK_AHEAD_MAX, norm);
-        const lookLon = a.lon * (1 - t) + b.lon * t;
-        const lookLat = a.lat * (1 - t) + b.lat * t;
-        const lookAlt = Math.max(50, EYE_ALT * LOOK_REL_DOWN);
-
-        // 3) Длительность/пауза — тоже от расстояния
-        const duration = Math.round(lerp(DUR_MIN_MS, DUR_MAX_MS, norm));
-        const pause    = Math.round(lerp(PAUSE_NEAR_MS, PAUSE_FAR_MS, norm));
-
-        const camLL  = new LonLat(a.lon, a.lat, EYE_ALT);
-        const lookLL = new LonLat(lookLon, lookLat, lookAlt);
-
-        const ell = globeRef.current.planet.ellipsoid;
         globeRef.current.planet.camera.flyCartesian(
-          ell.lonLatToCartesian(camLL),
+          ell.lonLatToCartesian(eyeLL),
           {
             look: ell.lonLatToCartesian(lookLL),
-            duration,
+            duration: TICK_MS,
             completeCallback: () => {
-              if (destroyed || pausedRef.current) return;
-              step = j;
-              clearT();
-              timerRef.current = setTimeout(fly, pause);
+              if (!destroyed && !pausedRef.current) {
+                loopRef.current = setTimeout(tick, 0);
+              }
             }
           }
         );
       };
 
-      // старт
-      clearT();
-      timerRef.current = setTimeout(fly, 500);
+      loopRef.current = setTimeout(tick, 200);
     })();
 
     return () => {
       destroyed = true;
       try { globeRef.current?.destroy?.(); } catch {}
       globeRef.current = null;
-      clearT();
+      stopLoop();
     };
   }, [ready, tourPts]);
 
   // Сняли паузу — мягкий рестарт
   useEffect(() => {
-    if (!paused && !timerRef.current) {
-      timerRef.current = setTimeout(() => {
+    if (!paused && !loopRef.current) {
+      loopRef.current = setTimeout(() => {
         const evt = new Event('og:resume');
         window.dispatchEvent(evt);
-      }, 200);
+      }, 150);
     }
   }, [paused]);
 

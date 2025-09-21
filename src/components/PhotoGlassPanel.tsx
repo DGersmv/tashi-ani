@@ -74,7 +74,7 @@ export default function PhotoGlassPanel({ project }: { project: Project }) {
             background: "rgba(255,255,255,0.15)",
             backdropFilter: "blur(32px)", // стеклянный эффект
             border: "2.5px solid rgba(36,250,255,0.16)",
-            boxShadow: "0 0 56px 10px #00fff944, 0 6px 10px #10c9e5b0",
+            
             display: "flex",
             alignItems: "flex-end",
             justifyContent: "stretch",

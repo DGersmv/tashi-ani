@@ -11,6 +11,12 @@ export default function SiteLogo() {
     return () => window.removeEventListener("resize", on);
   }, []);
 
+  // размеры с учётом увеличения на ~15%
+  const size = isMobile ? 102 : 138; // контейнер
+  const radius = size / 2;
+  const logoSize = size * 0.9; // логотип займёт около 50% контейнера
+  const innerPadding = radius * 0.05; // отступ от границы ≈ 25% радиуса
+
   return (
     <div
       style={{
@@ -29,22 +35,38 @@ export default function SiteLogo() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        width: isMobile ? 96 : 140,
-        height: isMobile ? 96 : 140,
+        width: size,
+        height: size,
         borderRadius: "50%",
-        background: "#40826d",
-        boxShadow: "0 8px 32px 0 #0003, 0 2px 8px rgba(127,165,162,0.11)",
-        border: "2.5px solid #fff8",
+        background: "rgba(64,130,109,0.18)", // лёгкий мятный тон
+        backdropFilter: "blur(18px)",
+        border: "2px solid rgba(255,255,255,0.35)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+        transition: "all 0.3s ease",
       }}
     >
       <Image
         src="/logo_new.png"
         alt="TASHI ANI STUDIO"
-        width={isMobile ? 72 : 112}
-        height={isMobile ? 72 : 112}
-        style={{ borderRadius: "50%", padding: 9, boxShadow: "0 2px 12px rgba(12,39,37,0.44)" }}
+        width={logoSize}
+        height={logoSize}
+        style={{
+          borderRadius: "50%",
+          padding: innerPadding, // равный отступ от границы
+          transition: "transform 0.3s ease",
+        }}
         priority
       />
+      <style jsx>{`
+        div:hover {
+          border-color: rgba(255, 255, 255, 0.55);
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22),
+            0 0 12px rgba(64, 130, 109, 0.4);
+        }
+        div:hover img {
+          transform: scale(1.05);
+        }
+      `}</style>
     </div>
   );
 }

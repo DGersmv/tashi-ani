@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "export": "next export"
+},
   "dependencies": {
     "@openglobus/og": "^0.26.6",
     "@tailwindcss/postcss": "^4.1.11",
@@ -31,3 +31,8 @@
     "typescript": "^5.5.4"
   }
 }
+
+
+
+
+

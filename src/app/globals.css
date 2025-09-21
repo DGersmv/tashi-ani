@@ -201,8 +201,27 @@ html, body { overflow-x: hidden; }
   transform: scaleX(1) translateX(0);
 }
 .menu-links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
-.menu-link  { color: #fff; font-weight: 700; padding: 9px 14px; border-radius: 12px; text-decoration: none; letter-spacing: .03em; font-size: clamp(14px, 1.15vw, 18px); }
-.menu-link:hover { background: rgba(255,255,255,0.20); color: #17242f; }
+/* Единый стиль для ссылок и кнопок меню */
+.menu-link {
+  color: #fff;
+  font-weight: 700;
+  padding: 9px 14px;
+  border-radius: 12px;
+  text-decoration: none;
+  letter-spacing: .03em;
+  font-size: clamp(14px, 1.15vw, 18px);
+  font-family: 'ChinaCyr', var(--font-montserrat), sans-serif;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.25s ease, background 0.25s ease;
+}
+
+.menu-link:hover {
+  background: rgba(255, 255, 255, 0.20);
+  color: #17242f;
+}
+
 
 /* =================== МОБИЛЬНОЕ МЕНЮ =================== */
 @media (max-width: 650px) {
@@ -257,4 +276,40 @@ img { display: block; }
   grid-template-columns: repeat(auto-fit, minmax(280px, 420px));
   justify-content: center;
 }
+
+/* ===== PERF HELPERS: слойность и композитинг ===== */
+.gpu {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Изоляция фиксированных слоёв (фон/оверлеи) от репейнтов остальной страницы */
+.fixed-layer {
+  contain: layout paint;
+  will-change: opacity;
+}
+
+/* Если есть стеклянная полоса/панель — чуть облегчаем фильтр и подсказываем композитору */
+.menu-strip {
+  will-change: transform, opacity, filter;
+  backdrop-filter: blur(18px) saturate(1.1);
+}
+
+/* Стабильная ширина viewport: предотвращает сдвиг при появлении скроллбара */
+html { scrollbar-gutter: stable both-edges; }
+
+/* На случай, если где-то не задана переменная, даём безопасное значение по-умолчанию */
+:root { --hero-top: 145px; } /* подгони при желании: высота меню + нужный отступ */
+
+html, body {
+  overflow-y: auto;   /* скролл появляется только если нужен */
+  height: 100%;
+}
+
+html {
+  scrollbar-gutter: stable; /* резерв под скролл */
+}
+
+
   
