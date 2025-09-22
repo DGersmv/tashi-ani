@@ -73,7 +73,7 @@ export default function PhotoGlassPanel({ project }: { project: Project }) {
             overflow: "hidden",
             background: "rgba(255,255,255,0.15)",
             backdropFilter: "blur(32px)", // стеклянный эффект
-            border: "2.5px solid rgba(36,250,255,0.16)",
+            border: "2.5px solid rgba(211,163,115,0.6)",
             
             display: "flex",
             alignItems: "flex-end",
