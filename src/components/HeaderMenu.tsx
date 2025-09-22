@@ -41,7 +41,7 @@ export default function HeaderMenu() {
         borderRadius: 9999,
         backdropFilter: "blur(18px)",
         background: "linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.12))",
-        border: "2px solid rgba(36,250,255,0.16)",
+        border: "2px solid rgba(211, 163, 115, 0.6)",
         boxShadow: "0 8px 24px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.22)",
         padding: "12px 22px", // немного больше внутренний отступ
         overflow: "hidden",
@@ -52,7 +52,7 @@ export default function HeaderMenu() {
         borderRadius: 9999,
         backdropFilter: "blur(18px)",
         background: "linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.12))",
-        border: "2px solid rgba(36,250,255,0.16)",
+        border: "2px solid rgba(90, 107, 151, 0.6)",
         boxShadow: "0 8px 24px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.22)",
         padding: "12px 18px",
         overflow: "hidden",

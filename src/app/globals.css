@@ -86,7 +86,7 @@ html, body { overflow-x: hidden; }
   border-radius: 50%;
   border: none;
   background: rgba(255,255,255,0.14);
-  box-shadow: 0 2px 32px #2225, 0 0px 0px 0 #fff4;
+  box-shadow: 0 2px 32px #a4c3b2, 0 0px 0px 0 #fff4;
   backdrop-filter: blur(14px);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
@@ -187,7 +187,7 @@ html, body { overflow-x: hidden; }
   border-radius: 30px;
   background: rgba(255,255,255,0.20);
   box-shadow: 0 4px 48px #0057;
-  border: 1.5px solid rgba(255,255,255,0.17);
+  border: 1.5px solid rgba(90, 107, 151, 0.884);
   backdrop-filter: blur(22px) saturate(1.18);
   opacity: 0;
   pointer-events: none;

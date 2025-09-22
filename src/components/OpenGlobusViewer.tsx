@@ -209,16 +209,7 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
         ref={containerRef}
         style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', overflow: 'hidden' }}
       />
-      <button
-        onClick={() => setPaused(v => !v)}
-        style={{
-          position: 'absolute', bottom: 12, left: 12, padding: '8px 12px',
-          borderRadius: 8, background: 'rgba(0,0,0,0.6)', color: '#fff',
-          border: 'none', cursor: 'pointer', fontSize: 14, zIndex: 10
-        }}
-      >
-        {paused ? 'Старт' : 'Пауза'}
-      </button>
+      
     </div>
   );
 }

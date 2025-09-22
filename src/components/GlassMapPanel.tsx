@@ -27,8 +27,8 @@ export default function GlassMapPanel() {
         }}
       >
         <motion.div
-          className="group cursor-pointer gpu"      // ← композитный слой для hover
-          onClick={() => setMode("portfolio")}
+          className="group cursor-default gpu"      // ← композитный слой для hover
+          
           // ВАЖНО: filter убрали (дорогие репейнты). Оставляем только transform/opacity.
           whileHover={{ y: -6, scale: 1.015 }}
           transition={{ type: "spring", stiffness: 220, damping: 20 }}
@@ -39,7 +39,7 @@ export default function GlassMapPanel() {
             overflow: "hidden",
             background: "rgba(255,255,255,0.15)",
             backdropFilter: "blur(32px)",            // статичный blur ок; не анимируем
-            border: "2.5px solid rgba(36,250,255,0.16)",
+            border: "2.5px solid rgba(211, 163, 115, 0.6)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -56,7 +56,7 @@ export default function GlassMapPanel() {
               height: "100%",
               borderRadius: "inherit",
               overflow: "hidden",
-              opacity: 0.5,
+              opacity: 0.7,
             }}
             whileHover={{ opacity: 1 }}             // делаем прозрачноcть через Framer (дёшево)
             transition={{ duration: 0.6, ease: "easeInOut" }}

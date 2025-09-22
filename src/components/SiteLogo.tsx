@@ -38,9 +38,9 @@ export default function SiteLogo() {
         width: size,
         height: size,
         borderRadius: "50%",
-        background: "rgba(64,130,109,0.18)", // лёгкий мятный тон
+        background: "rgba(206,214,177,0.18)", // лёгкий мятный тон
         backdropFilter: "blur(18px)",
-        border: "2px solid rgba(255,255,255,0.35)",
+        border: "2px solid rgba(211,163,115,0.6)",
         boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
         transition: "all 0.3s ease",
       }}
