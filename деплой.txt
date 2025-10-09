@@ -1,3 +1,12 @@
+Обновление github 
+git add .
+git commit -m "fix: clean version (no pause, no opacity, no redirect)"
+git push origin master
+
+
+
+
+
 🚀 Деплой проекта tashi-ani на VPS
 1. Подключение к серверу
 ssh root@89.104.67.209

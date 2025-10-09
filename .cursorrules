@@ -1,0 +1,38 @@
+# Cursor project guide for tashi-ani.ru
+project_name: TASHI-ANI
+language: TypeScript / Next.js
+framework: React 18 + Tailwind CSS
+description: >
+  Веб-платформа ландшафтного бюро TASHI-ANI с 3D-картой, 
+  стеклянными панелями и личным кабинетом заказчика. 
+  Основные разделы — Главная, Услуги, Портфолио, Контакты, Вход.
+
+key_files:
+  - src/app/layout.tsx
+  - src/app/page.tsx
+  - src/components/HeaderMenu.tsx
+  - src/components/SiteLogo.tsx
+  - src/components/GlassMapPanel.tsx
+  - src/components/CompanyDescription.tsx
+  - src/components/OpenGlobusViewer.tsx
+  - src/styles/globals.css
+
+ai_rules:
+  - Соблюдать структуру из "карта проекта.txt"
+  - Не использовать lazy, Suspense или dynamic без запроса
+  - Компоненты должны быть максимально чистыми (hooks, motion, tailwind)
+  - Любые визуальные блоки оформлять через стеклянные панели
+  - Цветовая гамма: приглушённые, тёплые тона, акцент — стекло и свет
+  - Основная цель — плавные, кинематографичные переходы
+
+language_preferences:
+  primary_language: Russian
+  secondary_language: English
+  output_style: >
+    Отвечай на русском языке, 
+    в деловом и техническом стиле (архитектурное проектирование, веб-дизайн).
+    Используй пояснения перед кодом, но без лишней «воды».
+    Комментарии в коде — тоже на русском.
+
+interaction_mode: developer
+verbosity: high

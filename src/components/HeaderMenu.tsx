@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useEffect, useState } from "react";
 import { useViewMode } from "@/components/ui/ViewMode";
 
@@ -30,20 +31,20 @@ export default function HeaderMenu() {
     zIndex: 200,
   };
 
-  // ↑↑ ничего кроме размеров panel не трогаем
   const panel: React.CSSProperties = isWide
     ? {
-        // расширили панель на десктопе
         width: "min(58vw, calc(100vw - 64px))",
         maxWidth: "980px",
         minWidth: "640px",
         marginLeft: "auto",
         borderRadius: 9999,
         backdropFilter: "blur(18px)",
-        background: "linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.12))",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.12))",
         border: "2px solid rgba(211, 163, 115, 0.6)",
-        boxShadow: "0 8px 24px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.22)",
-        padding: "12px 22px", // немного больше внутренний отступ
+        boxShadow:
+          "0 8px 24px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.22)",
+        padding: "12px 22px",
         overflow: "hidden",
       }
     : {
@@ -51,14 +52,15 @@ export default function HeaderMenu() {
         margin: "10px auto 0",
         borderRadius: 9999,
         backdropFilter: "blur(18px)",
-        background: "linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.12))",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.12))",
         border: "2px solid rgba(90, 107, 151, 0.6)",
-        boxShadow: "0 8px 24px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.22)",
+        boxShadow:
+          "0 8px 24px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.22)",
         padding: "12px 18px",
         overflow: "hidden",
       };
 
-  // единый шрифт для всех пунктов — ChinaCyr (fallback Montserrat)
   const linkFont: React.CSSProperties = {
     fontFamily: "ChinaCyr, var(--font-montserrat), sans-serif",
     whiteSpace: "nowrap",
@@ -89,24 +91,15 @@ export default function HeaderMenu() {
             {PHONE}
           </a>
 
-          <button
-           type="button"
-            className="menu-link"
-            onClick={() => setMode("home")}
-          >
+          <button type="button" className="menu-link" onClick={() => setMode("home")}>
             Главная
           </button>
 
-          <a className="menu-link" href="#" style={linkFont}>
+          <button type="button" className="menu-link" onClick={() => setMode("services")}>
             Услуги
-          </a>
+          </button>
 
-          
-          <button
-            type="button"
-            className="menu-link"
-            onClick={() => setMode("portfolio")}
-          >
+          <button type="button" className="menu-link" onClick={() => setMode("portfolio")}>
             Портфолио
           </button>
 

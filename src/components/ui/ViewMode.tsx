@@ -1,8 +1,7 @@
-// src/components/ui/ViewMode.tsx
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-type Mode = "home" | "portfolio";
+type Mode = "home" | "portfolio" | "services";
 type Ctx = { mode: Mode; setMode: (m: Mode) => void };
 
 const ViewModeContext = createContext<Ctx>({ mode: "home", setMode: () => {} });
@@ -10,9 +9,10 @@ const ViewModeContext = createContext<Ctx>({ mode: "home", setMode: () => {} });
 export function ViewModeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<Mode>("home");
 
-  // Esc → вернуться на главную
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMode("home"); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMode("home");
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
