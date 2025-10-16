@@ -71,13 +71,13 @@ function ServiceCard({ title, subtitle }: { title: string; subtitle?: string }) 
         transition={{ duration: 0.5, ease: [0.44, 0.13, 0.35, 1.08] }}
         style={{ position: "relative", width: "100%", borderRadius: 16 }}
       >
-        {/* Высота = ширина / 1.41 (aspect-ratio: width / height = 1.41) */}
+        {/* Высота = ширина * 1.41 (aspect-ratio: width / height = 1 / 1.41) */}
         <div
           className="group"
           style={{
             position: "relative",
             width: "100%",
-            aspectRatio: "1.41 / 1",
+            aspectRatio: "1 / 1.41",
             borderRadius: 16,
             overflow: "hidden",
             background: "rgba(255,255,255,0.15)",

@@ -193,13 +193,8 @@ export default function PhotoGlassPanel({ project }: { project: Project }) {
   .panelWrapper {
     width: 100%;
     border-radius: 1.2rem;
-    /* компактная высота на всех экранах */
-    height: clamp(220px, 22vw, 300px);
-  }
-  @media (min-width: 1024px) {
-    .panelWrapper {
-      height: clamp(240px, 20vw, 320px);
-    }
+    /* соотношение: ширина / высота = 1.41 (ширина больше высоты в 1.41 раза) */
+    aspect-ratio: 1.41 / 1;
   }
 
   .lightbox {
