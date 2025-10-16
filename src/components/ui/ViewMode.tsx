@@ -2,7 +2,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-type Mode = "home" | "portfolio";
+type Mode = "home" | "portfolio" | "services";
 type Ctx = { mode: Mode; setMode: (m: Mode) => void };
 
 const ViewModeContext = createContext<Ctx>({ mode: "home", setMode: () => {} });

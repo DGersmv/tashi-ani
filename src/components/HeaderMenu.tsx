@@ -97,9 +97,14 @@ export default function HeaderMenu() {
             Главная
           </button>
 
-          <a className="menu-link" href="#" style={linkFont}>
+          <button
+            type="button"
+            className="menu-link"
+            onClick={() => setMode("services")}
+            style={linkFont}
+          >
             Услуги
-          </a>
+          </button>
 
           
           <button

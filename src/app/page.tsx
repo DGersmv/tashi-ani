@@ -6,6 +6,7 @@ import { useViewMode } from "@/components/ui/ViewMode";
 import CompanyDescription from "@/components/CompanyDescription";
 import GlassMapPanel from "@/components/GlassMapPanel";
 import PortfolioMultiPanels from "@/components/PhotoGlassGrid";
+import ServicesGrid from "@/components/ServicesGrid";
 import BackgroundSlideshow from "@/components/BackgroundSlideshow";
 
 export default function Home() {
@@ -62,7 +63,7 @@ export default function Home() {
               </div>
             </div>
           </motion.div>
-        ) : (
+        ) : mode === "portfolio" ? (
           <motion.div
              key="portfolio"
             initial={{ opacity: 0, y: 12 }}
@@ -74,6 +75,18 @@ export default function Home() {
           <div className="page-wrap">
             <PortfolioMultiPanels />
           </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="services"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.35 }}
+          >
+            <div className="page-wrap">
+              <ServicesGrid />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
