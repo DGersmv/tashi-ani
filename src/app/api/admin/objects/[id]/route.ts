@@ -1,35 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
-
-// Проверка авторизации админа
-async function authenticateAdmin(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const token = authHeader.substring(7);
-  
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    
-    if (decoded.email === process.env.MASTER_ADMIN_EMAIL) {
-      return decoded;
-    }
-    return null;
-  } catch (error) {
-    return null;
-  }
-}
+import { verifyToken } from '@/lib/userManagement';
 
 // GET - получить детальную информацию об объекте
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const admin = await authenticateAdmin(request);
-    if (!admin) {
-      return NextResponse.json({ success: false, message: "Неавторизованный доступ" }, { status: 401 });
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ success: false, message: "Токен авторизации не предоставлен" }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7);
+    const adminData = verifyToken(token);
+
+    if (!adminData || (adminData.role !== 'ADMIN' && adminData.role !== 'MASTER')) {
+      return NextResponse.json({ success: false, message: "Недостаточно прав для просмотра объекта" }, { status: 403 });
     }
 
     const resolvedParams = await params;
