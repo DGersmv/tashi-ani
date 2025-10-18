@@ -123,3 +123,53 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    // Проверяем авторизацию
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Токен авторизации не предоставлен' 
+      }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7);
+    const adminData = verifyToken(token);
+    
+    if (!adminData || (adminData.role !== 'ADMIN' && adminData.role !== 'MASTER')) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Недостаточно прав для удаления пользователей' 
+      }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('id');
+
+    if (!userId) {
+      return NextResponse.json({
+        success: false,
+        message: 'ID пользователя не указан'
+      }, { status: 400 });
+    }
+
+    // Удаляем пользователя
+    await prisma.user.delete({
+      where: { id: parseInt(userId) }
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Пользователь успешно удален'
+    });
+
+  } catch (error) {
+    console.error('Ошибка удаления пользователя:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Внутренняя ошибка сервера'
+    }, { status: 500 });
+  }
+}

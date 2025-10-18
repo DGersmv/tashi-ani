@@ -176,7 +176,7 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
     if (!window.confirm("Вы уверены, что хотите удалить этого заказчика?")) return;
     setError(null);
     try {
-      const response = await fetch("/api/admin/users", {
+      const response = await fetch(`/api/admin/users?id=${id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
