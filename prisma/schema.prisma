@@ -1,0 +1,191 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Пользователи
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(USER)
+  password  String?  // Только для мастер-админа
+  createdAt DateTime @default(now())
+  lastLogin DateTime?
+  status    UserStatus @default(ACTIVE)
+  metadata  String?  // JSON строка с дополнительной информацией (телефон, компания, заметки)
+  
+  objects   Object[]
+  messages  Message[]
+  
+  @@map("users")
+}
+
+// Объекты (участки, дома и т.д.)
+model Object {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  title       String
+  description String?
+  address     String?
+  status      ObjectStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects  Project[]
+  photos    Photo[]
+  documents Document[]
+  messages  Message[]
+  
+  @@map("objects")
+}
+
+// Проекты (дизайн-проекты для объекта)
+model Project {
+  id          Int      @id @default(autoincrement())
+  objectId    Int
+  title       String
+  description String?
+  status      ProjectStatus @default(PLANNING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  object  Object  @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  stages  ProjectStage[]
+  photos  Photo[]
+  documents Document[]
+  messages Message[]
+  
+  @@map("projects")
+}
+
+// Этапы проекта
+model ProjectStage {
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  title       String
+  description String?
+  status      StageStatus @default(PENDING)
+  orderIndex  Int
+  createdAt   DateTime @default(now())
+  
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  photos  Photo[]
+  
+  @@map("project_stages")
+}
+
+// Фотографии
+model Photo {
+  id          Int      @id @default(autoincrement())
+  objectId    Int?
+  projectId   Int?
+  stageId     Int?
+  filename    String
+  originalName String
+  filePath    String
+  fileSize    Int
+  mimeType    String
+  isVisibleToCustomer Boolean @default(false)
+  uploadedAt  DateTime @default(now())
+  
+  object Object?       @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  project Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stage   ProjectStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  
+  @@map("photos")
+}
+
+// Документы
+model Document {
+  id          Int      @id @default(autoincrement())
+  objectId    Int?
+  projectId   Int?
+  filename    String
+  originalName String
+  filePath    String
+  fileSize    Int
+  mimeType    String
+  documentType DocumentType @default(OTHER)
+  isPaid      Boolean  @default(false)
+  uploadedAt  DateTime @default(now())
+  
+  object  Object?  @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@map("documents")
+}
+
+// Сообщения
+model Message {
+  id            Int      @id @default(autoincrement())
+  objectId      Int?
+  projectId     Int?
+  userId        Int
+  content       String
+  isAdminMessage Boolean @default(false)
+  createdAt     DateTime @default(now())
+  
+  object  Object? @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("messages")
+}
+
+// Коды верификации (временные)
+model VerificationCode {
+  id        Int      @id @default(autoincrement())
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  @@map("verification_codes")
+}
+
+// Enums
+enum UserRole {
+  MASTER
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ObjectStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  COMPLETED
+  ON_HOLD
+}
+
+enum StageStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum DocumentType {
+  CONTRACT
+  PLAN
+  PERMIT
+  INVOICE
+  OTHER
+}

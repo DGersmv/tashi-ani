@@ -13,6 +13,113 @@ body {
   font-family: 'ChinaCyr', Arial, Helvetica, sans-serif;
 }
 
+/* Отступы для контента под фиксированным header */
+.main-content {
+  padding-top: 100px; /* Высота header для desktop */
+}
+
+@media (max-width: 1200px) {
+  .main-content {
+    padding-top: 90px; /* Высота header для tablet */
+  }
+}
+
+@media (max-width: 650px) {
+  .main-content {
+    padding-top: 120px; /* Высота header для mobile с вертикальным расположением */
+  }
+}
+
+/* Анимация для спиннера панели входа */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Dashboard стили для предотвращения мерцания */
+.dashboard-section {
+  position: absolute !important;
+  top: 200px !important;
+  left: 0 !important;
+  right: 0 !important;
+  min-height: 100vh !important;
+  z-index: 10 !important;
+}
+
+.dashboardGrid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 16px !important;
+  align-items: start !important;
+}
+
+@media (min-width: 640px) {
+  .dashboardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+  .dashboard-item {
+    grid-column: auto / span 1 !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboardGrid {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 24px !important;
+    padding: 0 4rem !important;
+  }
+  
+  .dashboard-row {
+    display: flex !important;
+    gap: 24px !important;
+    justify-content: center !important;
+    width: 100% !important;
+    max-width: 1200px !important;
+  }
+  
+  .dashboard-item {
+    flex: 0 0 auto !important;
+    width: 300px !important;
+  }
+}
+
+.logout-button-container {
+  position: fixed !important;
+  top: 200px !important;
+  right: 20px !important;
+  z-index: 100 !important;
+}
+
+/* Предотвращение мерцания Dashboard */
+.dashboard-section {
+  opacity: 0;
+  animation: fadeInDashboard 0.3s ease-in-out forwards;
+}
+
+@keyframes fadeInDashboard {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Скрытие панелей до полной загрузки */
+.dashboardGrid {
+  visibility: hidden;
+  transition: visibility 0s, opacity 0.3s ease-in-out;
+}
+
+.dashboardGrid.loaded {
+  visibility: visible;
+}
+
 /* КНОПКА-МЕНЮ */
 .menu-btn {
   width: 56px; height: 56px;
@@ -142,19 +249,45 @@ body {
   transform: scaleX(1) translateX(0);
 }
 .menu-links {
-  display: flex; gap: 32px; align-items: center; height: 100%;
+  display: flex; 
+  gap: 16px; 
+  align-items: center; 
+  height: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 .menu-link {
   color: #fff;
-  font-size: 1.24em;
-  font-weight: bold;
-  padding: 9px 18px;
-  border-radius: 12px;
+  font-size: 1.1em;
+  font-weight: 500;
+  padding: 8px 12px;
   text-decoration: none;
-  transition: background .15s, color .13s;
-  letter-spacing: .06em;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  white-space: nowrap;
+  border-radius: 0 !important;
 }
-.menu-link:hover { background: rgba(255,255,255,0.20); color: #17242f; }
+
+.menu-link:hover { 
+  color: #fff;
+  transform: translateY(-2px);
+  border-radius: 0 !important;
+}
+
+.menu-link.active {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  font-weight: 600;
+  border-bottom: 2px solid rgba(211, 163, 115, 0.8);
+  border-radius: 0 !important;
+}
 .menu-login-btn {
   background: rgba(255,255,255,0.21);
   color: #fff;
@@ -171,9 +304,34 @@ body {
 .menu-login-btn:hover { background: #49ffd5b8; color: #17242f; }
 @media (max-width: 650px) {
   .menu-strip, .menu-strip.open {
-    min-width: 96vw; max-width: 98vw; left: 0; right: 0;
-    padding: 0 10vw;
-    border-radius: 16px;
+    width: 100%;
+    max-width: 90vw;
+    margin: 0 auto;
+    left: auto; right: auto;
+    padding: 6px 8px;
+    border-radius: 12px;
+  }
+  .menu-links { 
+    gap: 4px; 
+    flex-wrap: wrap;
+  }
+  .menu-link  { 
+    font-size: clamp(11px, 3vw, 14px);
+    padding: 4px 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .menu-strip, .menu-strip.open {
+    padding: 4px 6px;
+    border-radius: 8px;
+  }
+  .menu-links { 
+    gap: 3px; 
+  }
+  .menu-link  { 
+    font-size: clamp(10px, 2.8vw, 13px);
+    padding: 3px 5px;
   }
 }
 

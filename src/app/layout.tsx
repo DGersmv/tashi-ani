@@ -1,6 +1,5 @@
 import "./globals.css";
-import SiteLogo from "@/components/SiteLogo";
-import HeaderMenu from "@/components/HeaderMenu";
+import Header from "@/components/Header";
 import { Montserrat_Alternates } from "next/font/google";
 import { ViewModeProvider } from "@/components/ui/ViewMode";
 import ModeSync from "@/components/ui/ModeSync";           // ← синхронизация режима по URL
@@ -41,12 +40,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ModeSync />
           <HtmlModeClass />
 
-          {/* верх сайта */}
-          <SiteLogo />
-          <HeaderMenu />
+          {/* Header */}
+          <Header />
 
           {/* контент страниц */}
-          {children}
+          <div className="main-content">
+            {children}
+          </div>
         </ViewModeProvider>
       </body>
     </html>

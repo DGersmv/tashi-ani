@@ -3,18 +3,32 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "export": "next export"
-},
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "export": "next export",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "node prisma/seed.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop tashi-ani",
+    "pm2:restart": "pm2 restart tashi-ani",
+    "pm2:logs": "pm2 logs tashi-ani"
+  },
   "dependencies": {
     "@openglobus/og": "^0.26.6",
+    "@prisma/client": "^6.17.1",
     "@tailwindcss/postcss": "^4.1.11",
+    "@types/nodemailer": "^7.0.2",
     "autoprefixer": "^10.4.21",
+    "bcryptjs": "^3.0.2",
     "framer-motion": "^12.23.12",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.525.0",
     "next": "^15.4.4",
+    "nodemailer": "^7.0.9",
+    "pdfjs-dist": "^5.4.296",
+    "prisma": "^6.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-swipeable": "^7.0.2",
@@ -22,6 +36,8 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -31,8 +47,3 @@
     "typescript": "^5.5.4"
   }
 }
-
-
-
-
-

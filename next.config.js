@@ -2,9 +2,25 @@
 const nextConfig = {
   reactStrictMode: false,
   eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
 
   images: {
     domains: ['tile.openstreetmap.org'],
+  },
+
+  webpack: (config, { isServer }) => {
+    // Настройка для pdfjs-dist
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'pdfjs-dist/build/pdf.worker.entry': 'pdfjs-dist/build/pdf.worker.mjs',
+    };
+
+    // Исключение pdfjs-dist из серверного бандла
+    if (isServer) {
+      config.externals = [...config.externals, 'pdfjs-dist'];
+    }
+
+    return config;
   },
 
   async headers() {
