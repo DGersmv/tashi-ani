@@ -204,7 +204,10 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
   }
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto", paddingTop: "20px" }}>
+    <div className="object-detail-container" style={{ 
+      maxWidth: "1200px", 
+      margin: "0 auto"
+    }}>
       {/* Заголовок */}
       <div style={{
         marginBottom: "32px",
@@ -759,6 +762,24 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
           isAdmin={false} // Заказчик - не админ, поэтому будут водяные знаки для неоплаченных
         />
       )}
+      
+      <style jsx>{`
+        .object-detail-container {
+          padding-top: 120px; /* Desktop отступ */
+        }
+        
+        @media (max-width: 1200px) {
+          .object-detail-container {
+            padding-top: 110px; /* Tablet отступ */
+          }
+        }
+        
+        @media (max-width: 650px) {
+          .object-detail-container {
+            padding-top: 140px; /* Mobile отступ */
+          }
+        }
+      `}</style>
     </div>
   );
 }
