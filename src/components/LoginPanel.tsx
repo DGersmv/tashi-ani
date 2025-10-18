@@ -50,6 +50,7 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
         setMessage({ type: "info", text: "Отправляем код на ваш email..." });
         
         // Отправляем код на email
+        console.log("🚀 Отправляем запрос на /api/auth/send-code для email:", email);
         const response = await fetch("/api/auth/send-code", {
           method: "POST",
           headers: {
@@ -57,19 +58,24 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
           },
           body: JSON.stringify({ email }),
         });
+        console.log("📡 Получен ответ от API:", response.status, response.statusText);
 
         if (response.ok) {
           const result = await response.json();
+          console.log("🔍 API Response:", result); // Добавляем логирование
           if (result.code) {
             // Показываем код на экране
+            console.log("✅ Код получен:", result.code); // Добавляем логирование
             setDisplayedCode(result.code);
             setMessage({ type: "success", text: "Код сгенерирован! Используйте код ниже для входа." });
             setIsCodeSent(true);
             setStep("showCode");
           } else {
+            console.log("❌ Код не получен в ответе:", result); // Добавляем логирование
             setMessage({ type: "error", text: "Ошибка получения кода. Попробуйте еще раз." });
           }
         } else {
+          console.log("❌ API Error:", response.status, response.statusText); // Добавляем логирование
           setMessage({ type: "error", text: "Ошибка отправки кода. Попробуйте еще раз." });
         }
       } catch (error) {
