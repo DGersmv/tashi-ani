@@ -49,16 +49,15 @@ export async function POST(request: NextRequest) {
     console.log("EMAIL_USER:", process.env.EMAIL_USER ? "✅ настроен" : "❌ не настроен");
     console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "✅ настроен" : "❌ не настроен");
     
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.log(`📝 Код для ${email}: ${code}`);
-      console.log("⚠️ EMAIL_USER и EMAIL_PASS не настроены. Создайте .env.local для реальной отправки email.");
-      
-      return NextResponse.json({ 
-        success: true, 
-        message: "Код отправлен на email",
-        debug: "Режим разработки - код в консоли"
-      });
-    }
+    // Временно отключаем email из-за проблем с Gmail на сервере
+    console.log(`📝 Код для ${email}: ${code}`);
+    console.log("⚠️ EMAIL отключен из-за проблем с Gmail на сервере. Код в логах.");
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: "Код отправлен (проверьте логи сервера)",
+      debug: "Email отключен, код в логах сервера"
+    });
 
     // Настройка транспорта для отправки email
     console.log("📧 Настройка SMTP транспорта...");
