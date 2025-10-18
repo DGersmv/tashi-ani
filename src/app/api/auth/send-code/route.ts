@@ -5,9 +5,11 @@ import { isMasterAdmin, userExists } from "@/lib/userManagement";
 
 export async function POST(request: NextRequest) {
   let code = ""; // Объявляем переменную в начале функции
+  let email = ""; // Объявляем переменную email в начале функции
   try {
     console.log("🔍 POST /api/auth/send-code вызван");
-    const { email } = await request.json();
+    const requestData = await request.json();
+    email = requestData.email;
     console.log("📧 Email для отправки:", email);
 
     if (!email) {
@@ -231,12 +233,7 @@ export async function POST(request: NextRequest) {
     console.error("Ошибка отправки кода:", error);
     
     // Если email не работает, показываем код в консоли для отладки
-    try {
-      const { email } = await request.json().catch(() => ({ email: "unknown" }));
-      console.log(`⚠️ EMAIL НЕ РАБОТАЕТ! Код для ${email}: ${code || "неизвестен"}`);
-    } catch (e) {
-      console.log(`⚠️ EMAIL НЕ РАБОТАЕТ! Ошибка получения кода`);
-    }
+    console.log(`⚠️ EMAIL НЕ РАБОТАЕТ! Код для ${email}: ${code || "неизвестен"}`);
     
     return NextResponse.json({ 
       success: true, 
