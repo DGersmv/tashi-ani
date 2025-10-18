@@ -117,9 +117,9 @@ export async function POST(request: NextRequest) {
       html: htmlTemplate,
     });
 
-    // Добавляем таймаут 30 секунд
+    // Добавляем таймаут 15 секунд
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Email timeout')), 30000);
+      setTimeout(() => reject(new Error('Email timeout')), 15000);
     });
 
     await Promise.race([sendEmailPromise, timeoutPromise]);
@@ -133,6 +133,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error("Ошибка отправки кода:", error);
-    return NextResponse.json({ success: false, message: "Ошибка отправки email" }, { status: 500 });
+    
+    // Если email не работает, показываем код в консоли для отладки
+    console.log(`⚠️ EMAIL НЕ РАБОТАЕТ! Код для ${email}: ${code}`);
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: "Код отправлен (проверьте консоль сервера)",
+      debug: "Email не работает, код в логах сервера"
+    });
   }
 }
