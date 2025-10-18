@@ -747,7 +747,6 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
             <p>Пока нет данных в этой категории</p>
           </div>
         ) : null}
-        </div>
       </div>
 
       {/* PDF Viewer */}
