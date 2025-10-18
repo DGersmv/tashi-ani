@@ -341,7 +341,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   }
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+    <div className="admin-object-detail-container" style={{ maxWidth: "1200px", margin: "0 auto" }}>
       <style jsx>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
@@ -1036,6 +1036,24 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
           </div>
         ) : null}
       </div>
+      
+      <style jsx>{`
+        .admin-object-detail-container {
+          padding-top: 120px; /* Desktop отступ */
+        }
+        
+        @media (max-width: 1200px) {
+          .admin-object-detail-container {
+            padding-top: 110px; /* Tablet отступ */
+          }
+        }
+        
+        @media (max-width: 650px) {
+          .admin-object-detail-container {
+            padding-top: 140px; /* Mobile отступ */
+          }
+        }
+      `}</style>
     </div>
   );
 }
