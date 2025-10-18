@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Генерируем 6-значный код
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    code = Math.floor(100000 + Math.random() * 900000).toString();
     
     // Сохраняем код в базе данных
     await prisma.verificationCode.create({
@@ -240,8 +240,9 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       success: true, 
-      message: "Код отправлен (проверьте консоль сервера)",
-      debug: "Email не работает, код в логах сервера"
+      message: "Код сгенерирован (email не работает)",
+      code: code, // ВАЖНО: возвращаем код для показа на экране
+      debug: "Email не работает, код показан на экране"
     });
   }
 }
