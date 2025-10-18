@@ -5,7 +5,9 @@ import { isMasterAdmin, userExists } from "@/lib/userManagement";
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("🔍 POST /api/auth/send-code вызван");
     const { email } = await request.json();
+    console.log("📧 Email для отправки:", email);
 
     if (!email) {
       return NextResponse.json({ success: false, message: "Email обязателен" }, { status: 400 });
@@ -42,8 +44,12 @@ export async function POST(request: NextRequest) {
     });
     
     // Проверяем, настроены ли переменные окружения
+    console.log("🔧 Проверка переменных окружения:");
+    console.log("EMAIL_USER:", process.env.EMAIL_USER ? "✅ настроен" : "❌ не настроен");
+    console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "✅ настроен" : "❌ не настроен");
+    
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.log(`Код для ${email}: ${code}`);
+      console.log(`📝 Код для ${email}: ${code}`);
       console.log("⚠️ EMAIL_USER и EMAIL_PASS не настроены. Создайте .env.local для реальной отправки email.");
       
       return NextResponse.json({ 
@@ -54,10 +60,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Настройка транспорта для отправки email
+    console.log("📧 Настройка SMTP транспорта...");
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 465, // Используем порт 465 для SSL
-      secure: true, // SSL
+      port: 587, // Используем порт 587 для STARTTLS
+      secure: false, // STARTTLS
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -65,11 +72,11 @@ export async function POST(request: NextRequest) {
       tls: {
         rejectUnauthorized: false
       },
-      connectionTimeout: 10000, // 10 секунд
-      greetingTimeout: 5000,   // 5 секунд
-      socketTimeout: 10000,    // 10 секунд
-      debug: true,             // Включаем отладку
-      logger: true             // Логируем
+      connectionTimeout: 5000, // 5 секунд
+      greetingTimeout: 3000,   // 3 секунды
+      socketTimeout: 5000,    // 5 секунд
+      debug: false,             // Отключаем отладку
+      logger: false             // Отключаем логи
     });
 
     // HTML шаблон письма
@@ -135,6 +142,7 @@ export async function POST(request: NextRequest) {
     console.error("Ошибка отправки кода:", error);
     
     // Если email не работает, показываем код в консоли для отладки
+    const { email } = await request.json().catch(() => ({ email: "unknown" }));
     console.log(`⚠️ EMAIL НЕ РАБОТАЕТ! Код для ${email}: ${code}`);
     
     return NextResponse.json({ 
