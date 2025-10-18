@@ -204,7 +204,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
   }
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+    <div style={{ maxWidth: "1200px", margin: "0 auto", paddingTop: "20px" }}>
       {/* Заголовок */}
       <div style={{
         marginBottom: "32px",
