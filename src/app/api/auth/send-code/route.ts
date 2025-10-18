@@ -4,8 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { isMasterAdmin, userExists } from "@/lib/userManagement";
 
 export async function POST(request: NextRequest) {
-  let code = ""; // Объявляем переменную в начале функции
+  // Генерируем 6-значный код в самом начале
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  console.log("🎲 Сгенерирован код:", code);
   let email = ""; // Объявляем переменную email в начале функции
+  
   try {
     console.log("🔍 POST /api/auth/send-code вызван");
     const requestData = await request.json();
@@ -33,9 +36,6 @@ export async function POST(request: NextRequest) {
         message: "Свяжитесь с администратором для получения доступа" 
       }, { status: 403 });
     }
-
-    // Генерируем 6-значный код
-    code = Math.floor(100000 + Math.random() * 900000).toString();
     
     // Сохраняем код в базе данных
     await prisma.verificationCode.create({
