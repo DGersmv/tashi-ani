@@ -50,8 +50,8 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
         setMessage({ type: "info", text: "Отправляем код на ваш email..." });
         
         // Отправляем код на email
-        console.log("🚀 Отправляем запрос на /api/auth/send-code для email:", email);
-        const response = await fetch("/api/auth/send-code", {
+        console.log("🚀 Отправляем запрос на /api/auth/send-code-simple для email:", email);
+        const response = await fetch("/api/auth/send-code-simple", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
