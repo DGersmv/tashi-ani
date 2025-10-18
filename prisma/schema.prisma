@@ -24,6 +24,7 @@ model User {
   
   objects   Object[]
   messages  Message[]
+  photoComments PhotoComment[]
   
   @@map("users")
 }
@@ -100,8 +101,24 @@ model Photo {
   object Object?       @relation(fields: [objectId], references: [id], onDelete: Cascade)
   project Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   stage   ProjectStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  comments PhotoComment[]
   
   @@map("photos")
+}
+
+// Комментарии к фото
+model PhotoComment {
+  id            Int      @id @default(autoincrement())
+  photoId       Int
+  userId        Int
+  content       String
+  isAdminComment Boolean @default(false)
+  createdAt     DateTime @default(now())
+  
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("photo_comments")
 }
 
 // Документы

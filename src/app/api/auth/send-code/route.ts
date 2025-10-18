@@ -49,34 +49,123 @@ export async function POST(request: NextRequest) {
     console.log("EMAIL_USER:", process.env.EMAIL_USER ? "✅ настроен" : "❌ не настроен");
     console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "✅ настроен" : "❌ не настроен");
     
-    // Временно отключаем email из-за проблем с Gmail на сервере
+    // Определяем SMTP настройки на основе email адреса
+    let smtpConfig;
+    const emailUser = process.env.EMAIL_USER || '';
+    
+    if (emailUser.includes('@tashi-ani.ru')) {
+      // Собственная почта домена
+      console.log("📧 Используем собственную почту домена...");
+      smtpConfig = {
+        host: "smtp.reg.ru", // или mail.tashi-ani.ru
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+        tls: {
+          rejectUnauthorized: false
+        },
+        connectionTimeout: 15000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+        debug: false,
+        logger: false
+      };
+    } else if (emailUser.includes('@yandex.ru') || emailUser.includes('@ya.ru')) {
+      // Yandex почта
+      console.log("📧 Используем Yandex SMTP...");
+      smtpConfig = {
+        host: "smtp.yandex.ru",
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+        tls: {
+          rejectUnauthorized: false
+        },
+        connectionTimeout: 15000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+        debug: false,
+        logger: false
+      };
+    } else if (emailUser.includes('@outlook.com') || emailUser.includes('@hotmail.com')) {
+      // Outlook/Microsoft почта
+      console.log("📧 Используем Outlook SMTP...");
+      smtpConfig = {
+        host: "smtp-mail.outlook.com",
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+        tls: {
+          rejectUnauthorized: false
+        },
+        connectionTimeout: 15000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+        debug: false,
+        logger: false
+      };
+    } else if (emailUser.includes('@proton.me') || emailUser.includes('@protonmail.com')) {
+      // ProtonMail почта
+      console.log("📧 Используем ProtonMail SMTP...");
+      smtpConfig = {
+        host: "smtp.protonmail.com",
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+        tls: {
+          rejectUnauthorized: false
+        },
+        connectionTimeout: 15000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+        debug: false,
+        logger: false
+      };
+    } else {
+      // Gmail или другой провайдер
+      console.log("📧 Используем Gmail SMTP...");
+      smtpConfig = {
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+        tls: {
+          rejectUnauthorized: false
+        },
+        connectionTimeout: 15000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+        debug: false,
+        logger: false
+      };
+    }
+    
+    const transporter = nodemailer.createTransport(smtpConfig);
+
+    // Показываем код на экране вместо отправки email
     console.log(`📝 Код для ${email}: ${code}`);
-    console.log("⚠️ EMAIL отключен из-за проблем с Gmail на сервере. Код в логах.");
+    console.log("📱 Код будет показан на экране пользователю.");
     
     return NextResponse.json({ 
       success: true, 
-      message: "Код отправлен (проверьте логи сервера)",
-      debug: "Email отключен, код в логах сервера"
-    });
-
-    // Настройка транспорта для отправки email
-    console.log("📧 Настройка SMTP транспорта...");
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587, // Используем порт 587 для STARTTLS
-      secure: false, // STARTTLS
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-      tls: {
-        rejectUnauthorized: false
-      },
-      connectionTimeout: 5000, // 5 секунд
-      greetingTimeout: 3000,   // 3 секунды
-      socketTimeout: 5000,    // 5 секунд
-      debug: false,             // Отключаем отладку
-      logger: false             // Отключаем логи
+      message: "Код сгенерирован",
+      code: code, // Возвращаем код для показа на экране
+      debug: "Код показан на экране"
     });
 
     // HTML шаблон письма

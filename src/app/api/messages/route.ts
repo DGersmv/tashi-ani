@@ -4,7 +4,7 @@ import { verifyToken } from '@/lib/userManagement';
 
 export async function POST(request: NextRequest) {
   try {
-    const { content, objectId, projectId, isAdminMessage } = await request.json();
+    const { content, objectId, projectId, isAdminMessage, userEmail } = await request.json();
 
     if (!content || (!objectId && !projectId)) {
       return NextResponse.json({ 
@@ -13,22 +13,41 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    let userId: number;
+
     // Проверяем авторизацию
     const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // Админ с токеном
+      const token = authHeader.substring(7);
+      const userData = verifyToken(token);
+      
+      if (!userData) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Недействительный токен авторизации' 
+        }, { status: 401 });
+      }
+      
+      userId = userData.userId;
+    } else if (userEmail) {
+      // Заказчик без токена - находим пользователя по email
+      const user = await prisma.user.findUnique({
+        where: { email: userEmail }
+      });
+      
+      if (!user) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Пользователь не найден' 
+        }, { status: 404 });
+      }
+      
+      userId = user.id;
+    } else {
       return NextResponse.json({ 
         success: false, 
-        message: 'Токен авторизации не предоставлен' 
-      }, { status: 401 });
-    }
-
-    const token = authHeader.substring(7);
-    const userData = verifyToken(token);
-
-    if (!userData) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Недействительный токен авторизации' 
+        message: 'Необходима авторизация или email пользователя' 
       }, { status: 401 });
     }
 
@@ -38,7 +57,7 @@ export async function POST(request: NextRequest) {
         content,
         objectId: objectId || null,
         projectId: projectId || null,
-        userId: userData.userId,
+        userId: userId,
         isAdminMessage: isAdminMessage || false
       },
       include: {

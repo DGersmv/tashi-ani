@@ -6,6 +6,11 @@
   font-display: swap;
 }
 
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 body {
   background: #111820;
   color: #f6f8fa;
@@ -27,6 +32,40 @@ body {
 @media (max-width: 650px) {
   .main-content {
     padding-top: 140px; /* Увеличили отступ для mobile */
+  }
+}
+
+/* Object Detail Container */
+.object-detail-container {
+  padding-top: 120px; /* Desktop отступ */
+}
+
+@media (max-width: 1200px) {
+  .object-detail-container {
+    padding-top: 110px; /* Tablet отступ */
+  }
+}
+
+@media (max-width: 650px) {
+  .object-detail-container {
+    padding-top: 140px; /* Mobile отступ */
+  }
+}
+
+/* Admin Object Detail Container */
+.admin-object-detail-container {
+  padding-top: 120px; /* Desktop отступ */
+}
+
+@media (max-width: 1200px) {
+  .admin-object-detail-container {
+    padding-top: 110px; /* Tablet отступ */
+  }
+}
+
+@media (max-width: 650px) {
+  .admin-object-detail-container {
+    padding-top: 140px; /* Mobile отступ */
   }
 }
 
@@ -364,5 +403,6 @@ body {
     padding: 3px !important;
   }
 }
+
 
 

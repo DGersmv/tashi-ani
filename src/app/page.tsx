@@ -14,6 +14,7 @@ import UserObjectsGrid from "@/components/UserObjectsGrid";
 import ObjectDetailView from "@/components/ObjectDetailView";
 import AdminObjectsManager from "@/components/AdminObjectsManager";
 import AdminObjectDetailView from "@/components/AdminObjectDetailView";
+import CustomerPhotoViewer from "@/components/CustomerPhotoViewer";
 import Header from "@/components/Header";
 
 export default function Home() {
@@ -190,6 +191,16 @@ export default function Home() {
           <div className="page-wrap">
             <PortfolioMultiPanels />
           </div>
+          </motion.div>
+        ) : mode === "photo-viewer" && isAuthenticated ? (
+          <motion.div
+            key="photo-viewer"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.35 }}
+          >
+            <CustomerPhotoViewer userEmail={localStorage.getItem('userEmail') || ''} />
           </motion.div>
         ) : (
           <motion.div

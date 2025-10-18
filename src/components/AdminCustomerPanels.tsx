@@ -35,6 +35,7 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
     company: "",
     notes: ""
   });
+  const [unreadMessages, setUnreadMessages] = useState<{[key: number]: number}>({});
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -50,6 +51,8 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
         // Фильтруем только обычных пользователей (не мастер-админов)
         const regularUsers = data.users.filter((user: User) => user.role === 'USER');
         setUsers(regularUsers);
+        // Загружаем непрочитанные сообщения для каждого пользователя
+        fetchUnreadMessages(regularUsers);
       } else {
         setError(data.message || "Не удалось загрузить пользователей");
       }
@@ -59,6 +62,26 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchUnreadMessages = async (usersList: User[]) => {
+    const unreadData: {[key: number]: number} = {};
+    
+    for (const user of usersList) {
+      try {
+        // Для админа считаем сообщения от заказчиков (isAdminMessage: false)
+        const response = await fetch(`/api/messages/unread-count?email=${encodeURIComponent(user.email)}&isAdminView=true`);
+        const data = await response.json();
+        if (data.success) {
+          unreadData[user.id] = data.unreadCount;
+        }
+      } catch (err) {
+        console.error(`Ошибка загрузки непрочитанных сообщений для пользователя ${user.id}:`, err);
+        unreadData[user.id] = 0;
+      }
+    }
+    
+    setUnreadMessages(unreadData);
   };
 
   useEffect(() => {
@@ -563,6 +586,19 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
                       }}
                     >
                       Сообщения
+                      {unreadMessages[user.id] > 0 && (
+                        <span style={{
+                          backgroundColor: "rgba(239, 68, 68, 0.9)",
+                          color: "white",
+                          fontSize: "0.7rem",
+                          padding: "2px 6px",
+                          borderRadius: "10px",
+                          marginLeft: "8px",
+                          fontWeight: "bold"
+                        }}>
+                          {unreadMessages[user.id]}
+                        </span>
+                      )}
                     </button>
                   </div>
                   

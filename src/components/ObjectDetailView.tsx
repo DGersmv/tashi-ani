@@ -68,6 +68,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'projects' | 'photos' | 'documents' | 'messages'>('projects');
   const [selectedPDF, setSelectedPDF] = useState<{ id: number; name: string } | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
 
@@ -113,7 +114,8 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
         body: JSON.stringify({
           content: newMessage.trim(),
           objectId: parseInt(objectId),
-          isAdminMessage: false
+          isAdminMessage: false,
+          userEmail: userEmail
         })
       });
       
@@ -484,20 +486,59 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
             {object.photos.map((photo) => (
               <div
                 key={photo.id}
+                onClick={() => setSelectedPhoto(photo)}
                 style={{
                   backgroundColor: "rgba(255, 255, 255, 0.1)",
                   borderRadius: "12px",
                   padding: "16px",
                   backdropFilter: "blur(10px)",
                   border: "1px solid rgba(255, 255, 255, 0.1)",
-                  textAlign: "center"
+                  textAlign: "center",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.05)";
+                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.15)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
                 }}
               >
                 <div style={{
-                  fontSize: "2rem",
-                  marginBottom: "8px"
+                  width: "100%",
+                  height: "120px",
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  marginBottom: "12px",
+                  backgroundColor: "rgba(255,255,255,0.1)"
                 }}>
-                  📷
+                  <img
+                    src={`/api/uploads/objects/${object.id}/${photo.filename}?email=${encodeURIComponent(userEmail)}`}
+                    alt={photo.originalName}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover"
+                    }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                      e.currentTarget.nextElementSibling.style.display = "flex";
+                    }}
+                  />
+                  <div style={{
+                    display: "none",
+                    width: "100%",
+                    height: "100%",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "rgba(255,255,255,0.1)",
+                    color: "rgba(255,255,255,0.7)",
+                    fontSize: "2rem"
+                  }}>
+                    📷
+                  </div>
                 </div>
                 <p style={{
                   fontFamily: "Arial, sans-serif",
@@ -762,24 +803,136 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
           isAdmin={false} // Заказчик - не админ, поэтому будут водяные знаки для неоплаченных
         />
       )}
+
+      {/* Photo Viewer */}
+      {selectedPhoto && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.9)",
+          zIndex: 1000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "20px"
+        }}>
+          <div style={{
+            maxWidth: "90vw",
+            maxHeight: "90vh",
+            backgroundColor: "rgba(255,255,255,0.1)",
+            borderRadius: "12px",
+            padding: "20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px"
+          }}>
+            {/* Header */}
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}>
+              <h2 style={{
+                color: "white",
+                fontSize: "1.5rem",
+                fontFamily: "Arial, sans-serif",
+                margin: 0
+              }}>
+                {selectedPhoto.originalName}
+              </h2>
+              <button
+                onClick={() => setSelectedPhoto(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "white",
+                  fontSize: "2rem",
+                  cursor: "pointer",
+                  padding: "0",
+                  width: "40px",
+                  height: "40px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Photo */}
+            <div style={{
+              maxWidth: "80vw",
+              maxHeight: "60vh",
+              display: "flex",
+              justifyContent: "center"
+            }}>
+              <img
+                src={`/api/uploads/objects/${object.id}/${selectedPhoto.filename}?email=${encodeURIComponent(userEmail)}`}
+                alt={selectedPhoto.originalName}
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  objectFit: "contain",
+                  borderRadius: "8px"
+                }}
+              />
+            </div>
+
+            {/* Navigation */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: "10px"
+            }}>
+              <button
+                onClick={() => {
+                  const currentIndex = object.photos.findIndex(p => p.id === selectedPhoto.id);
+                  const prevIndex = currentIndex > 0 ? currentIndex - 1 : object.photos.length - 1;
+                  setSelectedPhoto(object.photos[prevIndex]);
+                }}
+                style={{
+                  backgroundColor: "rgba(34, 197, 94, 0.8)",
+                  border: "none",
+                  color: "white",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  fontSize: "0.9rem",
+                  fontFamily: "Arial, sans-serif",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease"
+                }}
+              >
+                ← Предыдущее
+              </button>
+              <button
+                onClick={() => {
+                  const currentIndex = object.photos.findIndex(p => p.id === selectedPhoto.id);
+                  const nextIndex = currentIndex < object.photos.length - 1 ? currentIndex + 1 : 0;
+                  setSelectedPhoto(object.photos[nextIndex]);
+                }}
+                style={{
+                  backgroundColor: "rgba(34, 197, 94, 0.8)",
+                  border: "none",
+                  color: "white",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  fontSize: "0.9rem",
+                  fontFamily: "Arial, sans-serif",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease"
+                }}
+              >
+                Следующее →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
-      <style jsx>{`
-        .object-detail-container {
-          padding-top: 120px; /* Desktop отступ */
-        }
-        
-        @media (max-width: 1200px) {
-          .object-detail-container {
-            padding-top: 110px; /* Tablet отступ */
-          }
-        }
-        
-        @media (max-width: 650px) {
-          .object-detail-container {
-            padding-top: 140px; /* Mobile отступ */
-          }
-        }
-      `}</style>
     </div>
   );
 }

@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { readFile } from 'fs/promises';
-import { join } from 'path';
 
 const prisma = new PrismaClient();
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; filename: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { searchParams } = new URL(request.url);
     const email = searchParams.get('email');
-    const resolvedParams = await params;
-    const objectId = parseInt(resolvedParams.id);
-    const filename = resolvedParams.filename;
+    const objectId = parseInt(params.id);
 
     if (!email) {
       return NextResponse.json({ success: false, message: 'Email не предоставлен' }, { status: 400 });
@@ -42,39 +38,39 @@ export async function GET(
       return NextResponse.json({ success: false, message: 'Объект не найден или нет доступа' }, { status: 404 });
     }
 
-    // Проверяем, что фото существует и видимо для заказчика
-    const photo = await prisma.photo.findFirst({
+    // Получаем фото объекта, видимые для заказчика
+    const photos = await prisma.photo.findMany({
       where: {
         objectId: objectId,
-        filename: filename,
         isVisibleToCustomer: true
+      },
+      include: {
+        comments: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
+      },
+      orderBy: {
+        uploadedAt: 'desc'
       }
     });
 
-    if (!photo) {
-      return NextResponse.json({ success: false, message: 'Фото не найдено или нет доступа' }, { status: 404 });
-    }
-
-    // Читаем файл
-    const filePath = join(process.cwd(), 'public', 'uploads', 'objects', objectId.toString(), filename);
-    
-    try {
-      const fileBuffer = await readFile(filePath);
-      
-      return new NextResponse(fileBuffer, {
-        headers: {
-          'Content-Type': photo.mimeType,
-          'Content-Length': fileBuffer.length.toString(),
-          'Cache-Control': 'public, max-age=31536000',
-        },
-      });
-    } catch (fileError) {
-      console.error('Ошибка при чтении файла:', fileError);
-      return NextResponse.json({ success: false, message: 'Файл не найден' }, { status: 404 });
-    }
+    return NextResponse.json({
+      success: true,
+      photos: photos
+    });
 
   } catch (error) {
-    console.error('Ошибка при получении фото:', error);
+    console.error('Ошибка при получении фото объекта:', error);
     return NextResponse.json(
       { success: false, message: 'Внутренняя ошибка сервера' },
       { status: 500 }

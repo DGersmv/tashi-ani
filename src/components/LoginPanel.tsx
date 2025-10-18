@@ -14,9 +14,10 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isHuman, setIsHuman] = useState(false);
-  const [step, setStep] = useState<"email" | "code" | "password">("email");
+  const [step, setStep] = useState<"email" | "code" | "password" | "showCode">("email");
   const [verificationCode, setVerificationCode] = useState("");
   const [isCodeSent, setIsCodeSent] = useState(false);
+  const [displayedCode, setDisplayedCode] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
 
   // Автоматическое скрытие сообщений через 5 секунд (кроме success, которые скрываются сами)
@@ -59,9 +60,15 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
 
         if (response.ok) {
           const result = await response.json();
-          setMessage({ type: "success", text: "Код отправлен! Проверьте ваш email или консоль браузера." });
-          setIsCodeSent(true);
-          setStep("code");
+          if (result.code) {
+            // Показываем код на экране
+            setDisplayedCode(result.code);
+            setMessage({ type: "success", text: "Код сгенерирован! Используйте код ниже для входа." });
+            setIsCodeSent(true);
+            setStep("showCode");
+          } else {
+            setMessage({ type: "error", text: "Ошибка получения кода. Попробуйте еще раз." });
+          }
         } else {
           setMessage({ type: "error", text: "Ошибка отправки кода. Попробуйте еще раз." });
         }
@@ -154,8 +161,14 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
     setStep("email");
     setVerificationCode("");
     setPassword("");
+    setDisplayedCode("");
     setIsCodeSent(false);
     setMessage(null);
+  };
+
+  const handleShowCodeToInput = () => {
+    setStep("code");
+    setVerificationCode(displayedCode);
   };
 
   return (
@@ -288,7 +301,9 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
                       color: "white"
                     }}
                   >
-                    {step === "email" ? "Вход в систему" : "Подтверждение кода"}
+                    {step === "email" ? "Вход в систему" : 
+                     step === "showCode" ? "Код подтверждения" :
+                     "Подтверждение кода"}
                   </h2>
                   <p style={{ 
                     fontSize: "14px",
@@ -297,6 +312,8 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
                   }}>
                     {step === "email" 
                       ? "Введите ваш email для входа" 
+                      : step === "showCode"
+                      ? "Используйте код ниже для входа"
                       : `Код отправлен на ${email}`
                     }
                   </p>
@@ -363,6 +380,59 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* Показ кода на экране */}
+                {step === "showCode" && (
+                  <div style={{
+                    textAlign: "center",
+                    padding: "20px",
+                    background: "rgba(211, 163, 115, 0.1)",
+                    borderRadius: "12px",
+                    border: "2px solid rgba(211, 163, 115, 0.3)",
+                    marginBottom: "16px"
+                  }}>
+                    <div style={{
+                      fontSize: "2.5rem",
+                      fontWeight: "bold",
+                      color: "#d3a373",
+                      letterSpacing: "4px",
+                      marginBottom: "12px",
+                      fontFamily: "monospace"
+                    }}>
+                      {displayedCode}
+                    </div>
+                    <p style={{
+                      fontSize: "14px",
+                      color: "rgba(255,255,255,0.8)",
+                      margin: "0 0 16px 0"
+                    }}>
+                      Введите этот код для входа в систему
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleShowCodeToInput}
+                      style={{
+                        padding: "8px 16px",
+                        background: "rgba(211, 163, 115, 0.8)",
+                        border: "none",
+                        borderRadius: "8px",
+                        color: "white",
+                        fontWeight: "600",
+                        fontSize: "14px",
+                        cursor: "pointer",
+                        transition: "all 0.2s"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(211, 163, 115, 1)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgba(211, 163, 115, 0.8)";
+                      }}
+                    >
+                      Ввести код
+                    </button>
+                  </div>
+                )}
 
                 {/* Форма */}
                 <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -562,7 +632,7 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
                   )}
 
                   {/* Кнопка "Назад" для второго шага */}
-                  {(step === "code" || step === "password") && (
+                  {(step === "code" || step === "password" || step === "showCode") && (
                     <button
                       type="button"
                       onClick={handleBackToEmail}
@@ -591,6 +661,8 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
                         ? (!email || !isHuman || isSubmitting)
                         : step === "password"
                         ? (!password || !isHuman || isSubmitting)
+                        : step === "showCode"
+                        ? true // Кнопка неактивна на этапе показа кода
                         : (!verificationCode || isSubmitting)
                     }
                     style={{
@@ -639,6 +711,7 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
                     ) : (
                       step === "email" ? "Отправить код" : 
                       step === "password" ? "Войти" : 
+                      step === "showCode" ? "Код показан выше" :
                       "Подтвердить"
                     )}
                   </button>
@@ -653,6 +726,8 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
                   }}>
                     {step === "email" 
                       ? 'Нажимая "Отправить код", вы соглашаетесь с нашими условиями использования'
+                      : step === "showCode"
+                      ? "Код действителен в течение 10 минут"
                       : "Проверьте папку 'Спам', если код не пришел"
                     }
                   </p>

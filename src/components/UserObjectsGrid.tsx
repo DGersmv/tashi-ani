@@ -113,7 +113,11 @@ export default function UserObjectsGrid({ userEmail }: UserObjectsGridProps) {
   }
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+    <div style={{ 
+      maxWidth: "1200px", 
+      margin: "0 auto",
+      paddingTop: "120px"
+    }}>
       {/* Заголовок */}
       <div style={{
         marginBottom: "32px",
@@ -335,6 +339,42 @@ export default function UserObjectsGrid({ userEmail }: UserObjectsGridProps) {
               textAlign: "center"
             }}>
               Создан: {formatDate(object.createdAt)}
+            </div>
+
+            {/* Кнопка просмотра фото */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              marginTop: "12px"
+            }}>
+              <button
+                onClick={() => {
+                  localStorage.setItem('selectedObjectId', object.id.toString());
+                  setMode("photo-viewer");
+                }}
+                style={{
+                  backgroundColor: "rgba(34, 197, 94, 0.8)",
+                  border: "none",
+                  color: "white",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  fontSize: "0.8rem",
+                  fontFamily: "Arial, sans-serif",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                  fontWeight: 600
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(34, 197, 94, 1)";
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(34, 197, 94, 0.8)";
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
+              >
+                📸 Фото
+              </button>
             </div>
           </motion.div>
         ))}

@@ -209,7 +209,7 @@ export default function AdminObjectsManager({ adminToken }: AdminObjectsManagerP
   }
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+    <div style={{ maxWidth: "1200px", margin: "0 auto", paddingTop: "150px" }}>
       {/* Заголовок */}
       <div style={{
         marginBottom: "32px",
