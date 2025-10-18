@@ -15,18 +15,18 @@ body {
 
 /* Отступы для контента под фиксированным header */
 .main-content {
-  padding-top: 100px; /* Высота header для desktop */
+  padding-top: 120px; /* Увеличили отступ для desktop */
 }
 
 @media (max-width: 1200px) {
   .main-content {
-    padding-top: 90px; /* Высота header для tablet */
+    padding-top: 110px; /* Увеличили отступ для tablet */
   }
 }
 
 @media (max-width: 650px) {
   .main-content {
-    padding-top: 120px; /* Высота header для mobile с вертикальным расположением */
+    padding-top: 140px; /* Увеличили отступ для mobile */
   }
 }
 

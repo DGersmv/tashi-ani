@@ -38,7 +38,7 @@ export default function Header({ isLoggedIn, isAdmin, onAuthUpdate }: HeaderProp
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 1000,
+        zIndex: 9999,
         backgroundColor: "transparent",
         padding: isMobile ? "8px 16px" : "16px 24px",
         display: isMobile ? "flex" : "flex",
