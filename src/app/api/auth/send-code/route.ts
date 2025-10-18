@@ -56,15 +56,20 @@ export async function POST(request: NextRequest) {
     // Настройка транспорта для отправки email
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      port: 465, // Используем порт 465 для SSL
+      secure: true, // SSL
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
       tls: {
         rejectUnauthorized: false
-      }
+      },
+      connectionTimeout: 10000, // 10 секунд
+      greetingTimeout: 5000,   // 5 секунд
+      socketTimeout: 10000,    // 10 секунд
+      debug: true,             // Включаем отладку
+      logger: true             // Логируем
     });
 
     // HTML шаблон письма
@@ -104,13 +109,20 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    // Отправляем email
-    await transporter.sendMail({
+    // Отправляем email с таймаутом
+    const sendEmailPromise = transporter.sendMail({
       from: `"Tashi-Ani" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Код подтверждения для входа в систему",
       html: htmlTemplate,
     });
+
+    // Добавляем таймаут 30 секунд
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Email timeout')), 30000);
+    });
+
+    await Promise.race([sendEmailPromise, timeoutPromise]);
 
     console.log(`Код отправлен на ${email}: ${code}`);
 
