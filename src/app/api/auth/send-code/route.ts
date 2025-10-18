@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { isMasterAdmin, userExists } from "@/lib/userManagement";
 
 export async function POST(request: NextRequest) {
+  let code = ""; // Объявляем переменную в начале функции
   try {
     console.log("🔍 POST /api/auth/send-code вызван");
     const { email } = await request.json();
@@ -142,8 +143,12 @@ export async function POST(request: NextRequest) {
     console.error("Ошибка отправки кода:", error);
     
     // Если email не работает, показываем код в консоли для отладки
-    const { email } = await request.json().catch(() => ({ email: "unknown" }));
-    console.log(`⚠️ EMAIL НЕ РАБОТАЕТ! Код для ${email}: ${code}`);
+    try {
+      const { email } = await request.json().catch(() => ({ email: "unknown" }));
+      console.log(`⚠️ EMAIL НЕ РАБОТАЕТ! Код для ${email}: ${code || "неизвестен"}`);
+    } catch (e) {
+      console.log(`⚠️ EMAIL НЕ РАБОТАЕТ! Ошибка получения кода`);
+    }
     
     return NextResponse.json({ 
       success: true, 
