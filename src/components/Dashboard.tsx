@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 
 interface DashboardProps {
@@ -9,30 +9,88 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
+  const [userStats, setUserStats] = useState({
+    totalObjects: 0,
+    totalPhotos: 0,
+    totalDocuments: 0,
+    totalMessages: 0
+  });
+  const [userProfile, setUserProfile] = useState<{
+    name?: string;
+    email: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Загружаем данные пользователя
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        // Загружаем профиль пользователя
+        const profileResponse = await fetch(`/api/user/profile?email=${encodeURIComponent(userEmail)}`);
+        const profileData = await profileResponse.json();
+        if (profileData.success) {
+          setUserProfile({
+            name: profileData.user.name,
+            email: profileData.user.email
+          });
+        }
+
+        // Загружаем статистику
+        const statsResponse = await fetch(`/api/user/objects?email=${encodeURIComponent(userEmail)}`);
+        const statsData = await statsResponse.json();
+        if (statsData.success) {
+          const stats = statsData.objects.reduce((acc: any, obj: any) => ({
+            totalObjects: acc.totalObjects + 1,
+            totalPhotos: acc.totalPhotos + (obj._count?.photos || 0),
+            totalDocuments: acc.totalDocuments + (obj._count?.documents || 0),
+            totalMessages: acc.totalMessages + (obj._count?.messages || 0)
+          }), { totalObjects: 0, totalPhotos: 0, totalDocuments: 0, totalMessages: 0 });
+          setUserStats(stats);
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки данных пользователя:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userEmail) {
+      fetchUserData();
+    }
+  }, [userEmail]);
+
   const panels = [
     {
-      id: "project",
-      title: "Проект",
-      icon: "📋",
-      description: "Управление проектами"
+      id: "objects",
+      title: "Мои объекты",
+      icon: "🏠",
+      description: "Управление участками и домами",
+      count: userStats.totalObjects,
+      color: "rgba(59, 130, 246, 0.8)"
     },
     {
       id: "photos",
-      title: "Фото",
+      title: "Фотогалерея",
       icon: "📸",
-      description: "Галерея фотографий"
+      description: "Просмотр фотографий объектов",
+      count: userStats.totalPhotos,
+      color: "rgba(34, 197, 94, 0.8)"
     },
     {
-      id: "3d-tour",
-      title: "3D Тур",
-      icon: "🌐",
-      description: "Интерактивные туры"
+      id: "documents",
+      title: "Документы",
+      icon: "📄",
+      description: "Проекты и документы",
+      count: userStats.totalDocuments,
+      color: "rgba(168, 85, 247, 0.8)"
     },
     {
-      id: "approvals",
-      title: "Согласования",
-      icon: "✅",
-      description: "Статус согласований"
+      id: "messages",
+      title: "Сообщения",
+      icon: "💬",
+      description: "Общение с командой",
+      count: userStats.totalMessages,
+      color: "rgba(245, 158, 11, 0.8)"
     }
   ];
 
@@ -70,9 +128,53 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
               Личный кабинет
             </p>
             <p className="text-lg text-gray-400">
-              {userEmail}
+              {userProfile?.name || userEmail}
             </p>
+            {userProfile?.name && (
+              <p className="text-sm text-gray-500">
+                {userEmail}
+              </p>
+            )}
           </motion.div>
+
+          {/* Статистика */}
+          {!loading && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="mb-8"
+            >
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: "Объектов", value: userStats.totalObjects, color: "rgba(59, 130, 246, 0.8)" },
+                  { label: "Фотографий", value: userStats.totalPhotos, color: "rgba(34, 197, 94, 0.8)" },
+                  { label: "Документов", value: userStats.totalDocuments, color: "rgba(168, 85, 247, 0.8)" },
+                  { label: "Сообщений", value: userStats.totalMessages, color: "rgba(245, 158, 11, 0.8)" }
+                ].map((stat, index) => (
+                  <div
+                    key={stat.label}
+                    className="text-center p-4 rounded-xl"
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.1)",
+                      backdropFilter: "blur(10px)",
+                      border: "1px solid rgba(255,255,255,0.1)"
+                    }}
+                  >
+                    <div 
+                      className="text-2xl font-bold mb-1"
+                      style={{ color: stat.color }}
+                    >
+                      {stat.value}
+                    </div>
+                    <div className="text-sm text-gray-300">
+                      {stat.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
 
           {/* Панели */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -86,6 +188,10 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
                   delay: index * 0.1 
                 }}
                 className="group cursor-pointer"
+                onClick={() => {
+                  // Здесь будет логика перехода к разным разделам
+                  console.log(`Переход к разделу: ${panel.id}`);
+                }}
               >
                 <div
                   className="
@@ -116,6 +222,14 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
 
                   {/* Контент панели */}
                   <div className="relative z-10 h-full flex flex-col items-center justify-center p-6 text-center">
+                    {/* Счетчик */}
+                    <div 
+                      className="absolute top-4 right-4 text-2xl font-bold"
+                      style={{ color: panel.color }}
+                    >
+                      {panel.count}
+                    </div>
+
                     {/* Иконка */}
                     <div 
                       className="text-6xl mb-4 transition-transform duration-300 group-hover:scale-110"
@@ -183,4 +297,6 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
     </div>
   );
 }
+
+
 

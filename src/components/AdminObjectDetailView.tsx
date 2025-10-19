@@ -91,6 +91,14 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   const [updatingPhotos, setUpdatingPhotos] = useState<Set<number>>(new Set());
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [imageUrls, setImageUrls] = useState<{[key: string]: string}>({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteType, setDeleteType] = useState<'photo' | 'document' | 'message' | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [photoComments, setPhotoComments] = useState<any[]>([]);
+  const [newPhotoComment, setNewPhotoComment] = useState('');
+  const [sendingPhotoComment, setSendingPhotoComment] = useState(false);
 
   const objectId = localStorage.getItem('selectedAdminObjectId');
 
@@ -116,6 +124,8 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
       const data = await response.json();
       if (data.success) {
         setObject(data.object);
+        // Загружаем изображения с авторизацией
+        await loadImagesWithAuth(data.object);
       } else {
         setError(data.message || "Не удалось загрузить объект");
       }
@@ -125,6 +135,34 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadImagesWithAuth = async (objectData: any) => {
+    if (!objectData?.photos) return;
+    
+    const newImageUrls: {[key: string]: string} = {};
+    
+    for (const photo of objectData.photos) {
+      if ((photo as any).mimeType?.startsWith('image/')) {
+        try {
+          const response = await fetch(`/api/uploads/objects/${objectData.id}/${photo.filename}/admin`, {
+            headers: {
+              Authorization: `Bearer ${adminToken}`,
+            },
+          });
+          
+          if (response.ok) {
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            newImageUrls[photo.filename] = url;
+          }
+        } catch (error) {
+          console.error(`Ошибка загрузки изображения ${photo.filename}:`, error);
+        }
+      }
+    }
+    
+    setImageUrls(newImageUrls);
   };
 
   const sendMessage = async () => {
@@ -263,11 +301,216 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
     }
   };
 
+  // Удаление фото
+  const deletePhoto = async (photoId: number) => {
+    setDeleteType('photo');
+    setDeleteId(photoId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeletePhoto = async () => {
+    if (!deleteId) return;
+
+    try {
+      const response = await fetch(`/api/admin/objects/${object?.id}/photos`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({ photoId: deleteId })
+      });
+
+      if (!response.ok) {
+        throw new Error('Ошибка удаления фото');
+      }
+
+      // Обновляем локальное состояние
+      if (object) {
+        setObject(prevObject => ({
+          ...prevObject!,
+          photos: prevObject!.photos.filter(photo => photo.id !== deleteId)
+        }));
+      }
+
+      setShowDeleteConfirm(false);
+      setDeleteType(null);
+      setDeleteId(null);
+
+    } catch (error) {
+      console.error('Ошибка удаления фото:', error);
+      alert('Ошибка удаления фото');
+    }
+  };
+
+  // Удаление документа
+  const deleteDocument = async (documentId: number) => {
+    setDeleteType('document');
+    setDeleteId(documentId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteDocument = async () => {
+    if (!deleteId) return;
+
+    try {
+      const response = await fetch(`/api/admin/objects/${object?.id}/documents?documentId=${deleteId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${adminToken}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Ошибка удаления документа');
+      }
+
+      // Обновляем локальное состояние
+      if (object) {
+        setObject(prevObject => ({
+          ...prevObject!,
+          documents: prevObject!.documents.filter(doc => doc.id !== deleteId)
+        }));
+      }
+
+      setShowDeleteConfirm(false);
+      setDeleteType(null);
+      setDeleteId(null);
+
+    } catch (error) {
+      console.error('Ошибка удаления документа:', error);
+      alert('Ошибка удаления документа');
+    }
+  };
+
+  // Удаление сообщения
+  const deleteMessage = async (messageId: number) => {
+    setDeleteType('message');
+    setDeleteId(messageId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteMessage = async () => {
+    if (!deleteId) return;
+
+    try {
+      const response = await fetch(`/api/messages?messageId=${deleteId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${adminToken}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Ошибка удаления сообщения');
+      }
+
+      // Обновляем локальное состояние
+      if (object) {
+        setObject(prevObject => ({
+          ...prevObject!,
+          messages: prevObject!.messages.filter(msg => msg.id !== deleteId)
+        }));
+      }
+
+      setShowDeleteConfirm(false);
+      setDeleteType(null);
+      setDeleteId(null);
+
+    } catch (error) {
+      console.error('Ошибка удаления сообщения:', error);
+      alert('Ошибка удаления сообщения');
+    }
+  };
+
+  // Универсальная функция подтверждения удаления
+  const handleConfirmDelete = async () => {
+    switch (deleteType) {
+      case 'photo':
+        await confirmDeletePhoto();
+        break;
+      case 'document':
+        await confirmDeleteDocument();
+        break;
+      case 'message':
+        await confirmDeleteMessage();
+        break;
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeleteType(null);
+    setDeleteId(null);
+  };
+
+  const fetchPhotoComments = async (photoId: number) => {
+    try {
+      const response = await fetch(`/api/photo-comments?photoId=${photoId}`);
+      const data = await response.json();
+      if (data.success) {
+        setPhotoComments(data.comments);
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки комментариев к фото:', err);
+    }
+  };
+
+  const sendPhotoComment = async () => {
+    if (!newPhotoComment.trim() || !selectedPhoto) return;
+    
+    setSendingPhotoComment(true);
+    try {
+      const response = await fetch('/api/photo-comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({
+          photoId: selectedPhoto.id,
+          content: newPhotoComment.trim()
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setNewPhotoComment('');
+        // Обновляем список комментариев
+        await fetchPhotoComments(selectedPhoto.id);
+      } else {
+        console.error('Ошибка отправки комментария:', data.message);
+      }
+    } catch (err) {
+      console.error('Ошибка отправки комментария:', err);
+    } finally {
+      setSendingPhotoComment(false);
+    }
+  };
+
   useEffect(() => {
     if (objectId && customer && adminToken) {
       fetchObjectDetail();
     }
   }, [objectId, customer, adminToken]);
+
+  // Загружаем комментарии при открытии фото
+  useEffect(() => {
+    if (selectedPhoto) {
+      fetchPhotoComments(selectedPhoto.id);
+    }
+  }, [selectedPhoto]);
+
+  // Очистка blob URLs при размонтировании
+  useEffect(() => {
+    return () => {
+      Object.values(imageUrls).forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [imageUrls]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ru-RU', {
@@ -439,7 +682,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
         {[
           { key: 'all-photos', label: 'Все фото', count: object?.photos?.length || 0, icon: '' },
           { key: 'customer-photos', label: 'Фото для заказчика', count: object?.photos?.filter(p => p.isVisibleToCustomer).length || 0, icon: '' },
-          { key: 'projects', label: 'Проекты', count: object.projects?.length || 0, icon: '' },
+          { key: 'projects', label: 'Проекты', count: object.projects?.flatMap(project => project.documents || []).length || 0, icon: '' },
           { key: 'payments', label: 'Статусы оплаты', count: 0, icon: '' }, // Пока заглушка
           { key: 'messages', label: 'Сообщения', count: object.messages?.length || 0, icon: '' },
           { key: 'documents', label: 'Документы', count: object.documents?.length || 0, icon: '' }
@@ -516,6 +759,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                 {object.photos.map((photo) => (
                   <div
                     key={photo.id}
+                    onClick={() => setSelectedPhoto(photo)}
                     style={{
                       backgroundColor: "rgba(255, 255, 255, 0.1)",
                       borderRadius: "16px",
@@ -548,7 +792,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                     }}>
                       {(photo as any).mimeType?.startsWith('image/') ? (
                         <img
-                          src={`/api/uploads/objects/${object.id}/${photo.filename}`}
+                          src={imageUrls[photo.filename] || `/api/uploads/objects/${object.id}/${photo.filename}/admin`}
                           alt={photo.originalName}
                           style={{
                             width: "100%",
@@ -663,6 +907,35 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                             photo.isVisibleToCustomer ? "Скрыть" : "Показать"
                           )}
                         </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deletePhoto(photo.id);
+                          }}
+                          style={{
+                            background: "rgba(239, 68, 68, 0.8)",
+                            border: "none",
+                            color: "white",
+                            padding: "6px 12px",
+                            borderRadius: "6px",
+                            fontSize: "0.75rem",
+                            fontFamily: "Arial, sans-serif",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            marginLeft: "8px"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.opacity = "0.8";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.opacity = "1";
+                          }}
+                        >
+                          🗑️ Удалить
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -703,6 +976,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                 {object.photos.filter(p => p.isVisibleToCustomer).map((photo) => (
                   <div
                     key={photo.id}
+                    onClick={() => setSelectedPhoto(photo)}
                     style={{
                       backgroundColor: "rgba(34, 197, 94, 0.1)",
                       borderRadius: "16px",
@@ -735,7 +1009,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                     }}>
                       {(photo as any).mimeType?.startsWith('image/') ? (
                         <img
-                          src={`/api/uploads/objects/${object.id}/${photo.filename}`}
+                          src={imageUrls[photo.filename] || `/api/uploads/objects/${object.id}/${photo.filename}/admin`}
                           alt={photo.originalName}
                           style={{
                             width: "100%",
@@ -994,6 +1268,37 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                     }}>
                       {message.content}
                     </p>
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      marginTop: "12px"
+                    }}>
+                      <button
+                        onClick={() => deleteMessage(message.id)}
+                        style={{
+                          background: "rgba(239, 68, 68, 0.8)",
+                          border: "none",
+                          color: "white",
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                          fontSize: "0.75rem",
+                          fontFamily: "Arial, sans-serif",
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px"
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.opacity = "0.8";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.opacity = "1";
+                        }}
+                      >
+                        🗑️ Удалить
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1035,6 +1340,395 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
           </div>
         ) : null}
       </div>
+      
+      {/* Модальное окно подтверждения удаления */}
+      {showDeleteConfirm && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.7)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          pointerEvents: "auto"
+        }}>
+          <div style={{
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            backdropFilter: "blur(10px)",
+            borderRadius: "16px",
+            padding: "32px",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+            maxWidth: "400px",
+            width: "90%",
+            textAlign: "center"
+          }}>
+            <h3 style={{
+              fontFamily: "ChinaCyr, sans-serif",
+              fontSize: "1.5rem",
+              color: "white",
+              margin: "0 0 20px 0"
+            }}>
+              Подтверждение удаления
+            </h3>
+            <p style={{
+              fontFamily: "Arial, sans-serif",
+              fontSize: "1rem",
+              color: "rgba(255, 255, 255, 0.8)",
+              margin: "0 0 24px 0",
+              lineHeight: "1.5"
+            }}>
+              {deleteType === 'photo' && 'Вы уверены, что хотите удалить это фото?'}
+              {deleteType === 'document' && 'Вы уверены, что хотите удалить этот документ?'}
+              {deleteType === 'message' && 'Вы уверены, что хотите удалить это сообщение?'}
+            </p>
+            <div style={{
+              display: "flex",
+              gap: "12px",
+              justifyContent: "center"
+            }}>
+              <button
+                onClick={handleCancelDelete}
+                style={{
+                  backgroundColor: "rgba(107, 114, 128, 0.8)",
+                  border: "none",
+                  color: "white",
+                  padding: "12px 24px",
+                  borderRadius: "8px",
+                  fontSize: "0.9rem",
+                  fontFamily: "Arial, sans-serif",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(107, 114, 128, 1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(107, 114, 128, 0.8)";
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                style={{
+                  backgroundColor: "rgba(239, 68, 68, 0.8)",
+                  border: "none",
+                  color: "white",
+                  padding: "12px 24px",
+                  borderRadius: "8px",
+                  fontSize: "0.9rem",
+                  fontFamily: "Arial, sans-serif",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.8)";
+                }}
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Viewer */}
+      {selectedPhoto && (
+        <div style={{
+          position: "fixed",
+          top: "120px",
+          left: "20px",
+          right: "20px",
+          bottom: "20px",
+          backgroundColor: "rgba(0,0,0,0.9)",
+          borderRadius: "12px",
+          zIndex: 1000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          <div style={{
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(255,255,255,0.1)",
+            padding: "20px",
+            display: "flex",
+            gap: "20px",
+            overflow: "hidden"
+          }}>
+            {/* Левая часть - Фото */}
+            <div style={{
+              flex: "1",
+              display: "flex",
+              flexDirection: "column",
+              gap: "20px"
+            }}>
+              {/* Header */}
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center"
+              }}>
+                <h2 style={{
+                  color: "white",
+                  fontSize: "1.5rem",
+                  fontFamily: "Arial, sans-serif",
+                  margin: 0
+                }}>
+                  {selectedPhoto.originalName}
+                </h2>
+                <button
+                  onClick={() => {
+                    setSelectedPhoto(null);
+                    setPhotoComments([]);
+                    setNewPhotoComment('');
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "white",
+                    fontSize: "2rem",
+                    cursor: "pointer",
+                    padding: "0",
+                    width: "40px",
+                    height: "40px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Photo */}
+              <div style={{
+                flex: "1",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: "400px"
+              }}>
+                <img
+                  src={imageUrls[selectedPhoto.filename] || `/api/uploads/objects/${object?.id}/${selectedPhoto.filename}/admin`}
+                  alt={selectedPhoto.originalName}
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "100%",
+                    objectFit: "contain",
+                    borderRadius: "8px"
+                  }}
+                />
+              </div>
+
+              {/* Navigation */}
+              <div style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "10px"
+              }}>
+                <button
+                  onClick={() => {
+                    const currentIndex = object?.photos.findIndex(p => p.id === selectedPhoto.id) || 0;
+                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : (object?.photos.length || 1) - 1;
+                    if (object?.photos[prevIndex]) {
+                      setSelectedPhoto(object.photos[prevIndex]);
+                    }
+                  }}
+                  style={{
+                    backgroundColor: "rgba(34, 197, 94, 0.8)",
+                    border: "none",
+                    color: "white",
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    fontSize: "0.9rem",
+                    fontFamily: "Arial, sans-serif",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  ← Предыдущее
+                </button>
+                <button
+                  onClick={() => {
+                    const currentIndex = object?.photos.findIndex(p => p.id === selectedPhoto.id) || 0;
+                    const nextIndex = currentIndex < (object?.photos.length || 1) - 1 ? currentIndex + 1 : 0;
+                    if (object?.photos[nextIndex]) {
+                      setSelectedPhoto(object.photos[nextIndex]);
+                    }
+                  }}
+                  style={{
+                    backgroundColor: "rgba(34, 197, 94, 0.8)",
+                    border: "none",
+                    color: "white",
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    fontSize: "0.9rem",
+                    fontFamily: "Arial, sans-serif",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  Следующее →
+                </button>
+              </div>
+            </div>
+
+            {/* Правая часть - Комментарии */}
+            <div style={{
+              width: "350px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+              backgroundColor: "rgba(255,255,255,0.05)",
+              borderRadius: "8px",
+              padding: "16px",
+              maxHeight: "80vh",
+              overflow: "hidden"
+            }}>
+              {/* Заголовок комментариев */}
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                borderBottom: "1px solid rgba(255,255,255,0.2)",
+                paddingBottom: "12px"
+              }}>
+                <h3 style={{
+                  color: "white",
+                  fontSize: "1.1rem",
+                  fontFamily: "Arial, sans-serif",
+                  margin: 0
+                }}>
+                  Комментарии ({photoComments.length})
+                </h3>
+              </div>
+
+              {/* Список комментариев */}
+              <div style={{
+                flex: "1",
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px"
+              }}>
+                {photoComments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    style={{
+                      backgroundColor: comment.isAdminComment ? "rgba(59, 130, 246, 0.1)" : "rgba(255, 255, 255, 0.1)",
+                      borderRadius: "8px",
+                      padding: "12px",
+                      border: `1px solid ${comment.isAdminComment ? "rgba(59, 130, 246, 0.3)" : "rgba(255, 255, 255, 0.1)"}`
+                    }}
+                  >
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      marginBottom: "8px"
+                    }}>
+                      <p style={{
+                        fontFamily: "Arial, sans-serif",
+                        fontSize: "0.85rem",
+                        color: comment.isAdminComment ? "rgba(59, 130, 246, 1)" : "rgba(34, 197, 94, 1)",
+                        margin: 0,
+                        fontWeight: "600"
+                      }}>
+                        {comment.isAdminComment ? "Команда" : (comment.user.name || comment.user.email)}
+                      </p>
+                      <p style={{
+                        fontFamily: "Arial, sans-serif",
+                        fontSize: "0.75rem",
+                        color: "rgba(255,255,255,0.6)",
+                        margin: 0
+                      }}>
+                        {new Date(comment.createdAt).toLocaleDateString('ru-RU', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                    <p style={{
+                      fontFamily: "Arial, sans-serif",
+                      fontSize: "0.9rem",
+                      color: "white",
+                      margin: 0,
+                      lineHeight: "1.4"
+                    }}>
+                      {comment.content}
+                    </p>
+                  </div>
+                ))}
+                
+                {photoComments.length === 0 && (
+                  <div style={{
+                    textAlign: "center",
+                    color: "rgba(255,255,255,0.5)",
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "0.9rem",
+                    padding: "20px"
+                  }}>
+                    Пока нет комментариев
+                  </div>
+                )}
+              </div>
+
+              {/* Форма добавления комментария */}
+              <div style={{
+                borderTop: "1px solid rgba(255,255,255,0.2)",
+                paddingTop: "12px"
+              }}>
+                <textarea
+                  value={newPhotoComment}
+                  onChange={(e) => setNewPhotoComment(e.target.value)}
+                  placeholder="Добавить комментарий..."
+                  style={{
+                    width: "100%",
+                    minHeight: "60px",
+                    padding: "8px",
+                    borderRadius: "6px",
+                    border: "1px solid rgba(255, 255, 255, 0.3)",
+                    backgroundColor: "rgba(255, 255, 255, 0.1)",
+                    color: "white",
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "0.9rem",
+                    resize: "vertical",
+                    marginBottom: "8px"
+                  }}
+                />
+                <button
+                  onClick={sendPhotoComment}
+                  disabled={!newPhotoComment.trim() || sendingPhotoComment}
+                  style={{
+                    width: "100%",
+                    backgroundColor: (!newPhotoComment.trim() || sendingPhotoComment) ? "rgba(107, 114, 128, 0.5)" : "rgba(34, 197, 94, 0.8)",
+                    border: "none",
+                    color: "white",
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    fontSize: "0.9rem",
+                    fontFamily: "Arial, sans-serif",
+                    cursor: (!newPhotoComment.trim() || sendingPhotoComment) ? "not-allowed" : "pointer",
+                    transition: "all 0.3s ease",
+                    opacity: (!newPhotoComment.trim() || sendingPhotoComment) ? 0.6 : 1
+                  }}
+                >
+                  {sendingPhotoComment ? "Отправка..." : "Отправить комментарий"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
     </div>
   );

@@ -86,3 +86,43 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    // Проверяем авторизацию админа
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ success: false, message: 'Не авторизован' }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7);
+    const adminData = verifyToken(token);
+    if (!adminData || (adminData.role !== 'ADMIN' && adminData.role !== 'MASTER')) {
+      return NextResponse.json({ success: false, message: 'Недостаточно прав' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const messageId = searchParams.get('messageId');
+
+    if (!messageId) {
+      return NextResponse.json({ success: false, message: 'ID сообщения обязателен' }, { status: 400 });
+    }
+
+    // Удаляем сообщение
+    await prisma.message.delete({
+      where: { id: parseInt(messageId) }
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Сообщение удалено'
+    });
+
+  } catch (error: any) {
+    console.error('Ошибка удаления сообщения:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Внутренняя ошибка сервера'
+    }, { status: 500 });
+  }
+}
+

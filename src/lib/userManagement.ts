@@ -17,6 +17,10 @@ export interface UserData {
 // Проверка, является ли пользователь мастер-админом
 export async function isMasterAdmin(email: string): Promise<boolean> {
   const masterEmail = process.env.MASTER_ADMIN_EMAIL
+  console.log("🔍 Проверка мастер-админа:");
+  console.log("📧 Входящий email:", email);
+  console.log("🔑 MASTER_ADMIN_EMAIL из env:", masterEmail);
+  console.log("✅ Совпадение:", email === masterEmail);
   return email === masterEmail
 }
 
@@ -29,12 +33,15 @@ export async function userExists(email: string): Promise<boolean> {
 }
 
 // Создание нового пользователя
-export async function createUser(email: string, name?: string): Promise<UserData> {
+export async function createUser(email: string, password: string, name?: string, role: 'USER' | 'MASTER' = 'USER'): Promise<UserData> {
+  const hashedPassword = await bcrypt.hash(password, 10)
+  
   const user = await prisma.user.create({
     data: {
       email,
       name,
-      role: 'USER',
+      password: hashedPassword,
+      role,
       status: 'ACTIVE'
     }
   })
@@ -50,34 +57,25 @@ export async function createUser(email: string, name?: string): Promise<UserData
   }
 }
 
-// Аутентификация мастер-админа по паролю
-export async function authenticateMasterAdmin(email: string, password: string): Promise<{ success: boolean; user?: UserData; token?: string }> {
-  // Временно хардкодим для тестирования
-  const masterEmail = process.env.MASTER_ADMIN_EMAIL || '2277277@bk.ru'
-  const masterPassword = process.env.MASTER_ADMIN_PASSWORD || 'admin123'
-  
-  if (email !== masterEmail) {
-    return { success: false }
-  }
-  
-  if (password !== masterPassword) {
-    return { success: false }
-  }
-  
-  // Найти или создать мастер-админа
-  let user = await prisma.user.findUnique({
+// Аутентификация пользователя по email и паролю
+export async function authenticateUser(email: string, password: string): Promise<{ success: boolean; user?: UserData; token?: string }> {
+  const user = await prisma.user.findUnique({
     where: { email }
   })
   
   if (!user) {
-    user = await prisma.user.create({
-      data: {
-        email,
-        name: 'Master Admin',
-        role: 'MASTER',
-        status: 'ACTIVE'
-      }
-    })
+    return { success: false }
+  }
+  
+  // Проверяем пароль
+  const isPasswordValid = await bcrypt.compare(password, user.password)
+  if (!isPasswordValid) {
+    return { success: false }
+  }
+  
+  // Проверяем статус пользователя
+  if (user.status !== 'ACTIVE') {
+    return { success: false }
   }
   
   // Обновить время последнего входа
@@ -105,6 +103,11 @@ export async function authenticateMasterAdmin(email: string, password: string): 
     },
     token
   }
+}
+
+// Аутентификация мастер-админа по паролю (для обратной совместимости)
+export async function authenticateMasterAdmin(email: string, password: string): Promise<{ success: boolean; user?: UserData; token?: string }> {
+  return await authenticateUser(email, password)
 }
 
 // Аутентификация обычного пользователя по коду

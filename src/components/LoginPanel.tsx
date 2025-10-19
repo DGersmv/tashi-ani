@@ -14,10 +14,7 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isHuman, setIsHuman] = useState(false);
-  const [step, setStep] = useState<"email" | "code" | "password" | "showCode">("email");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [isCodeSent, setIsCodeSent] = useState(false);
-  const [displayedCode, setDisplayedCode] = useState("");
+  const [step, setStep] = useState<"login">("login");
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
 
   // Автоматическое скрытие сообщений через 5 секунд (кроме success, которые скрываются сами)
@@ -32,128 +29,51 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (step === "email") {
-      if (!email || !isHuman) return;
+    
+    if (!email || !password || !isHuman) return;
+    
+    setIsSubmitting(true);
+    setMessage(null);
+    
+    try {
+      setMessage({ type: "info", text: "Входим в систему..." });
       
-      setIsSubmitting(true);
-      setMessage(null);
-      
-      try {
-        // Проверяем, является ли это мастер-админом
-        if (email === "2277277@bk.ru") {
-          setStep("password");
-          setMessage({ type: "info", text: "Введите пароль для мастер-админа" });
-          setIsSubmitting(false);
-          return;
-        }
-        
-        setMessage({ type: "info", text: "Отправляем код на ваш email..." });
-        
-        // Отправляем код на email
-        console.log("🚀 Отправляем запрос на /api/auth/send-code-simple для email:", email);
-        const response = await fetch("/api/auth/send-code-simple", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email }),
-        });
-        console.log("📡 Получен ответ от API:", response.status, response.statusText);
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-        if (response.ok) {
-          const result = await response.json();
-          console.log("🔍 API Response:", result); // Добавляем логирование
-          if (result.code) {
-            // Показываем код на экране
-            console.log("✅ Код получен:", result.code); // Добавляем логирование
-            setDisplayedCode(result.code);
-            setMessage({ type: "success", text: "Код сгенерирован! Используйте код ниже для входа." });
-            setIsCodeSent(true);
-            setStep("showCode");
-          } else {
-            console.log("❌ Код не получен в ответе:", result); // Добавляем логирование
-            setMessage({ type: "error", text: "Ошибка получения кода. Попробуйте еще раз." });
-          }
-        } else {
-          console.log("❌ API Error:", response.status, response.statusText); // Добавляем логирование
-          setMessage({ type: "error", text: "Ошибка отправки кода. Попробуйте еще раз." });
-        }
-      } catch (error) {
-        setMessage({ type: "error", text: "Ошибка подключения. Проверьте интернет-соединение." });
-      } finally {
-        setIsSubmitting(false);
-      }
-    } else if (step === "password") {
-      // Проверяем пароль мастер-админа
-      if (!password || !isHuman) return;
+      const result = await response.json();
       
-      setIsSubmitting(true);
-      setMessage(null);
-      
-      try {
-        setMessage({ type: "info", text: "Проверяем пароль..." });
+      if (result.success) {
+        setMessage({ type: "success", text: "Успешный вход в систему!" });
         
-        const response = await fetch("/api/auth/master-login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, password }),
-        });
-
-        const result = await response.json();
-        
-        if (result.success) {
-          setMessage({ type: "success", text: "Успешный вход в админ панель!" });
-          // Сохраняем токен для админа
-          if (result.token) {
-            localStorage.setItem('adminToken', result.token);
-          }
-          setTimeout(() => {
-            onClose();
-            onLoginSuccess(email, true);
-          }, 1500);
-        } else {
-          setMessage({ type: "error", text: result.message || "Неверный пароль" });
+        // Сохраняем токен
+        if (result.token) {
+          localStorage.setItem('userToken', result.token);
         }
-      } catch (error) {
-        setMessage({ type: "error", text: "Ошибка подключения. Проверьте интернет-соединение." });
-      } finally {
-        setIsSubmitting(false);
-      }
-    } else {
-      // Проверяем код
-      if (!verificationCode) return;
-      
-      setIsSubmitting(true);
-      setMessage(null);
-      
-      try {
-        setMessage({ type: "info", text: "Проверяем код..." });
         
-        const response = await fetch("/api/auth/verify-code", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, code: verificationCode }),
-        });
-
-        if (response.ok) {
-          setMessage({ type: "success", text: "Успешная аутентификация! Переходим в личный кабинет..." });
-          setTimeout(() => {
-            onClose();
-            onLoginSuccess(email, false);
-          }, 1500);
-        } else {
-          const errorData = await response.json();
-          setMessage({ type: "error", text: errorData.error || "Неверный код. Попробуйте еще раз." });
+        // Определяем, является ли пользователь админом
+        const isAdmin = result.user?.role === 'MASTER';
+        if (isAdmin) {
+          localStorage.setItem('adminToken', result.token);
+          localStorage.setItem('isAdmin', 'true');
         }
-      } catch (error) {
-        setMessage({ type: "error", text: "Ошибка подключения. Проверьте интернет-соединение." });
-      } finally {
-        setIsSubmitting(false);
+        
+        setTimeout(() => {
+          onClose();
+          onLoginSuccess(email, isAdmin);
+        }, 1500);
+      } else {
+        setMessage({ type: "error", text: result.message || "Неверный email или пароль" });
       }
+    } catch (error) {
+      setMessage({ type: "error", text: "Ошибка подключения. Проверьте интернет-соединение." });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -163,19 +83,6 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
     }
   };
 
-  const handleBackToEmail = () => {
-    setStep("email");
-    setVerificationCode("");
-    setPassword("");
-    setDisplayedCode("");
-    setIsCodeSent(false);
-    setMessage(null);
-  };
-
-  const handleShowCodeToInput = () => {
-    setStep("code");
-    setVerificationCode(displayedCode);
-  };
 
   return (
     <AnimatePresence>
@@ -307,21 +214,14 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
                       color: "white"
                     }}
                   >
-                    {step === "email" ? "Вход в систему" : 
-                     step === "showCode" ? "Код подтверждения" :
-                     "Подтверждение кода"}
+                    Вход в систему
                   </h2>
                   <p style={{ 
                     fontSize: "14px",
                     color: "rgba(255,255,255,0.8)",
                     margin: 0
                   }}>
-                    {step === "email" 
-                      ? "Введите ваш email для входа" 
-                      : step === "showCode"
-                      ? "Используйте код ниже для входа"
-                      : `Код отправлен на ${email}`
-                    }
+                    Введите email и пароль для входа
                   </p>
                 </div>
 
@@ -387,290 +287,168 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
                   )}
                 </AnimatePresence>
 
-                {/* Показ кода на экране */}
-                {step === "showCode" && (
-                  <div style={{
-                    textAlign: "center",
-                    padding: "20px",
-                    background: "rgba(211, 163, 115, 0.1)",
-                    borderRadius: "12px",
-                    border: "2px solid rgba(211, 163, 115, 0.3)",
-                    marginBottom: "16px"
-                  }}>
-                    <div style={{
-                      fontSize: "2.5rem",
-                      fontWeight: "bold",
-                      color: "#d3a373",
-                      letterSpacing: "4px",
-                      marginBottom: "12px",
-                      fontFamily: "monospace"
-                    }}>
-                      {displayedCode}
-                    </div>
-                    <p style={{
-                      fontSize: "14px",
-                      color: "rgba(255,255,255,0.8)",
-                      margin: "0 0 16px 0"
-                    }}>
-                      Введите этот код для входа в систему
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleShowCodeToInput}
-                      style={{
-                        padding: "8px 16px",
-                        background: "rgba(211, 163, 115, 0.8)",
-                        border: "none",
-                        borderRadius: "8px",
-                        color: "white",
-                        fontWeight: "600",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                        transition: "all 0.2s"
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "rgba(211, 163, 115, 1)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "rgba(211, 163, 115, 0.8)";
-                      }}
-                    >
-                      Ввести код
-                    </button>
-                  </div>
-                )}
 
                 {/* Форма */}
                 <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {step === "email" ? (
-                    <div>
-                      <label 
-                        htmlFor="email"
-                        style={{
-                          display: "block",
-                          color: "rgba(255,255,255,0.9)",
-                          fontSize: "14px",
-                          fontWeight: 500,
-                          marginBottom: "8px"
-                        }}
-                      >
-                        Электронная почта
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="example@email.com"
-                        required
-                        style={{
-                          width: "100%",
-                          padding: "12px 16px",
-                          background: "rgba(255,255,255,0.1)",
-                          backdropFilter: "blur(10px)",
-                          border: "1px solid rgba(255,255,255,0.2)",
-                          borderRadius: 12,
-                          color: "white",
-                          fontSize: "14px",
-                          fontFamily: "Arial, sans-serif",
-                          outline: "none"
-                        }}
-                      />
-                    </div>
-                  ) : step === "password" ? (
-                    <div>
-                      <label 
-                        htmlFor="password"
-                        style={{
-                          display: "block",
-                          color: "rgba(255,255,255,0.9)",
-                          fontSize: "14px",
-                          fontWeight: 500,
-                          marginBottom: "8px"
-                        }}
-                      >
-                        Пароль мастер-админа
-                      </label>
-                      <input
-                        type="password"
-                        id="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Введите пароль"
-                        required
-                        style={{
-                          width: "100%",
-                          padding: "12px 16px",
-                          background: "rgba(255,255,255,0.1)",
-                          backdropFilter: "blur(10px)",
-                          border: "1px solid rgba(255,255,255,0.2)",
-                          borderRadius: 12,
-                          color: "white",
-                          fontSize: "14px",
-                          fontFamily: "Arial, sans-serif",
-                          outline: "none"
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div>
-                      <label 
-                        htmlFor="code"
-                        style={{
-                          display: "block",
-                          color: "rgba(255,255,255,0.9)",
-                          fontSize: "14px",
-                          fontWeight: 500,
-                          marginBottom: "8px"
-                        }}
-                      >
-                        Код подтверждения
-                      </label>
-                      <input
-                        type="text"
-                        id="code"
-                        value={verificationCode}
-                        onChange={(e) => setVerificationCode(e.target.value)}
-                        placeholder="Введите 6-значный код"
-                        required
-                        maxLength={6}
-                        style={{
-                          width: "100%",
-                          padding: "12px 16px",
-                          background: "rgba(255,255,255,0.1)",
-                          backdropFilter: "blur(10px)",
-                          border: "1px solid rgba(255,255,255,0.2)",
-                          borderRadius: 12,
-                          color: "white",
-                          fontSize: "14px",
-                          fontFamily: "Arial, sans-serif",
-                          outline: "none",
-                          textAlign: "center",
-                          letterSpacing: "2px"
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Капча "Я не робот" - только на первом шаге */}
-                  {step === "email" && (
-                    <div 
-                      style={{ 
-                        display: "flex", 
-                        alignItems: "center", 
-                        gap: 12,
-                        padding: "12px 16px",
-                        background: "rgba(255,255,255,0.05)",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        borderRadius: 8,
-                        cursor: "pointer",
-                        transition: "all 0.2s"
-                      }}
-                      onClick={() => setIsHuman(!isHuman)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.08)";
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+                  {/* Email поле */}
+                  <div>
+                    <label 
+                      htmlFor="email"
+                      style={{
+                        display: "block",
+                        color: "rgba(255,255,255,0.9)",
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        marginBottom: "8px"
                       }}
                     >
-                      <input
-                        type="checkbox"
-                        id="isHuman"
-                        checked={isHuman}
-                        onChange={(e) => setIsHuman(e.target.checked)}
-                        style={{
-                          width: 18,
-                          height: 18,
-                          accentColor: "rgba(211, 163, 115, 0.8)",
-                          cursor: "pointer",
-                          margin: 0
-                        }}
-                      />
-                      
-                      {/* Иконка щита */}
-                      <div style={{ 
-                        width: 20, 
-                        height: 20,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
-                      }}>
-                        <svg 
-                          width="16" 
-                          height="16" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke={isHuman ? "rgba(211, 163, 115, 0.8)" : "rgba(255,255,255,0.6)"}
-                          strokeWidth="2"
-                        >
-                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                          <path d="M9 12l2 2 4-4"/>
-                        </svg>
-                      </div>
-
-                      <label
-                        htmlFor="isHuman"
-                        style={{
-                          color: "rgba(255,255,255,0.9)",
-                          fontSize: "14px",
-                          fontFamily: "Arial, sans-serif",
-                          cursor: "pointer",
-                          userSelect: "none",
-                          margin: 0,
-                          flex: 1
-                        }}
-                      >
-                        Я не робот
-                      </label>
-
-                      {/* Дополнительная иконка */}
-                      <div style={{ 
-                        fontSize: "12px",
-                        color: "rgba(255,255,255,0.5)",
-                        fontFamily: "Arial, sans-serif"
-                      }}>
-                        reCAPTCHA
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Кнопка "Назад" для второго шага */}
-                  {(step === "code" || step === "password" || step === "showCode") && (
-                    <button
-                      type="button"
-                      onClick={handleBackToEmail}
+                      Электронная почта
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="example@email.com"
+                      required
                       style={{
                         width: "100%",
-                        padding: "8px 16px",
-                        background: "transparent",
-                        border: "1px solid rgba(255,255,255,0.3)",
-                        borderRadius: 8,
-                        color: "rgba(255,255,255,0.8)",
-                        fontWeight: 500,
+                        padding: "12px 16px",
+                        background: "rgba(255,255,255,0.1)",
+                        backdropFilter: "blur(10px)",
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        borderRadius: 12,
+                        color: "white",
                         fontSize: "14px",
-                        fontFamily: "ChinaCyr, sans-serif",
-                        cursor: "pointer",
-                        transition: "all 0.2s"
+                        fontFamily: "Arial, sans-serif",
+                        outline: "none"
+                      }}
+                    />
+                  </div>
+
+                  {/* Поле пароля */}
+                  <div>
+                    <label 
+                      htmlFor="password"
+                      style={{
+                        display: "block",
+                        color: "rgba(255,255,255,0.9)",
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        marginBottom: "8px"
                       }}
                     >
-                      ← Изменить email
-                    </button>
-                  )}
+                      Пароль
+                    </label>
+                    <input
+                      type="password"
+                      id="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Введите пароль"
+                      required
+                      style={{
+                        width: "100%",
+                        padding: "12px 16px",
+                        background: "rgba(255,255,255,0.1)",
+                        backdropFilter: "blur(10px)",
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        borderRadius: 12,
+                        color: "white",
+                        fontSize: "14px",
+                        fontFamily: "Arial, sans-serif",
+                        outline: "none"
+                      }}
+                    />
+                  </div>
+
+                  {/* Капча "Я не робот" */}
+                  <div 
+                    style={{ 
+                      display: "flex", 
+                      alignItems: "center", 
+                      gap: 12,
+                      padding: "12px 16px",
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      transition: "all 0.2s"
+                    }}
+                    onClick={() => setIsHuman(!isHuman)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      id="isHuman"
+                      checked={isHuman}
+                      onChange={(e) => setIsHuman(e.target.checked)}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        accentColor: "rgba(211, 163, 115, 0.8)",
+                        cursor: "pointer",
+                        margin: 0
+                      }}
+                    />
+                    
+                    {/* Иконка щита */}
+                    <div style={{ 
+                      width: 20, 
+                      height: 20,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}>
+                      <svg 
+                        width="16" 
+                        height="16" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke={isHuman ? "rgba(211, 163, 115, 0.8)" : "rgba(255,255,255,0.6)"}
+                        strokeWidth="2"
+                      >
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        <path d="M9 12l2 2 4-4"/>
+                      </svg>
+                    </div>
+
+                    <label
+                      htmlFor="isHuman"
+                      style={{
+                        color: "rgba(255,255,255,0.9)",
+                        fontSize: "14px",
+                        fontFamily: "Arial, sans-serif",
+                        cursor: "pointer",
+                        userSelect: "none",
+                        margin: 0,
+                        flex: 1
+                      }}
+                    >
+                      Я не робот
+                    </label>
+
+                    {/* Дополнительная иконка */}
+                    <div style={{ 
+                      fontSize: "12px",
+                      color: "rgba(255,255,255,0.5)",
+                      fontFamily: "Arial, sans-serif"
+                    }}>
+                      reCAPTCHA
+                    </div>
+                  </div>
+
 
                   <button
                     type="submit"
-                    disabled={
-                      step === "email" 
-                        ? (!email || !isHuman || isSubmitting)
-                        : step === "password"
-                        ? (!password || !isHuman || isSubmitting)
-                        : step === "showCode"
-                        ? true // Кнопка неактивна на этапе показа кода
-                        : (!verificationCode || isSubmitting)
-                    }
+                    disabled={!email || !password || !isHuman || isSubmitting}
                     style={{
                       width: "100%",
                       padding: "12px 24px",
@@ -681,20 +459,8 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
                       fontWeight: 600,
                       fontSize: "14px",
                       fontFamily: "ChinaCyr, sans-serif",
-                      cursor: (
-                        step === "email" 
-                          ? (email && isHuman && !isSubmitting)
-                          : step === "password"
-                          ? (password && isHuman && !isSubmitting)
-                          : (verificationCode && !isSubmitting)
-                      ) ? "pointer" : "not-allowed",
-                      opacity: (
-                        step === "email" 
-                          ? (email && isHuman ? 1 : 0.6)
-                          : step === "password"
-                          ? (password && isHuman ? 1 : 0.6)
-                          : (verificationCode ? 1 : 0.6)
-                      ),
+                      cursor: (email && password && isHuman && !isSubmitting) ? "pointer" : "not-allowed",
+                      opacity: (email && password && isHuman) ? 1 : 0.6,
                       transition: "all 0.2s"
                     }}
                   >
@@ -708,17 +474,10 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
                           borderRadius: "50%",
                           animation: "spin 1s linear infinite"
                         }}></div>
-                        <span>
-                          {step === "email" ? "Отправляем..." : 
-                           step === "password" ? "Проверяем пароль..." : 
-                           "Проверяем..."}
-                        </span>
+                        <span>Входим...</span>
                       </div>
                     ) : (
-                      step === "email" ? "Отправить код" : 
-                      step === "password" ? "Войти" : 
-                      step === "showCode" ? "Код показан выше" :
-                      "Подтвердить"
+                      "Войти"
                     )}
                   </button>
                 </form>
@@ -730,12 +489,7 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
                     color: "rgba(255,255,255,0.6)",
                     margin: 0
                   }}>
-                    {step === "email" 
-                      ? 'Нажимая "Отправить код", вы соглашаетесь с нашими условиями использования'
-                      : step === "showCode"
-                      ? "Код действителен в течение 10 минут"
-                      : "Проверьте папку 'Спам', если код не пришел"
-                    }
+                    Нажимая "Войти", вы соглашаетесь с нашими условиями использования
                   </p>
                 </div>
               </div>

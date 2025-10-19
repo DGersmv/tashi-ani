@@ -78,13 +78,28 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, name } = body;
+    const { email, name, password, role = 'USER' } = body;
 
     // Проверяем, что email заполнен (обязательное поле)
     if (!email) {
       return NextResponse.json({
         success: false,
         message: 'Email обязателен для заполнения'
+      }, { status: 400 });
+    }
+
+    // Проверяем, что пароль заполнен
+    if (!password) {
+      return NextResponse.json({
+        success: false,
+        message: 'Пароль обязателен для заполнения'
+      }, { status: 400 });
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json({
+        success: false,
+        message: 'Пароль должен содержать минимум 6 символов'
       }, { status: 400 });
     }
 
@@ -100,12 +115,17 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
 
+    // Хешируем пароль
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     // Создаем нового пользователя
     const newUser = await prisma.user.create({
       data: {
         email,
         name: name || null, // name опционально
-        role: 'USER'
+        password: hashedPassword,
+        role: role
       }
     });
 

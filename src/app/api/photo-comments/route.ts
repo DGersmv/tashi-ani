@@ -1,81 +1,94 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { verifyToken } from "@/lib/userManagement";
 
-const prisma = new PrismaClient();
-
-export async function POST(request: NextRequest) {
+// GET - получить комментарии к фото
+export async function GET(request: NextRequest) {
   try {
-    const { photoId, content, userEmail } = await request.json();
+    const { searchParams } = new URL(request.url);
+    const photoId = searchParams.get('photoId');
 
-    if (!photoId || !content || !userEmail) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Не все обязательные поля предоставлены' 
-      }, { status: 400 });
+    if (!photoId) {
+      return NextResponse.json({ success: false, message: "ID фото обязателен" }, { status: 400 });
     }
 
-    // Проверяем, что пользователь существует
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail }
-    });
-
-    if (!user) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Пользователь не найден' 
-      }, { status: 404 });
-    }
-
-    // Проверяем, что фото существует и пользователь имеет к нему доступ
-    const photo = await prisma.photo.findFirst({
-      where: {
-        id: photoId,
-        isVisibleToCustomer: true,
-        object: {
-          user: {
-            email: userEmail
+    const comments = await prisma.photoComment.findMany({
+      where: { photoId: parseInt(photoId) },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
           }
         }
-      }
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    return NextResponse.json({ success: true, comments });
+
+  } catch (error) {
+    console.error("Ошибка получения комментариев к фото:", error);
+    return NextResponse.json({ success: false, message: "Внутренняя ошибка сервера" }, { status: 500 });
+  }
+}
+
+// POST - добавить комментарий к фото
+export async function POST(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('Authorization');
+    const token = authHeader?.split(' ')[1];
+
+    if (!token) {
+      return NextResponse.json({ success: false, message: "Требуется авторизация" }, { status: 401 });
+    }
+
+    const decodedToken = verifyToken(token);
+    if (!decodedToken) {
+      return NextResponse.json({ success: false, message: "Неверный токен" }, { status: 401 });
+    }
+
+    const { photoId, content } = await request.json();
+
+    if (!photoId || !content?.trim()) {
+      return NextResponse.json({ success: false, message: "ID фото и содержание комментария обязательны" }, { status: 400 });
+    }
+
+    // Проверяем, что фото существует
+    const photo = await prisma.photo.findUnique({
+      where: { id: parseInt(photoId) }
     });
 
     if (!photo) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Фото не найдено или нет доступа' 
-      }, { status: 404 });
+      return NextResponse.json({ success: false, message: "Фото не найдено" }, { status: 404 });
     }
 
     // Создаем комментарий
     const comment = await prisma.photoComment.create({
       data: {
-        photoId: photoId,
-        userId: user.id,
+        photoId: parseInt(photoId),
+        userId: decodedToken.userId,
         content: content.trim(),
-        isAdminComment: false
+        isAdminComment: decodedToken.role === 'MASTER'
       },
       include: {
         user: {
           select: {
+            id: true,
             name: true,
-            email: true
+            email: true,
+            role: true
           }
         }
       }
     });
 
-    return NextResponse.json({
-      success: true,
-      comment: comment
-    });
+    return NextResponse.json({ success: true, comment });
 
   } catch (error) {
-    console.error('Ошибка при создании комментария:', error);
-    return NextResponse.json(
-      { success: false, message: 'Внутренняя ошибка сервера' },
-      { status: 500 }
-    );
-  } finally {
-    await prisma.$disconnect();
+    console.error("Ошибка создания комментария к фото:", error);
+    return NextResponse.json({ success: false, message: "Внутренняя ошибка сервера" }, { status: 500 });
   }
 }

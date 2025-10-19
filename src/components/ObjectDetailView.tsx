@@ -71,6 +71,9 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [photoComments, setPhotoComments] = useState<any[]>([]);
+  const [newPhotoComment, setNewPhotoComment] = useState('');
+  const [sendingPhotoComment, setSendingPhotoComment] = useState(false);
 
   const objectId = localStorage.getItem('selectedObjectId');
 
@@ -100,6 +103,13 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
       fetchObjectDetail();
     }
   }, [objectId, userEmail]);
+
+  // Загружаем комментарии при открытии фото
+  useEffect(() => {
+    if (selectedPhoto) {
+      fetchPhotoComments(selectedPhoto.id);
+    }
+  }, [selectedPhoto]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !objectId) return;
@@ -131,6 +141,51 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
       console.error('Ошибка отправки сообщения:', err);
     } finally {
       setSendingMessage(false);
+    }
+  };
+
+  const fetchPhotoComments = async (photoId: number) => {
+    try {
+      const response = await fetch(`/api/photo-comments?photoId=${photoId}`);
+      const data = await response.json();
+      if (data.success) {
+        setPhotoComments(data.comments);
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки комментариев к фото:', err);
+    }
+  };
+
+  const sendPhotoComment = async () => {
+    if (!newPhotoComment.trim() || !selectedPhoto) return;
+    
+    setSendingPhotoComment(true);
+    try {
+      const userToken = localStorage.getItem('userToken');
+      const response = await fetch('/api/photo-comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`
+        },
+        body: JSON.stringify({
+          photoId: selectedPhoto.id,
+          content: newPhotoComment.trim()
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setNewPhotoComment('');
+        // Обновляем список комментариев
+        await fetchPhotoComments(selectedPhoto.id);
+      } else {
+        console.error('Ошибка отправки комментария:', data.message);
+      }
+    } catch (err) {
+      console.error('Ошибка отправки комментария:', err);
+    } finally {
+      setSendingPhotoComment(false);
     }
   };
 
@@ -208,7 +263,8 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
   return (
     <div className="object-detail-container" style={{ 
       maxWidth: "1200px", 
-      margin: "0 auto"
+      margin: "0 auto",
+      paddingTop: "120px"
     }}>
       {/* Заголовок */}
       <div style={{
@@ -283,7 +339,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
         marginLeft: "48px"
       }}>
         {[
-          { key: 'projects', label: 'Проекты', count: object.projects.length },
+          { key: 'projects', label: 'Проекты', count: object.projects.reduce((total, project) => total + (project.documents?.length || 0), 0) },
           { key: 'photos', label: 'Фото', count: object.photos.length },
           { key: 'documents', label: 'Документы', count: object.documents.length },
           { key: 'messages', label: 'Сообщения', count: object.messages.length }
@@ -808,126 +864,282 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
       {selectedPhoto && (
         <div style={{
           position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+          top: "120px",
+          left: "20px",
+          right: "20px",
+          bottom: "20px",
           backgroundColor: "rgba(0,0,0,0.9)",
+          borderRadius: "12px",
           zIndex: 1000,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          padding: "20px"
+          justifyContent: "center"
         }}>
           <div style={{
-            maxWidth: "90vw",
-            maxHeight: "90vh",
+            width: "100%",
+            height: "100%",
             backgroundColor: "rgba(255,255,255,0.1)",
-            borderRadius: "12px",
             padding: "20px",
             display: "flex",
-            flexDirection: "column",
-            gap: "20px"
+            gap: "20px",
+            overflow: "hidden"
           }}>
-            {/* Header */}
+            {/* Левая часть - Фото */}
             <div style={{
+              flex: "1",
               display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center"
+              flexDirection: "column",
+              gap: "20px"
             }}>
-              <h2 style={{
-                color: "white",
-                fontSize: "1.5rem",
-                fontFamily: "Arial, sans-serif",
-                margin: 0
+              {/* Header */}
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center"
               }}>
-                {selectedPhoto.originalName}
-              </h2>
-              <button
-                onClick={() => setSelectedPhoto(null)}
-                style={{
-                  background: "none",
-                  border: "none",
+                <h2 style={{
                   color: "white",
-                  fontSize: "2rem",
-                  cursor: "pointer",
-                  padding: "0",
-                  width: "40px",
-                  height: "40px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                ×
-              </button>
+                  fontSize: "1.5rem",
+                  fontFamily: "Arial, sans-serif",
+                  margin: 0
+                }}>
+                  {selectedPhoto.originalName}
+                </h2>
+                <button
+                  onClick={() => {
+                    setSelectedPhoto(null);
+                    setPhotoComments([]);
+                    setNewPhotoComment('');
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "white",
+                    fontSize: "2rem",
+                    cursor: "pointer",
+                    padding: "0",
+                    width: "40px",
+                    height: "40px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Photo */}
+              <div style={{
+                flex: "1",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: "400px"
+              }}>
+                <img
+                  src={`/api/uploads/objects/${object.id}/${selectedPhoto.filename}?email=${encodeURIComponent(userEmail)}`}
+                  alt={selectedPhoto.originalName}
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "100%",
+                    objectFit: "contain",
+                    borderRadius: "8px"
+                  }}
+                />
+              </div>
+
+              {/* Navigation */}
+              <div style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "10px"
+              }}>
+                <button
+                  onClick={() => {
+                    const currentIndex = object.photos.findIndex(p => p.id === selectedPhoto.id);
+                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : object.photos.length - 1;
+                    setSelectedPhoto(object.photos[prevIndex]);
+                    fetchPhotoComments(object.photos[prevIndex].id);
+                  }}
+                  style={{
+                    backgroundColor: "rgba(34, 197, 94, 0.8)",
+                    border: "none",
+                    color: "white",
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    fontSize: "0.9rem",
+                    fontFamily: "Arial, sans-serif",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  ← Предыдущее
+                </button>
+                <button
+                  onClick={() => {
+                    const currentIndex = object.photos.findIndex(p => p.id === selectedPhoto.id);
+                    const nextIndex = currentIndex < object.photos.length - 1 ? currentIndex + 1 : 0;
+                    setSelectedPhoto(object.photos[nextIndex]);
+                    fetchPhotoComments(object.photos[nextIndex].id);
+                  }}
+                  style={{
+                    backgroundColor: "rgba(34, 197, 94, 0.8)",
+                    border: "none",
+                    color: "white",
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    fontSize: "0.9rem",
+                    fontFamily: "Arial, sans-serif",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  Следующее →
+                </button>
+              </div>
             </div>
 
-            {/* Photo */}
+            {/* Правая часть - Комментарии */}
             <div style={{
-              maxWidth: "80vw",
-              maxHeight: "60vh",
+              width: "350px",
               display: "flex",
-              justifyContent: "center"
+              flexDirection: "column",
+              gap: "16px",
+              backgroundColor: "rgba(255,255,255,0.05)",
+              borderRadius: "8px",
+              padding: "16px",
+              maxHeight: "80vh",
+              overflow: "hidden"
             }}>
-              <img
-                src={`/api/uploads/objects/${object.id}/${selectedPhoto.filename}?email=${encodeURIComponent(userEmail)}`}
-                alt={selectedPhoto.originalName}
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  objectFit: "contain",
-                  borderRadius: "8px"
-                }}
-              />
-            </div>
+              {/* Заголовок комментариев */}
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                borderBottom: "1px solid rgba(255,255,255,0.2)",
+                paddingBottom: "12px"
+              }}>
+                <h3 style={{
+                  color: "white",
+                  fontSize: "1.1rem",
+                  fontFamily: "Arial, sans-serif",
+                  margin: 0
+                }}>
+                  Комментарии ({photoComments.length})
+                </h3>
+              </div>
 
-            {/* Navigation */}
-            <div style={{
-              display: "flex",
-              justifyContent: "center",
-              gap: "10px"
-            }}>
-              <button
-                onClick={() => {
-                  const currentIndex = object.photos.findIndex(p => p.id === selectedPhoto.id);
-                  const prevIndex = currentIndex > 0 ? currentIndex - 1 : object.photos.length - 1;
-                  setSelectedPhoto(object.photos[prevIndex]);
-                }}
-                style={{
-                  backgroundColor: "rgba(34, 197, 94, 0.8)",
-                  border: "none",
-                  color: "white",
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  fontSize: "0.9rem",
-                  fontFamily: "Arial, sans-serif",
-                  cursor: "pointer",
-                  transition: "all 0.3s ease"
-                }}
-              >
-                ← Предыдущее
-              </button>
-              <button
-                onClick={() => {
-                  const currentIndex = object.photos.findIndex(p => p.id === selectedPhoto.id);
-                  const nextIndex = currentIndex < object.photos.length - 1 ? currentIndex + 1 : 0;
-                  setSelectedPhoto(object.photos[nextIndex]);
-                }}
-                style={{
-                  backgroundColor: "rgba(34, 197, 94, 0.8)",
-                  border: "none",
-                  color: "white",
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  fontSize: "0.9rem",
-                  fontFamily: "Arial, sans-serif",
-                  cursor: "pointer",
-                  transition: "all 0.3s ease"
-                }}
-              >
-                Следующее →
-              </button>
+              {/* Список комментариев */}
+              <div style={{
+                flex: "1",
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px"
+              }}>
+                {photoComments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    style={{
+                      backgroundColor: comment.isAdminComment ? "rgba(59, 130, 246, 0.1)" : "rgba(255, 255, 255, 0.1)",
+                      borderRadius: "8px",
+                      padding: "12px",
+                      border: `1px solid ${comment.isAdminComment ? "rgba(59, 130, 246, 0.3)" : "rgba(255, 255, 255, 0.1)"}`
+                    }}
+                  >
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      marginBottom: "8px"
+                    }}>
+                      <p style={{
+                        fontFamily: "Arial, sans-serif",
+                        fontSize: "0.85rem",
+                        color: comment.isAdminComment ? "rgba(59, 130, 246, 1)" : "rgba(34, 197, 94, 1)",
+                        margin: 0,
+                        fontWeight: "600"
+                      }}>
+                        {comment.isAdminComment ? "Команда" : (comment.user.name || comment.user.email)}
+                      </p>
+                      <p style={{
+                        fontFamily: "Arial, sans-serif",
+                        fontSize: "0.75rem",
+                        color: "rgba(255,255,255,0.6)",
+                        margin: 0
+                      }}>
+                        {formatDate(comment.createdAt)}
+                      </p>
+                    </div>
+                    <p style={{
+                      fontFamily: "Arial, sans-serif",
+                      fontSize: "0.9rem",
+                      color: "white",
+                      margin: 0,
+                      lineHeight: "1.4"
+                    }}>
+                      {comment.content}
+                    </p>
+                  </div>
+                ))}
+                
+                {photoComments.length === 0 && (
+                  <div style={{
+                    textAlign: "center",
+                    color: "rgba(255,255,255,0.5)",
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "0.9rem",
+                    padding: "20px"
+                  }}>
+                    Пока нет комментариев
+                  </div>
+                )}
+              </div>
+
+              {/* Форма добавления комментария */}
+              <div style={{
+                borderTop: "1px solid rgba(255,255,255,0.2)",
+                paddingTop: "12px"
+              }}>
+                <textarea
+                  value={newPhotoComment}
+                  onChange={(e) => setNewPhotoComment(e.target.value)}
+                  placeholder="Добавить комментарий..."
+                  style={{
+                    width: "100%",
+                    minHeight: "60px",
+                    padding: "8px",
+                    borderRadius: "6px",
+                    border: "1px solid rgba(255, 255, 255, 0.3)",
+                    backgroundColor: "rgba(255, 255, 255, 0.1)",
+                    color: "white",
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "0.9rem",
+                    resize: "vertical",
+                    marginBottom: "8px"
+                  }}
+                />
+                <button
+                  onClick={sendPhotoComment}
+                  disabled={!newPhotoComment.trim() || sendingPhotoComment}
+                  style={{
+                    width: "100%",
+                    backgroundColor: (!newPhotoComment.trim() || sendingPhotoComment) ? "rgba(107, 114, 128, 0.5)" : "rgba(34, 197, 94, 0.8)",
+                    border: "none",
+                    color: "white",
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    fontSize: "0.9rem",
+                    fontFamily: "Arial, sans-serif",
+                    cursor: (!newPhotoComment.trim() || sendingPhotoComment) ? "not-allowed" : "pointer",
+                    transition: "all 0.3s ease",
+                    opacity: (!newPhotoComment.trim() || sendingPhotoComment) ? 0.6 : 1
+                  }}
+                >
+                  {sendingPhotoComment ? "Отправка..." : "Отправить комментарий"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

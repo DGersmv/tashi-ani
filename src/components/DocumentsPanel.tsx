@@ -31,7 +31,39 @@ export default function DocumentsPanel({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedPDF, setSelectedPDF] = useState<{ id: number; name: string } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleConfirmDelete = async () => {
+    if (!documentToDelete) return;
+
+    try {
+      const response = await fetch(`/api/admin/objects/${objectId}/documents?documentId=${documentToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${adminToken}`
+        }
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        onDocumentsUpdate();
+        setShowDeleteConfirm(false);
+        setDocumentToDelete(null);
+      } else {
+        alert('Ошибка удаления: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Ошибка удаления:', error);
+      alert('Ошибка удаления документа');
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDocumentToDelete(null);
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -467,27 +499,9 @@ export default function DocumentsPanel({
 
                   {/* Удалить */}
                   <button
-                    onClick={async () => {
-                      if (confirm('Вы уверены, что хотите удалить этот документ?')) {
-                        try {
-                          const response = await fetch(`/api/admin/objects/${objectId}/documents?documentId=${document.id}`, {
-                            method: 'DELETE',
-                            headers: {
-                              'Authorization': `Bearer ${adminToken}`
-                            }
-                          });
-
-                          const result = await response.json();
-                          if (result.success) {
-                            onDocumentsUpdate();
-                          } else {
-                            alert('Ошибка удаления: ' + result.message);
-                          }
-                        } catch (error) {
-                          console.error('Ошибка удаления:', error);
-                          alert('Ошибка удаления документа');
-                        }
-                      }
+                    onClick={() => {
+                      setDocumentToDelete(document.id);
+                      setShowDeleteConfirm(true);
                     }}
                     style={{
                       padding: "6px 10px",
@@ -521,6 +535,102 @@ export default function DocumentsPanel({
           source={requirePaymentCheck ? "projects" : "documents"}
           isAdmin={true}
         />
+      )}
+
+      {/* Модальное окно подтверждения удаления */}
+      {showDeleteConfirm && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.7)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          pointerEvents: "auto"
+        }}>
+          <div style={{
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            backdropFilter: "blur(10px)",
+            borderRadius: "16px",
+            padding: "32px",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+            maxWidth: "400px",
+            width: "90%",
+            textAlign: "center"
+          }}>
+            <h3 style={{
+              fontFamily: "ChinaCyr, sans-serif",
+              fontSize: "1.5rem",
+              color: "white",
+              margin: "0 0 20px 0"
+            }}>
+              Подтверждение удаления
+            </h3>
+            <p style={{
+              fontFamily: "Arial, sans-serif",
+              fontSize: "1rem",
+              color: "rgba(255, 255, 255, 0.8)",
+              margin: "0 0 24px 0",
+              lineHeight: "1.5"
+            }}>
+              Вы уверены, что хотите удалить этот документ?
+            </p>
+            <div style={{
+              display: "flex",
+              gap: "12px",
+              justifyContent: "center"
+            }}>
+              <button
+                onClick={handleCancelDelete}
+                style={{
+                  backgroundColor: "rgba(107, 114, 128, 0.8)",
+                  border: "none",
+                  color: "white",
+                  padding: "12px 24px",
+                  borderRadius: "8px",
+                  fontSize: "0.9rem",
+                  fontFamily: "Arial, sans-serif",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(107, 114, 128, 1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(107, 114, 128, 0.8)";
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                style={{
+                  backgroundColor: "rgba(239, 68, 68, 0.8)",
+                  border: "none",
+                  color: "white",
+                  padding: "12px 24px",
+                  borderRadius: "8px",
+                  fontSize: "0.9rem",
+                  fontFamily: "Arial, sans-serif",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.8)";
+                }}
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

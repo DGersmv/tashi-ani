@@ -26,6 +26,8 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
   const [showAddForm, setShowAddForm] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserName, setNewUserName] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState({
@@ -33,9 +35,14 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
     email: "",
     phone: "",
     company: "",
-    notes: ""
+    notes: "",
+    password: ""
   });
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [unreadMessages, setUnreadMessages] = useState<{[key: number]: number}>({});
+  const [userObjectCounts, setUserObjectCounts] = useState<{[key: number]: number}>({});
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -53,6 +60,8 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
         setUsers(regularUsers);
         // Загружаем непрочитанные сообщения для каждого пользователя
         fetchUnreadMessages(regularUsers);
+        // Загружаем количество объектов для каждого пользователя
+        fetchUserObjectCounts(regularUsers);
       } else {
         setError(data.message || "Не удалось загрузить пользователей");
       }
@@ -84,6 +93,27 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
     setUnreadMessages(unreadData);
   };
 
+  const fetchUserObjectCounts = async (usersList: User[]) => {
+    const objectCounts: {[key: number]: number} = {};
+    
+    for (const user of usersList) {
+      try {
+        const response = await fetch(`/api/user/objects?email=${encodeURIComponent(user.email)}`);
+        const data = await response.json();
+        if (data.success) {
+          objectCounts[user.id] = data.objects ? data.objects.length : 0;
+        } else {
+          objectCounts[user.id] = 0;
+        }
+      } catch (err) {
+        console.error(`Ошибка загрузки объектов для пользователя ${user.id}:`, err);
+        objectCounts[user.id] = 0;
+      }
+    }
+    
+    setUserObjectCounts(objectCounts);
+  };
+
   useEffect(() => {
     if (adminToken) {
       fetchUsers();
@@ -104,6 +134,7 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
         body: JSON.stringify({ 
           email: newUserEmail, 
           name: newUserName, 
+          password: newUserPassword,
           role: "USER" 
         }),
       });
@@ -111,6 +142,8 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
       if (data.success) {
         setNewUserEmail("");
         setNewUserName("");
+        setNewUserPassword("");
+        setShowPassword(false);
         setShowAddForm(false);
         fetchUsers(); // Обновляем список
       } else {
@@ -181,11 +214,15 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
           "Content-Type": "application/json",
           Authorization: `Bearer ${adminToken}`,
         },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify({
+          ...editForm,
+          password: editForm.password || undefined
+        }),
       });
       const data = await response.json();
       if (data.success) {
         setEditingUser(null);
+        setShowEditPassword(false);
         fetchUsers(); // Обновляем список
       } else {
         setError(data.message || "Не удалось обновить заказчика");
@@ -196,19 +233,30 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
   };
 
   const handleDeleteUser = async (id: number) => {
-    if (!window.confirm("Вы уверены, что хотите удалить этого заказчика?")) return;
+    const user = users.find(u => u.id === id);
+    if (user) {
+      setUserToDelete(user);
+      setShowDeleteConfirm(true);
+    }
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    
     setError(null);
     try {
-      const response = await fetch(`/api/admin/users?id=${id}`, {
+      const response = await fetch(`/api/admin/users?id=${userToDelete.id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${adminToken}`,
         },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id: userToDelete.id }),
       });
       const data = await response.json();
       if (data.success) {
+        setShowDeleteConfirm(false);
+        setUserToDelete(null);
         fetchUsers(); // Обновляем список
       } else {
         setError(data.message || "Не удалось удалить пользователя");
@@ -216,6 +264,11 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
     } catch (err) {
       setError("Ошибка сети при удалении пользователя");
     }
+  };
+
+  const cancelDeleteUser = () => {
+    setShowDeleteConfirm(false);
+    setUserToDelete(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -254,7 +307,13 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
   }
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+    <div style={{ 
+      maxWidth: "1200px", 
+      margin: "0 auto",
+      position: "relative",
+      zIndex: 1,
+      isolation: "isolate"
+    }}>
       {/* Заголовок и кнопка добавления */}
       <div style={{
         display: "flex",
@@ -358,6 +417,54 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
                 fontFamily: "Arial, sans-serif"
               }}
             />
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Пароль (минимум 6 символов)"
+                value={newUserPassword}
+                onChange={(e) => setNewUserPassword(e.target.value)}
+                required
+                style={{
+                  width: "100%",
+                  padding: "12px 50px 12px 16px",
+                  borderRadius: 8,
+                  border: "2px solid rgba(255,255,255,0.5)",
+                  background: "rgba(255,255,255,0.2)",
+                  color: "white",
+                  fontSize: "1rem",
+                  fontFamily: "Arial, sans-serif",
+                  fontWeight: "bold"
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  color: "rgba(255,255,255,0.7)",
+                  cursor: "pointer",
+                  fontSize: "18px",
+                  padding: "4px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "color 0.2s ease"
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.color = "rgba(255,255,255,1)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.color = "rgba(255,255,255,0.7)";
+                }}
+              >
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
             <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
               <button
                 type="button"
@@ -530,6 +637,15 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
                     </div>
                   )}
                   
+                  <div style={{ 
+                    fontSize: 12, 
+                    color: "rgba(255,255,255,.8)",
+                    fontFamily: "Arial, sans-serif",
+                    fontWeight: 500
+                  }}>
+                    Объектов: {userObjectCounts[user.id] || 0}
+                  </div>
+                  
                   {/* Кнопки действий */}
                   <div style={{
                     display: "flex",
@@ -654,8 +770,9 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          zIndex: 10000,
-          padding: "20px"
+          zIndex: 1000,
+          padding: "20px",
+          pointerEvents: "auto"
         }}>
           <div style={{
             backgroundColor: "rgba(30, 30, 30, 0.95)",
@@ -683,7 +800,10 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
                 Редактирование заказчика
               </h2>
               <button
-                onClick={() => setEditingUser(null)}
+                onClick={() => {
+                  setEditingUser(null);
+                  setShowEditPassword(false);
+                }}
                 style={{
                   background: "rgba(239, 68, 68, 0.8)",
                   border: "none",
@@ -825,6 +945,66 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
                   marginBottom: "6px",
                   fontWeight: "600"
                 }}>
+                  Новый пароль (оставьте пустым, чтобы не менять)
+                </label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    type={showEditPassword ? "text" : "password"}
+                    value={editForm.password}
+                    onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "10px 40px 10px 10px",
+                      borderRadius: "6px",
+                      border: "2px solid rgba(255, 255, 255, 0.5)",
+                      backgroundColor: "rgba(255, 255, 255, 0.2)",
+                      color: "white",
+                      fontFamily: "Arial, sans-serif",
+                      fontSize: "0.9rem",
+                      fontWeight: "bold"
+                    }}
+                    placeholder="Введите новый пароль (минимум 6 символов)"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPassword(!showEditPassword)}
+                    style={{
+                      position: "absolute",
+                      right: "8px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: "rgba(255,255,255,0.7)",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      padding: "2px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "color 0.2s ease"
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.color = "rgba(255,255,255,1)";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.color = "rgba(255,255,255,0.7)";
+                    }}
+                  >
+                    {showEditPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{
+                  display: "block",
+                  color: "white",
+                  fontFamily: "Arial, sans-serif",
+                  fontSize: "0.9rem",
+                  marginBottom: "6px",
+                  fontWeight: "600"
+                }}>
                   Заметки
                 </label>
                 <textarea
@@ -855,9 +1035,10 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
                 <button
                   type="button"
                   onClick={() => {
-                    if (editingUser && window.confirm(`Вы уверены, что хотите удалить заказчика "${editingUser.name || editingUser.email}"? Это действие нельзя отменить.`)) {
-                      handleDeleteUser(editingUser.id);
+                    if (editingUser) {
                       setEditingUser(null);
+                      setShowEditPassword(false);
+                      handleDeleteUser(editingUser.id);
                     }
                   }}
                   style={{
@@ -887,7 +1068,10 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
                 <div style={{ display: "flex", gap: "12px" }}>
                   <button
                     type="button"
-                    onClick={() => setEditingUser(null)}
+                    onClick={() => {
+                      setEditingUser(null);
+                      setShowEditPassword(false);
+                    }}
                     style={{
                       padding: "10px 20px",
                       borderRadius: "6px",
@@ -922,6 +1106,116 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно подтверждения удаления */}
+      {showDeleteConfirm && userToDelete && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.8)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          padding: "20px",
+          pointerEvents: "auto"
+        }}>
+          <div style={{
+            backgroundColor: "rgba(30, 30, 30, 0.95)",
+            borderRadius: "12px",
+            padding: "24px",
+            maxWidth: "400px",
+            width: "100%",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            backdropFilter: "blur(10px)"
+          }}>
+            <div style={{
+              textAlign: "center",
+              marginBottom: "20px"
+            }}>
+              <h3 style={{
+                color: "white",
+                fontFamily: "ChinaCyr, sans-serif",
+                fontSize: "1.3rem",
+                margin: "0 0 10px 0"
+              }}>
+                Подтверждение удаления
+              </h3>
+              <p style={{
+                color: "rgba(255, 255, 255, 0.8)",
+                fontFamily: "Arial, sans-serif",
+                fontSize: "0.9rem",
+                margin: 0
+              }}>
+                Вы уверены, что хотите удалить заказчика <strong style={{ color: "white" }}>"{userToDelete.name || userToDelete.email}"</strong>?
+              </p>
+              <p style={{
+                color: "rgba(239, 68, 68, 0.8)",
+                fontFamily: "Arial, sans-serif",
+                fontSize: "0.8rem",
+                margin: "10px 0 0 0"
+              }}>
+                ⚠️ Это действие нельзя отменить
+              </p>
+            </div>
+
+            <div style={{
+              display: "flex",
+              gap: "12px",
+              justifyContent: "center"
+            }}>
+              <button
+                onClick={cancelDeleteUser}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: "6px",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  color: "white",
+                  fontFamily: "Arial, sans-serif",
+                  fontSize: "0.9rem",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={confirmDeleteUser}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: "6px",
+                  border: "1px solid rgba(239, 68, 68, 0.5)",
+                  backgroundColor: "rgba(239, 68, 68, 0.8)",
+                  color: "white",
+                  fontFamily: "Arial, sans-serif",
+                  fontSize: "0.9rem",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  fontWeight: "600"
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 1)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.8)";
+                }}
+              >
+                Удалить
+              </button>
+            </div>
           </div>
         </div>
       )}

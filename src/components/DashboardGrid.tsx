@@ -34,6 +34,7 @@ export default function DashboardGrid() {
     activeProjectsCount: 0
   });
   const [userEmail, setUserEmail] = useState<string>("");
+  const [userName, setUserName] = useState<string>("");
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -48,10 +49,25 @@ export default function DashboardGrid() {
     const email = localStorage.getItem('userEmail');
     if (email) {
       setUserEmail(email);
-      // Здесь можно загрузить статистику пользователя
+      // Загружаем профиль пользователя
+      loadUserProfile(email);
+      // Загружаем статистику пользователя
       loadUserStats(email);
     }
   }, []);
+
+  const loadUserProfile = async (email: string) => {
+    try {
+      const response = await fetch(`/api/user/profile?email=${encodeURIComponent(email)}`);
+      const result = await response.json();
+      
+      if (result.success && result.user.name) {
+        setUserName(result.user.name);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки профиля:', error);
+    }
+  };
 
   const loadUserStats = async (email: string) => {
     try {
@@ -95,7 +111,6 @@ export default function DashboardGrid() {
       id: "objects",
       title: "Мои объекты",
       description: "Участки, дома и другие объекты",
-      icon: "🏠",
       status: "active",
       count: userStats.objectsCount,
       onClick: () => setMode("objects")
@@ -124,7 +139,7 @@ export default function DashboardGrid() {
             color: "rgba(255,255,255,0.8)",
             fontFamily: "Arial, sans-serif"
           }}>
-            {userEmail ? `Добро пожаловать, ${userEmail}` : "Управляйте своими проектами и настройками"}
+            {userEmail ? `Добро пожаловать, ${userName || userEmail}` : "Управляйте своими проектами и настройками"}
           </p>
         </div>
 

@@ -33,10 +33,11 @@ export default function Home() {
     const checkAuth = () => {
       const userEmail = localStorage.getItem('userEmail');
       const isLoggedIn = localStorage.getItem('isLoggedIn');
+      const userToken = localStorage.getItem('userToken');
       const adminToken = localStorage.getItem('adminToken');
       const isAdminStatus = localStorage.getItem('isAdmin');
       
-      setIsAuthenticated(!!(userEmail && isLoggedIn === 'true'));
+      setIsAuthenticated(!!(userEmail && (isLoggedIn === 'true' || userToken)));
       setIsAdmin(!!(adminToken || isAdminStatus === 'true'));
     };
 
@@ -47,10 +48,11 @@ export default function Home() {
   const handleAuthUpdate = () => {
     const userEmail = localStorage.getItem('userEmail');
     const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const userToken = localStorage.getItem('userToken');
     const adminToken = localStorage.getItem('adminToken');
     const isAdminStatus = localStorage.getItem('isAdmin');
     
-    setIsAuthenticated(!!(userEmail && isLoggedIn === 'true'));
+    setIsAuthenticated(!!(userEmail && (isLoggedIn === 'true' || userToken)));
     setIsAdmin(!!(adminToken || isAdminStatus === 'true'));
   };
 
