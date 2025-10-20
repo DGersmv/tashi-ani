@@ -9,6 +9,7 @@ interface SecurePDFViewerProps {
   onClose: () => void;
   source?: 'documents' | 'projects'; // Источник документа
   isAdmin?: boolean; // Флаг админа - для админа нет ограничений по оплате
+  userEmail?: string; // Email пользователя для заказчиков
 }
 
 interface DocumentStatus {
@@ -18,7 +19,7 @@ interface DocumentStatus {
   documentType: string;
 }
 
-export default function SecurePDFViewer({ documentId, fileName, onClose, source = 'documents', isAdmin = false }: SecurePDFViewerProps) {
+export default function SecurePDFViewer({ documentId, fileName, onClose, source = 'documents', isAdmin = false, userEmail }: SecurePDFViewerProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus | null>(null);
@@ -361,6 +362,7 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
               fileName={fileName}
               source={source}
               scale={scale}
+              userEmail={userEmail}
             />
             
             {/* Водяной знак для неоплаченных документов */}
@@ -469,11 +471,12 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
 }
 
 // Компонент для iframe с правильным URL
-function PDFIframe({ documentId, fileName, source, scale }: { 
+function PDFIframe({ documentId, fileName, source, scale, userEmail }: { 
   documentId: number; 
   fileName: string; 
   source: 'documents' | 'projects'; 
-  scale: number; 
+  scale: number;
+  userEmail?: string;
 }) {
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -488,7 +491,8 @@ function PDFIframe({ documentId, fileName, source, scale }: {
           let fileUrl;
           if (docResult.document.objectId) {
             // Документы объектов
-            fileUrl = `/api/uploads/objects/${docResult.document.objectId}/${docResult.document.filename}#toolbar=1&navpanes=1&scrollbar=1&zoom=${Math.round(scale * 100)}`;
+            const emailParam = userEmail ? `?email=${encodeURIComponent(userEmail)}` : '';
+            fileUrl = `/api/uploads/objects/${docResult.document.objectId}/${docResult.document.filename}${emailParam}#toolbar=1&navpanes=1&scrollbar=1&zoom=${Math.round(scale * 100)}`;
           } else if (docResult.document.projectId) {
             // Документы проектов
             fileUrl = `/api/uploads/projects/${docResult.document.projectId}/${docResult.document.filename}#toolbar=1&navpanes=1&scrollbar=1&zoom=${Math.round(scale * 100)}`;

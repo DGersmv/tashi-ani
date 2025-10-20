@@ -943,6 +943,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
           onClose={() => setSelectedPDF(null)}
           source={activeTab === 'projects' ? "projects" : "documents"}
           isAdmin={false} // Заказчик - не админ, поэтому будут водяные знаки для неоплаченных
+          userEmail={userEmail}
         />
       )}
 
