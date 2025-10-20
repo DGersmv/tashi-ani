@@ -1,35 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { verifyToken } from '@/lib/userManagement';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-// Проверка авторизации админа
-async function authenticateAdmin(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const token = authHeader.substring(7);
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    if (decoded.email === process.env.MASTER_ADMIN_EMAIL) {
-      return decoded;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 // POST - загрузить фото/видео для заказчика
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const admin = await authenticateAdmin(request);
-    if (!admin) {
-      return NextResponse.json({ success: false, message: "Неавторизованный доступ" }, { status: 401 });
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { success: false, message: "Не авторизован" },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.split(" ")[1];
+    const adminData = verifyToken(token);
+
+    if (!adminData || (adminData.role !== "ADMIN" && adminData.role !== "MASTER")) {
+      return NextResponse.json(
+        { success: false, message: "Доступ запрещен" },
+        { status: 403 }
+      );
     }
 
     const resolvedParams = await params;
@@ -114,9 +108,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 // PUT - изменить видимость фото для заказчика
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const admin = await authenticateAdmin(request);
-    if (!admin) {
-      return NextResponse.json({ success: false, message: "Неавторизованный доступ" }, { status: 401 });
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { success: false, message: "Не авторизован" },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.split(" ")[1];
+    const adminData = verifyToken(token);
+
+    if (!adminData || (adminData.role !== "ADMIN" && adminData.role !== "MASTER")) {
+      return NextResponse.json(
+        { success: false, message: "Доступ запрещен" },
+        { status: 403 }
+      );
     }
 
     const resolvedParams = await params;
@@ -151,9 +158,22 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 // DELETE - удалить фото
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const admin = await authenticateAdmin(request);
-    if (!admin) {
-      return NextResponse.json({ success: false, message: "Неавторизованный доступ" }, { status: 401 });
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { success: false, message: "Не авторизован" },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.split(" ")[1];
+    const adminData = verifyToken(token);
+
+    if (!adminData || (adminData.role !== "ADMIN" && adminData.role !== "MASTER")) {
+      return NextResponse.json(
+        { success: false, message: "Доступ запрещен" },
+        { status: 403 }
+      );
     }
 
     const resolvedParams = await params;
