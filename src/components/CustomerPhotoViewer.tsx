@@ -40,6 +40,15 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
   const [submittingComment, setSubmittingComment] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
 
+  // Получаем отфильтрованные фото для навигации
+  const filteredPhotos = React.useMemo(() => {
+    return photos.filter(photo => {
+      if (selectedFolderId === null) return true;
+      const folder = (photo as any).folder as { id: number } | null | undefined;
+      return !!folder && folder.id === selectedFolderId;
+    });
+  }, [photos, selectedFolderId]);
+
   useEffect(() => {
     const fetchPhotos = async () => {
       if (!userEmail) {
@@ -299,13 +308,7 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
               ))}
           </div>
 
-          {photos
-            .filter(photo => {
-              if (selectedFolderId === null) return true;
-              const folder = (photo as any).folder as { id: number } | null | undefined;
-              return !!folder && folder.id === selectedFolderId;
-            })
-            .map((photo) => (
+          {filteredPhotos.map((photo) => (
             <motion.div
               key={photo.id}
               initial={{ opacity: 0, y: 20 }}

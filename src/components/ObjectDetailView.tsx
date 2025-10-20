@@ -133,6 +133,16 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
     return Array.from(folderIdToInfo.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [object]);
 
+  // Получаем отфильтрованные фото для навигации
+  const filteredPhotos = React.useMemo(() => {
+    if (!object) return [];
+    return object.photos.filter(photo => {
+      if (selectedFolderId === null) return true;
+      const folder = (photo as any).folder as { id: number } | null | undefined;
+      return !!folder && folder.id === selectedFolderId;
+    });
+  }, [object, selectedFolderId]);
+
   const sendMessage = async () => {
     if (!newMessage.trim() || !objectId) return;
     
@@ -604,11 +614,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
               gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
               gap: "16px"
             }}>
-            {object.photos.filter(photo => {
-              if (selectedFolderId === null) return true;
-              const folder = (photo as any).folder as { id: number } | null | undefined;
-              return !!folder && folder.id === selectedFolderId;
-            }).map((photo) => (
+            {filteredPhotos.map((photo) => (
               <div
                 key={photo.id}
                 onClick={() => setSelectedPhoto(photo)}
@@ -1037,10 +1043,10 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
               }}>
                 <button
                   onClick={() => {
-                    const currentIndex = object.photos.findIndex(p => p.id === selectedPhoto.id);
-                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : object.photos.length - 1;
-                    setSelectedPhoto(object.photos[prevIndex]);
-                    fetchPhotoComments(object.photos[prevIndex].id);
+                    const currentIndex = filteredPhotos.findIndex(p => p.id === selectedPhoto.id);
+                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : filteredPhotos.length - 1;
+                    setSelectedPhoto(filteredPhotos[prevIndex]);
+                    fetchPhotoComments(filteredPhotos[prevIndex].id);
                   }}
                   style={{
                     backgroundColor: "rgba(34, 197, 94, 0.8)",
@@ -1058,10 +1064,10 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                 </button>
                 <button
                   onClick={() => {
-                    const currentIndex = object.photos.findIndex(p => p.id === selectedPhoto.id);
-                    const nextIndex = currentIndex < object.photos.length - 1 ? currentIndex + 1 : 0;
-                    setSelectedPhoto(object.photos[nextIndex]);
-                    fetchPhotoComments(object.photos[nextIndex].id);
+                    const currentIndex = filteredPhotos.findIndex(p => p.id === selectedPhoto.id);
+                    const nextIndex = currentIndex < filteredPhotos.length - 1 ? currentIndex + 1 : 0;
+                    setSelectedPhoto(filteredPhotos[nextIndex]);
+                    fetchPhotoComments(filteredPhotos[nextIndex].id);
                   }}
                   style={{
                     backgroundColor: "rgba(34, 197, 94, 0.8)",
