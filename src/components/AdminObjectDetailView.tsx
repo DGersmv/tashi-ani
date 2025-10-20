@@ -102,6 +102,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   const [folders, setFolders] = useState<any[]>([]);
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [selectedCustomerFolder, setSelectedCustomerFolder] = useState<number | null>(null);
+  const [tempSelectedFolder, setTempSelectedFolder] = useState<number | null>(null);
 
   const objectId = localStorage.getItem('selectedAdminObjectId');
 
@@ -237,8 +238,13 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
     }
   };
 
-  // Назначить фото в папку
-  const assignPhotoToFolder = async (photoId: number, folderId: number | null) => {
+  // Назначить фото в папку (временное состояние)
+  const assignPhotoToFolder = (photoId: number, folderId: number | null) => {
+    setTempSelectedFolder(folderId);
+  };
+
+  // Сохранить назначение папки
+  const savePhotoFolderAssignment = async (photoId: number, folderId: number | null) => {
     if (!objectId) return;
 
     try {
@@ -830,7 +836,10 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                 {object.photos.map((photo) => (
                   <div
                     key={photo.id}
-                    onClick={() => setSelectedPhoto(photo)}
+                    onClick={() => {
+                      setSelectedPhoto(photo);
+                      setTempSelectedFolder((photo as any).folderId || null);
+                    }}
                     style={{
                       backgroundColor: "rgba(255, 255, 255, 0.1)",
                       borderRadius: "16px",
@@ -1095,7 +1104,10 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                   {filteredPhotos.map((photo) => (
                   <div
                     key={photo.id}
-                    onClick={() => setSelectedPhoto(photo)}
+                    onClick={() => {
+                      setSelectedPhoto(photo);
+                      setTempSelectedFolder((photo as any).folderId || null);
+                    }}
                     style={{
                       backgroundColor: "rgba(34, 197, 94, 0.1)",
                       borderRadius: "16px",
@@ -1616,9 +1628,14 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                 </h2>
                 <button
                   onClick={() => {
+                    // Сохраняем назначение папки перед закрытием
+                    if (selectedPhoto && tempSelectedFolder !== (selectedPhoto as any).folderId) {
+                      savePhotoFolderAssignment(selectedPhoto.id, tempSelectedFolder);
+                    }
                     setSelectedPhoto(null);
                     setPhotoComments([]);
                     setNewPhotoComment('');
+                    setTempSelectedFolder(null);
                   }}
                   style={{
                     background: "none",
@@ -1670,6 +1687,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                     const prevIndex = currentIndex > 0 ? currentIndex - 1 : (object?.photos.length || 1) - 1;
                     if (object?.photos[prevIndex]) {
                       setSelectedPhoto(object.photos[prevIndex]);
+                      setTempSelectedFolder((object.photos[prevIndex] as any).folderId || null);
                     }
                   }}
                   style={{
@@ -1692,6 +1710,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                     const nextIndex = currentIndex < (object?.photos.length || 1) - 1 ? currentIndex + 1 : 0;
                     if (object?.photos[nextIndex]) {
                       setSelectedPhoto(object.photos[nextIndex]);
+                      setTempSelectedFolder((object.photos[nextIndex] as any).folderId || null);
                     }
                   }}
                   style={{
@@ -1734,47 +1753,100 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                   display: "block",
                   fontSize: "0.85rem",
                   color: "rgba(255,255,255,0.9)",
-                  marginBottom: "8px",
+                  marginBottom: "12px",
                   fontFamily: "Arial, sans-serif",
                   fontWeight: 600
                 }}>
-                  📁 Папка для заказчика
+                  📁 Назначить в папку
                 </label>
-                <select
-                  value={(selectedPhoto as any).folderId || ""}
-                  onChange={(e) => {
-                    const folderId = e.target.value ? parseInt(e.target.value) : null;
-                    assignPhotoToFolder(selectedPhoto.id, folderId);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    background: "rgba(0, 0, 0, 0.4)",
-                    border: "1px solid rgba(255, 255, 255, 0.3)",
-                    borderRadius: "6px",
-                    color: "white",
-                    fontSize: "0.9rem",
-                    fontFamily: "Arial, sans-serif",
-                    cursor: "pointer"
-                  }}
-                >
-                  <option value="" style={{ background: "#1a1a1a" }}>Не назначена</option>
-                  {folders.map((folder) => (
-                    <option key={folder.id} value={folder.id} style={{ background: "#1a1a1a" }}>
-                      {folder.name} ({folder.photoCount} фото)
-                    </option>
-                  ))}
-                </select>
+                
+                {/* Список папок с галочками */}
                 <div style={{
-                  fontSize: "0.75rem",
-                  color: "rgba(255,255,255,0.6)",
-                  marginTop: "6px",
-                  fontFamily: "Arial, sans-serif"
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                  maxHeight: "200px",
+                  overflowY: "auto"
                 }}>
-                  {(selectedPhoto as any).folder 
-                    ? `✓ Назначено в "${(selectedPhoto as any).folder.name}"`
-                    : "Фото еще не добавлено в папку"
-                  }
+                  {/* Опция "Не назначена" */}
+                  <label style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "8px 12px",
+                    background: tempSelectedFolder === null 
+                      ? "rgba(211, 163, 115, 0.2)" 
+                      : "rgba(255, 255, 255, 0.05)",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    border: tempSelectedFolder === null 
+                      ? "1px solid rgba(211, 163, 115, 0.5)" 
+                      : "1px solid rgba(255, 255, 255, 0.1)"
+                  }}>
+                    <input
+                      type="radio"
+                      name="folder"
+                      checked={tempSelectedFolder === null}
+                      onChange={() => assignPhotoToFolder(selectedPhoto.id, null)}
+                      style={{
+                        accentColor: "#d3a373",
+                        transform: "scale(1.1)"
+                      }}
+                    />
+                    <span style={{
+                      fontSize: "0.9rem",
+                      color: "white",
+                      fontFamily: "Arial, sans-serif"
+                    }}>
+                      📷 Не назначена
+                    </span>
+                  </label>
+
+                  {/* Список папок */}
+                  {folders.map((folder) => (
+                    <label key={folder.id} style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 12px",
+                      background: tempSelectedFolder === folder.id 
+                        ? "rgba(211, 163, 115, 0.2)" 
+                        : "rgba(255, 255, 255, 0.05)",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      border: tempSelectedFolder === folder.id 
+                        ? "1px solid rgba(211, 163, 115, 0.5)" 
+                        : "1px solid rgba(255, 255, 255, 0.1)"
+                    }}>
+                      <input
+                        type="radio"
+                        name="folder"
+                        checked={tempSelectedFolder === folder.id}
+                        onChange={() => assignPhotoToFolder(selectedPhoto.id, folder.id)}
+                        style={{
+                          accentColor: "#d3a373",
+                          transform: "scale(1.1)"
+                        }}
+                      />
+                      <span style={{
+                        fontSize: "0.9rem",
+                        color: "white",
+                        fontFamily: "Arial, sans-serif"
+                      }}>
+                        📁 {folder.name}
+                      </span>
+                      <span style={{
+                        fontSize: "0.75rem",
+                        color: "rgba(255, 255, 255, 0.6)",
+                        fontFamily: "Arial, sans-serif",
+                        marginLeft: "auto"
+                      }}>
+                        ({folder.photoCount} фото)
+                      </span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
