@@ -23,11 +23,12 @@ interface CustomerPhotosPanelProps {
   objectId: number;
   adminToken: string;
   onPhotosUpdate: () => void;
+  onFolderSelect?: (folderId: number | null) => void;
+  selectedFolder?: number | null;
 }
 
-export default function CustomerPhotosPanel({ objectId, adminToken, onPhotosUpdate }: CustomerPhotosPanelProps) {
+export default function CustomerPhotosPanel({ objectId, adminToken, onPhotosUpdate, onFolderSelect, selectedFolder }: CustomerPhotosPanelProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [folderPhotos, setFolderPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -308,15 +309,77 @@ export default function CustomerPhotosPanel({ objectId, adminToken, onPhotosUpda
             gap: "16px",
           }}
         >
+          {/* Кнопка "Показать все фото" */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={() => {
+              if (onFolderSelect) {
+                onFolderSelect(null);
+              }
+            }}
+            style={{
+              background: selectedFolder === null 
+                ? "rgba(211, 163, 115, 0.2)" 
+                : "rgba(255, 255, 255, 0.05)",
+              backdropFilter: "blur(10px)",
+              border: selectedFolder === null 
+                ? "1.5px solid rgba(211, 163, 115, 0.8)" 
+                : "1.5px solid rgba(211, 163, 115, 0.3)",
+              borderRadius: "12px",
+              padding: "20px",
+              cursor: "pointer",
+              transition: "all 0.3s",
+            }}
+            whileHover={{ scale: 1.02, borderColor: "rgba(211, 163, 115, 0.6)" }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                marginBottom: "12px",
+              }}
+            >
+              <h4
+                style={{
+                  fontSize: "1.1rem",
+                  fontWeight: 600,
+                  color: "#e5e5e5",
+                  margin: 0,
+                }}
+              >
+                📷 Все фото
+              </h4>
+            </div>
+            <div
+              style={{
+                fontSize: "0.9rem",
+                color: "#a0a0a0",
+              }}
+            >
+              Показать все видимые фото
+            </div>
+          </motion.div>
+
           {folders.map((folder) => (
             <motion.div
               key={folder.id}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
+              onClick={() => {
+                if (onFolderSelect) {
+                  onFolderSelect(folder.id);
+                }
+              }}
               style={{
-                background: "rgba(255, 255, 255, 0.05)",
+                background: selectedFolder === folder.id 
+                  ? "rgba(211, 163, 115, 0.2)" 
+                  : "rgba(255, 255, 255, 0.05)",
                 backdropFilter: "blur(10px)",
-                border: "1.5px solid rgba(211, 163, 115, 0.3)",
+                border: selectedFolder === folder.id 
+                  ? "1.5px solid rgba(211, 163, 115, 0.8)" 
+                  : "1.5px solid rgba(211, 163, 115, 0.3)",
                 borderRadius: "12px",
                 padding: "20px",
                 cursor: "pointer",

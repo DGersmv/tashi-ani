@@ -101,6 +101,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   const [sendingPhotoComment, setSendingPhotoComment] = useState(false);
   const [folders, setFolders] = useState<any[]>([]);
   const [loadingFolders, setLoadingFolders] = useState(false);
+  const [selectedCustomerFolder, setSelectedCustomerFolder] = useState<number | null>(null);
 
   const objectId = localStorage.getItem('selectedAdminObjectId');
 
@@ -1068,17 +1069,30 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
               objectId={object.id} 
               adminToken={adminToken}
               onPhotosUpdate={handlePhotosUpdate}
+              onFolderSelect={setSelectedCustomerFolder}
+              selectedFolder={selectedCustomerFolder}
             />
 
             {/* Сетка фото для заказчика */}
-            {object.photos.filter(p => p.isVisibleToCustomer).length > 0 ? (
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                gap: "20px",
-                marginTop: "24px"
-              }}>
-                {object.photos.filter(p => p.isVisibleToCustomer).map((photo) => (
+            {(() => {
+              // Фильтруем фото в зависимости от выбранной папки
+              let filteredPhotos = object.photos.filter(p => p.isVisibleToCustomer);
+              
+              if (selectedCustomerFolder !== null) {
+                // Если выбрана конкретная папка, показываем только фото из этой папки
+                filteredPhotos = filteredPhotos.filter(photo => 
+                  (photo as any).folderId === selectedCustomerFolder
+                );
+              }
+              
+              return filteredPhotos.length > 0 ? (
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: "20px",
+                  marginTop: "24px"
+                }}>
+                  {filteredPhotos.map((photo) => (
                   <div
                     key={photo.id}
                     onClick={() => setSelectedPhoto(photo)}
@@ -1201,10 +1215,21 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                 fontFamily: "Arial, sans-serif"
               }}>
                 <div style={{ fontSize: "3rem", marginBottom: "16px" }}>👁️</div>
-                <p style={{ fontSize: "1.2rem", marginBottom: "8px" }}>Нет фото для заказчика</p>
-                <p style={{ fontSize: "0.9rem" }}>Загрузите фотографии и сделайте их видимыми для заказчика</p>
+                <p style={{ fontSize: "1.2rem", marginBottom: "8px" }}>
+                  {selectedCustomerFolder !== null 
+                    ? "В этой папке нет фото" 
+                    : "Нет фото для заказчика"
+                  }
+                </p>
+                <p style={{ fontSize: "0.9rem" }}>
+                  {selectedCustomerFolder !== null 
+                    ? "Назначьте фото в эту папку из вкладки 'Все фото'" 
+                    : "Загрузите фотографии и сделайте их видимыми для заказчика"
+                  }
+                </p>
               </div>
-            )}
+            )
+            })()}
           </div>
         )}
 
