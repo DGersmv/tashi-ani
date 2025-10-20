@@ -75,6 +75,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
   const [photoComments, setPhotoComments] = useState<any[]>([]);
   const [newPhotoComment, setNewPhotoComment] = useState('');
   const [sendingPhotoComment, setSendingPhotoComment] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
 
   const objectId = localStorage.getItem('selectedObjectId');
 
@@ -111,6 +112,26 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
       fetchPhotoComments(selectedPhoto.id);
     }
   }, [selectedPhoto]);
+
+  // Подготовим список папок из видимых фото
+  const availableFolders = React.useMemo(() => {
+    if (!object) return [] as { id: number; name: string; count: number }[];
+    const folderIdToInfo = new Map<number, { id: number; name: string; count: number }>();
+    for (const p of object.photos) {
+      // Показываем только видимые фото
+      // В пользовательском объекте уже приходят только видимые фото
+      const folder = (p as any).folder as { id: number; name: string } | undefined | null;
+      if (folder && typeof folder.id === 'number') {
+        const prev = folderIdToInfo.get(folder.id);
+        if (prev) {
+          prev.count += 1;
+        } else {
+          folderIdToInfo.set(folder.id, { id: folder.id, name: folder.name, count: 1 });
+        }
+      }
+    }
+    return Array.from(folderIdToInfo.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [object]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !objectId) return;
@@ -535,12 +556,59 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
         )}
 
         {activeTab === 'photos' && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-            gap: "16px"
-          }}>
-            {object.photos.map((photo) => (
+          <div>
+            {/* Фильтр по папкам */}
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              marginBottom: '16px',
+              flexWrap: 'wrap',
+              marginLeft: '48px'
+            }}>
+              <button
+                onClick={() => setSelectedFolderId(null)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: selectedFolderId === null ? 'rgba(211,163,115,0.35)' : 'rgba(255,255,255,0.1)',
+                  color: 'white',
+                  fontFamily: 'Arial, sans-serif',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Все фото
+              </button>
+              {availableFolders.map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setSelectedFolderId(f.id)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: selectedFolderId === f.id ? 'rgba(211,163,115,0.35)' : 'rgba(255,255,255,0.1)',
+                    color: 'white',
+                    fontFamily: 'Arial, sans-serif',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  📁 {f.name} ({f.count})
+                </button>
+              ))}
+            </div>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+              gap: "16px"
+            }}>
+            {object.photos.filter(photo => {
+              if (selectedFolderId === null) return true;
+              const folder = (photo as any).folder as { id: number } | null | undefined;
+              return !!folder && folder.id === selectedFolderId;
+            }).map((photo) => (
               <div
                 key={photo.id}
                 onClick={() => setSelectedPhoto(photo)}
@@ -625,6 +693,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                 </p>
               </div>
             ))}
+            </div>
           </div>
         )}
 

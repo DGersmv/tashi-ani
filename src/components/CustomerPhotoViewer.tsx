@@ -38,6 +38,7 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [newComment, setNewComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchPhotos = async () => {
@@ -254,7 +255,57 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
           gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
           gap: "24px"
         }}>
-          {photos.map((photo) => (
+          {/* Фильтр по папкам */}
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            marginBottom: '16px',
+            flexWrap: 'wrap'
+          }}>
+            <button
+              onClick={() => setSelectedFolderId(null)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: selectedFolderId === null ? 'rgba(211,163,115,0.35)' : 'rgba(255,255,255,0.1)',
+                color: 'white',
+                fontFamily: 'Arial, sans-serif',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Все фото
+            </button>
+            {Array.from(new Map(photos.filter(p => (p as any).folder).map(p => [(p as any).folder.id, (p as any).folder])).values())
+              .sort((a: any, b: any) => a.name.localeCompare(b.name))
+              .map((folder: any) => (
+                <button
+                  key={folder.id}
+                  onClick={() => setSelectedFolderId(folder.id)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: selectedFolderId === folder.id ? 'rgba(211,163,115,0.35)' : 'rgba(255,255,255,0.1)',
+                    color: 'white',
+                    fontFamily: 'Arial, sans-serif',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  📁 {folder.name}
+                </button>
+              ))}
+          </div>
+
+          {photos
+            .filter(photo => {
+              if (selectedFolderId === null) return true;
+              const folder = (photo as any).folder as { id: number } | null | undefined;
+              return !!folder && folder.id === selectedFolderId;
+            })
+            .map((photo) => (
             <motion.div
               key={photo.id}
               initial={{ opacity: 0, y: 20 }}
