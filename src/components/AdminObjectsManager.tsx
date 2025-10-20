@@ -53,10 +53,27 @@ export default function AdminObjectsManager({ adminToken }: AdminObjectsManagerP
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/user/objects?email=${encodeURIComponent(customer.email)}`);
+      const response = await fetch(`/api/admin/users/${customer.id}`, {
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+      });
       const data = await response.json();
       if (data.success) {
-        setObjects(data.objects);
+        // Преобразуем данные из API в нужный формат
+        const objectsWithCounts = data.user.objects.map((obj: any) => ({
+          id: obj.id,
+          title: obj.title,
+          description: obj.description,
+          address: obj.address,
+          status: obj.status,
+          createdAt: obj.createdAt,
+          projectsCount: obj._count?.projects || 0,
+          photosCount: obj._count?.photos || 0,
+          documentsCount: obj._count?.documents || 0,
+          messagesCount: obj._count?.messages || 0,
+        }));
+        setObjects(objectsWithCounts);
       } else {
         setError(data.message || "Не удалось загрузить объекты");
       }
