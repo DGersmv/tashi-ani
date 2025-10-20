@@ -371,22 +371,84 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
                 left: 0,
                 right: 0,
                 bottom: 0,
-                background: "rgba(255, 255, 255, 0.1)",
-                backdropFilter: "blur(1px)",
+                background: "rgba(0, 0, 0, 0.8)", // Еще больше затемнения
+                backdropFilter: "blur(5px)", // Максимальное размытие
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 pointerEvents: "none",
-                zIndex: 10
+                zIndex: 10,
+                // Дополнительная защита от скриншотов
+                WebkitUserSelect: "none",
+                MozUserSelect: "none",
+                msUserSelect: "none",
+                userSelect: "none",
+                WebkitTouchCallout: "none",
+                WebkitUserDrag: "none",
+                KhtmlUserSelect: "none"
               }}>
                 <div style={{
                   transform: "rotate(-45deg)",
-                  fontSize: "3rem",
+                  fontSize: "4rem", // Увеличиваем размер текста
                   fontWeight: "bold",
-                  color: "rgba(239, 68, 68, 0.3)",
-                  textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
+                  color: "rgba(239, 68, 68, 0.9)", // Максимальная видимость текста
+                  textShadow: "3px 3px 6px rgba(0,0,0,1)", // Сильная тень
                   userSelect: "none",
-                  whiteSpace: "nowrap"
+                  whiteSpace: "nowrap",
+                  // Дополнительные стили для защиты
+                  WebkitUserSelect: "none",
+                  MozUserSelect: "none",
+                  msUserSelect: "none",
+                  WebkitTouchCallout: "none",
+                  WebkitUserDrag: "none",
+                  KhtmlUserSelect: "none",
+                  // Множественные водяные знаки для лучшей защиты
+                  position: "relative"
+                }}>
+                  НЕ ОПЛАЧЕНО
+                </div>
+                {/* Дополнительные водяные знаки по углам */}
+                <div style={{
+                  position: "absolute",
+                  top: "10%",
+                  left: "10%",
+                  transform: "rotate(-45deg)",
+                  fontSize: "1.5rem",
+                  color: "rgba(239, 68, 68, 0.4)",
+                  userSelect: "none"
+                }}>
+                  НЕ ОПЛАЧЕНО
+                </div>
+                <div style={{
+                  position: "absolute",
+                  top: "10%",
+                  right: "10%",
+                  transform: "rotate(-45deg)",
+                  fontSize: "1.5rem",
+                  color: "rgba(239, 68, 68, 0.4)",
+                  userSelect: "none"
+                }}>
+                  НЕ ОПЛАЧЕНО
+                </div>
+                <div style={{
+                  position: "absolute",
+                  bottom: "10%",
+                  left: "10%",
+                  transform: "rotate(-45deg)",
+                  fontSize: "1.5rem",
+                  color: "rgba(239, 68, 68, 0.4)",
+                  userSelect: "none"
+                }}>
+                  НЕ ОПЛАЧЕНО
+                </div>
+                <div style={{
+                  position: "absolute",
+                  bottom: "10%",
+                  right: "10%",
+                  transform: "rotate(-45deg)",
+                  fontSize: "1.5rem",
+                  color: "rgba(239, 68, 68, 0.4)",
+                  userSelect: "none"
                 }}>
                   НЕ ОПЛАЧЕНО
                 </div>
