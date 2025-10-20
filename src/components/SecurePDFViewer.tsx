@@ -371,8 +371,8 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
                 left: 0,
                 right: 0,
                 bottom: 0,
-                background: "rgba(0, 0, 0, 0.8)", // Еще больше затемнения
-                backdropFilter: "blur(5px)", // Максимальное размытие
+                background: "rgba(0, 0, 0, 0.35)", // Умеренное затемнение - можно читать текст
+                backdropFilter: "blur(2px)", // Легкое размытие
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -389,10 +389,10 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
               }}>
                 <div style={{
                   transform: "rotate(-45deg)",
-                  fontSize: "4rem", // Увеличиваем размер текста
+                  fontSize: "3.5rem",
                   fontWeight: "bold",
-                  color: "rgba(239, 68, 68, 0.9)", // Максимальная видимость текста
-                  textShadow: "3px 3px 6px rgba(0,0,0,1)", // Сильная тень
+                  color: "rgba(239, 68, 68, 0.85)", // Яркий красный
+                  textShadow: "2px 2px 8px rgba(0,0,0,0.9), -2px -2px 8px rgba(0,0,0,0.9)", // Контрастная тень
                   userSelect: "none",
                   whiteSpace: "nowrap",
                   // Дополнительные стили для защиты
@@ -402,7 +402,6 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
                   WebkitTouchCallout: "none",
                   WebkitUserDrag: "none",
                   KhtmlUserSelect: "none",
-                  // Множественные водяные знаки для лучшей защиты
                   position: "relative"
                 }}>
                   НЕ ОПЛАЧЕНО
@@ -414,7 +413,9 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
                   left: "10%",
                   transform: "rotate(-45deg)",
                   fontSize: "1.5rem",
-                  color: "rgba(239, 68, 68, 0.4)",
+                  fontWeight: "bold",
+                  color: "rgba(239, 68, 68, 0.5)",
+                  textShadow: "1px 1px 4px rgba(0,0,0,0.8)",
                   userSelect: "none"
                 }}>
                   НЕ ОПЛАЧЕНО
@@ -425,7 +426,9 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
                   right: "10%",
                   transform: "rotate(-45deg)",
                   fontSize: "1.5rem",
-                  color: "rgba(239, 68, 68, 0.4)",
+                  fontWeight: "bold",
+                  color: "rgba(239, 68, 68, 0.5)",
+                  textShadow: "1px 1px 4px rgba(0,0,0,0.8)",
                   userSelect: "none"
                 }}>
                   НЕ ОПЛАЧЕНО
@@ -436,7 +439,9 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
                   left: "10%",
                   transform: "rotate(-45deg)",
                   fontSize: "1.5rem",
-                  color: "rgba(239, 68, 68, 0.4)",
+                  fontWeight: "bold",
+                  color: "rgba(239, 68, 68, 0.5)",
+                  textShadow: "1px 1px 4px rgba(0,0,0,0.8)",
                   userSelect: "none"
                 }}>
                   НЕ ОПЛАЧЕНО
@@ -447,7 +452,9 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
                   right: "10%",
                   transform: "rotate(-45deg)",
                   fontSize: "1.5rem",
-                  color: "rgba(239, 68, 68, 0.4)",
+                  fontWeight: "bold",
+                  color: "rgba(239, 68, 68, 0.5)",
+                  textShadow: "1px 1px 4px rgba(0,0,0,0.8)",
                   userSelect: "none"
                 }}>
                   НЕ ОПЛАЧЕНО
