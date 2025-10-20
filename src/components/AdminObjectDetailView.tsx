@@ -259,8 +259,21 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
 
       const data = await response.json();
       if (data.success) {
-        fetchObjectDetail();
-        loadFolders();
+        // Обновляем состояние объекта с новыми данными
+        if (object) {
+          setObject(prevObject => ({
+            ...prevObject!,
+            photos: prevObject!.photos.map(photo => 
+              photo.id === photoId 
+                ? { 
+                    ...photo, 
+                    folderId: data.photo.folderId,
+                    folder: data.photo.folderId ? { id: data.photo.folderId, name: data.photo.folderName || '' } : null
+                  }
+                : photo
+            )
+          }));
+        }
         
         // Обновляем selectedPhoto если оно открыто
         if (selectedPhoto && selectedPhoto.id === photoId) {
@@ -270,6 +283,9 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
             folder: data.photo.folderId ? { id: data.photo.folderId, name: data.photo.folderName || '' } : null
           } as any);
         }
+        
+        // Обновляем список папок
+        loadFolders();
       } else {
         alert(data.message || "Ошибка назначения фото в папку");
       }
@@ -1627,11 +1643,20 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                   {selectedPhoto.originalName}
                 </h2>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    console.log('Закрытие просмотрщика:', {
+                      selectedPhoto: selectedPhoto?.id,
+                      tempSelectedFolder,
+                      currentFolderId: (selectedPhoto as any)?.folderId
+                    });
+                    
                     // Сохраняем назначение папки перед закрытием
                     if (selectedPhoto && tempSelectedFolder !== (selectedPhoto as any).folderId) {
-                      savePhotoFolderAssignment(selectedPhoto.id, tempSelectedFolder);
+                      console.log('Сохраняем изменения папки');
+                      await savePhotoFolderAssignment(selectedPhoto.id, tempSelectedFolder);
                     }
+                    
+                    // Закрываем просмотрщик
                     setSelectedPhoto(null);
                     setPhotoComments([]);
                     setNewPhotoComment('');
