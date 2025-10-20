@@ -23,6 +23,7 @@ interface Photo {
   filename: string;
   originalName: string;
   uploadedAt: string;
+  folder?: { id: number; name: string } | null;
 }
 
 interface Document {
@@ -604,6 +605,16 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                 }}>
                   {photo.originalName}
                 </p>
+                {photo.folder && (
+                  <p style={{
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "0.75rem",
+                    color: "#d3a373",
+                    margin: 0
+                  }}>
+                    📁 {photo.folder.name}
+                  </p>
+                )}
                 <p style={{
                   fontFamily: "Arial, sans-serif",
                   fontSize: "0.75rem",

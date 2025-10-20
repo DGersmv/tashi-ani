@@ -316,6 +316,16 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
               }}>
                 {photo.originalName}
               </h3>
+              { (photo as any).folder && (
+                <div style={{
+                  fontSize: "0.85rem",
+                  color: "#d3a373",
+                  fontFamily: "Arial, sans-serif",
+                  marginBottom: "8px"
+                }}>
+                  📁 {(photo as any).folder.name}
+                </div>
+              )}
               
               <div style={{
                 fontSize: "0.85rem",

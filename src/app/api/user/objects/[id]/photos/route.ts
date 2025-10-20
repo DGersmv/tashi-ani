@@ -45,6 +45,9 @@ export async function GET(
         isVisibleToCustomer: true
       },
       include: {
+        folder: {
+          select: { id: true, name: true }
+        },
         comments: {
           include: {
             user: {

@@ -51,6 +51,14 @@ export async function GET(
         photos: {
           where: {
             isVisibleToCustomer: true
+          },
+          include: {
+            folder: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         },
         documents: true,
