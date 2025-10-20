@@ -1707,7 +1707,13 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                 gap: "10px"
               }}>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    // Сначала сохраняем текущее назначение папки
+                    if (selectedPhoto && tempSelectedFolder !== (selectedPhoto as any).folderId) {
+                      await savePhotoFolderAssignment(selectedPhoto.id, tempSelectedFolder);
+                    }
+                    
+                    // Затем переходим к предыдущему фото
                     const currentIndex = object?.photos.findIndex(p => p.id === selectedPhoto.id) || 0;
                     const prevIndex = currentIndex > 0 ? currentIndex - 1 : (object?.photos.length || 1) - 1;
                     if (object?.photos[prevIndex]) {
@@ -1730,7 +1736,13 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                   ← Предыдущее
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    // Сначала сохраняем текущее назначение папки
+                    if (selectedPhoto && tempSelectedFolder !== (selectedPhoto as any).folderId) {
+                      await savePhotoFolderAssignment(selectedPhoto.id, tempSelectedFolder);
+                    }
+                    
+                    // Затем переходим к следующему фото
                     const currentIndex = object?.photos.findIndex(p => p.id === selectedPhoto.id) || 0;
                     const nextIndex = currentIndex < (object?.photos.length || 1) - 1 ? currentIndex + 1 : 0;
                     if (object?.photos[nextIndex]) {
