@@ -106,12 +106,31 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
     }
   }, [objectId, userEmail]);
 
+  // Помечаем сообщения как прочитанные при открытии вкладки
+  useEffect(() => {
+    if (activeTab === 'messages' && objectId && userEmail) {
+      markMessagesAsRead();
+    }
+  }, [activeTab, objectId, userEmail]);
+
   // Загружаем комментарии при открытии фото
   useEffect(() => {
     if (selectedPhoto) {
       fetchPhotoComments(selectedPhoto.id);
     }
   }, [selectedPhoto]);
+
+  const markMessagesAsRead = async () => {
+    if (!objectId || !userEmail) return;
+    
+    try {
+      await fetch(`/api/messages/mark-read?email=${encodeURIComponent(userEmail)}&isAdmin=false&objectId=${objectId}`, {
+        method: 'PATCH'
+      });
+    } catch (error) {
+      console.error("Ошибка пометки сообщений:", error);
+    }
+  };
 
   // Подготовим список папок из видимых фото
   const availableFolders = React.useMemo(() => {
@@ -182,9 +201,23 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
       const data = await response.json();
       if (data.success) {
         setPhotoComments(data.comments);
+        // Помечаем комментарии к этому фото как прочитанные заказчиком
+        markPhotoCommentsAsRead(photoId);
       }
     } catch (err) {
       console.error('Ошибка загрузки комментариев к фото:', err);
+    }
+  };
+
+  const markPhotoCommentsAsRead = async (photoId: number) => {
+    if (!userEmail) return;
+    
+    try {
+      await fetch(`/api/photo-comments/mark-read?email=${encodeURIComponent(userEmail)}&isAdmin=false&photoId=${photoId}`, {
+        method: 'PATCH'
+      });
+    } catch (error) {
+      console.error("Ошибка пометки комментариев:", error);
     }
   };
 
@@ -643,7 +676,8 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                   borderRadius: "8px",
                   overflow: "hidden",
                   marginBottom: "12px",
-                  backgroundColor: "rgba(255,255,255,0.1)"
+                  backgroundColor: "rgba(255,255,255,0.1)",
+                  position: "relative"
                 }}>
                   <img
                     src={`/api/uploads/objects/${object.id}/${photo.filename}?email=${encodeURIComponent(userEmail)}`}
@@ -670,6 +704,28 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                   }}>
                     📷
                   </div>
+
+                  {/* Бейдж с новыми комментариями */}
+                  {((photo as any).unreadCommentsCount || 0) > 0 && (
+                    <div style={{
+                      position: "absolute",
+                      top: "8px",
+                      right: "8px",
+                      backgroundColor: "rgba(239, 68, 68, 0.95)",
+                      color: "white",
+                      padding: "6px 10px",
+                      borderRadius: "16px",
+                      fontSize: "0.75rem",
+                      fontFamily: "Arial, sans-serif",
+                      fontWeight: "700",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      boxShadow: "0 2px 8px rgba(239, 68, 68, 0.5)"
+                    }}>
+                      💬 {(photo as any).unreadCommentsCount}
+                    </div>
+                  )}
                 </div>
                 <p style={{
                   fontFamily: "Arial, sans-serif",

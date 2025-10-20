@@ -122,6 +122,25 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
     }
   }, [customer, objectId]);
 
+  // Помечаем сообщения как прочитанные при открытии вкладки
+  useEffect(() => {
+    if (activeTab === 'messages' && objectId && customer) {
+      markMessagesAsRead();
+    }
+  }, [activeTab, objectId, customer]);
+
+  const markMessagesAsRead = async () => {
+    if (!objectId || !customer) return;
+    
+    try {
+      await fetch(`/api/messages/mark-read?email=${encodeURIComponent(customer.email)}&isAdmin=true&objectId=${objectId}`, {
+        method: 'PATCH'
+      });
+    } catch (error) {
+      console.error("Ошибка пометки сообщений:", error);
+    }
+  };
+
   const fetchObjectDetail = async () => {
     if (!objectId) return;
     
@@ -543,9 +562,23 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
       const data = await response.json();
       if (data.success) {
         setPhotoComments(data.comments);
+        // Помечаем комментарии к этому фото как прочитанные админом
+        markPhotoCommentsAsRead(photoId);
       }
     } catch (err) {
       console.error('Ошибка загрузки комментариев к фото:', err);
+    }
+  };
+
+  const markPhotoCommentsAsRead = async (photoId: number) => {
+    if (!customer) return;
+    
+    try {
+      await fetch(`/api/photo-comments/mark-read?email=${encodeURIComponent(customer.email)}&isAdmin=true&photoId=${photoId}`, {
+        method: 'PATCH'
+      });
+    } catch (error) {
+      console.error("Ошибка пометки комментариев:", error);
     }
   };
 
@@ -927,6 +960,28 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                       }}>
                         {photo.isVisibleToCustomer ? "Видно" : "Скрыто"}
                       </div>
+
+                      {/* Бейдж с новыми комментариями */}
+                      {((photo as any).unreadCommentsCount || 0) > 0 && (
+                        <div style={{
+                          position: "absolute",
+                          top: "8px",
+                          left: "8px",
+                          backgroundColor: "rgba(239, 68, 68, 0.95)",
+                          color: "white",
+                          padding: "6px 10px",
+                          borderRadius: "16px",
+                          fontSize: "0.75rem",
+                          fontFamily: "Arial, sans-serif",
+                          fontWeight: "700",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          boxShadow: "0 2px 8px rgba(239, 68, 68, 0.5)"
+                        }}>
+                          💬 {(photo as any).unreadCommentsCount}
+                        </div>
+                      )}
                     </div>
                     
                     {/* Информация о файле */}

@@ -130,6 +130,8 @@ model PhotoComment {
   userId        Int
   content       String
   isAdminComment Boolean @default(false)
+  isReadByAdmin Boolean @default(false)
+  isReadByCustomer Boolean @default(false)
   createdAt     DateTime @default(now())
   
   photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
@@ -166,6 +168,8 @@ model Message {
   userId        Int
   content       String
   isAdminMessage Boolean @default(false)
+  isReadByAdmin Boolean @default(false)
+  isReadByCustomer Boolean @default(false)
   createdAt     DateTime @default(now())
   
   object  Object? @relation(fields: [objectId], references: [id], onDelete: Cascade)

@@ -22,6 +22,10 @@ interface Object {
     documents: number;
     messages: number;
   };
+  unreadMessagesCount?: number;
+  unreadCommentsCount?: number;
+  totalMessagesCount?: number;
+  totalCommentsCount?: number;
 }
 
 interface UserObjectsGridProps {
@@ -316,10 +320,19 @@ export default function UserObjectsGrid({ userEmail }: UserObjectsGridProps) {
                 <div style={{
                   fontSize: "1.25rem",
                   fontWeight: "bold",
-                  color: "rgba(245, 158, 11, 1)",
+                  color: (object.unreadMessagesCount || 0) > 0 ? "#ef4444" : "rgba(245, 158, 11, 1)",
                   fontFamily: "Arial, sans-serif"
                 }}>
-                  {object._count.messages}
+                  {object.totalMessagesCount || object._count.messages}
+                  {(object.unreadMessagesCount || 0) > 0 && (
+                    <span style={{
+                      fontSize: "0.75rem",
+                      marginLeft: "4px",
+                      color: "#ef4444"
+                    }}>
+                      (+{object.unreadMessagesCount})
+                    </span>
+                  )}
                 </div>
                 <div style={{
                   fontSize: "0.75rem",
@@ -327,6 +340,32 @@ export default function UserObjectsGrid({ userEmail }: UserObjectsGridProps) {
                   fontFamily: "Arial, sans-serif"
                 }}>
                   Сообщения
+                </div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{
+                  fontSize: "1.25rem",
+                  fontWeight: "bold",
+                  color: (object.unreadCommentsCount || 0) > 0 ? "#ef4444" : "rgba(34, 197, 94, 1)",
+                  fontFamily: "Arial, sans-serif"
+                }}>
+                  {object.totalCommentsCount || 0}
+                  {(object.unreadCommentsCount || 0) > 0 && (
+                    <span style={{
+                      fontSize: "0.75rem",
+                      marginLeft: "4px",
+                      color: "#ef4444"
+                    }}>
+                      (+{object.unreadCommentsCount})
+                    </span>
+                  )}
+                </div>
+                <div style={{
+                  fontSize: "0.75rem",
+                  color: "rgba(255,255,255,0.7)",
+                  fontFamily: "Arial, sans-serif"
+                }}>
+                  Комментарии
                 </div>
               </div>
             </div>

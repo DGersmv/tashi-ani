@@ -15,6 +15,10 @@ interface Object {
   photosCount: number;
   documentsCount: number;
   messagesCount: number;
+  unreadMessagesCount?: number;
+  unreadCommentsCount?: number;
+  totalMessagesCount?: number;
+  totalCommentsCount?: number;
 }
 
 interface Customer {
@@ -60,20 +64,24 @@ export default function AdminObjectsManager({ adminToken }: AdminObjectsManagerP
       });
       const data = await response.json();
       if (data.success) {
-        // Преобразуем данные из API в нужный формат
-        const objectsWithCounts = data.user.objects.map((obj: any) => ({
-          id: obj.id,
-          title: obj.title,
-          description: obj.description,
-          address: obj.address,
-          status: obj.status,
-          createdAt: obj.createdAt,
-          projectsCount: obj._count?.projects || 0,
-          photosCount: obj._count?.photos || 0,
-          documentsCount: obj._count?.documents || 0,
-          messagesCount: obj._count?.messages || 0,
-        }));
-        setObjects(objectsWithCounts);
+          // Преобразуем данные из API в нужный формат
+          const objectsWithCounts = data.user.objects.map((obj: any) => ({
+            id: obj.id,
+            title: obj.title,
+            description: obj.description,
+            address: obj.address,
+            status: obj.status,
+            createdAt: obj.createdAt,
+            projectsCount: obj._count?.projects || 0,
+            photosCount: obj._count?.photos || 0,
+            documentsCount: obj._count?.documents || 0,
+            messagesCount: obj._count?.messages || 0,
+            unreadMessagesCount: obj.unreadMessagesCount || 0,
+            unreadCommentsCount: obj.unreadCommentsCount || 0,
+            totalMessagesCount: obj.totalMessagesCount || 0,
+            totalCommentsCount: obj.totalCommentsCount || 0,
+          }));
+          setObjects(objectsWithCounts);
       } else {
         setError(data.message || "Не удалось загрузить объекты");
       }
@@ -595,37 +603,78 @@ export default function AdminObjectsManager({ adminToken }: AdminObjectsManagerP
                 paddingTop: "16px"
               }}>
                 <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "8px"
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px"
                 }}>
                   <div style={{
-                    fontSize: "0.85rem",
-                    color: "rgba(255,255,255,0.8)",
-                    fontFamily: "Arial, sans-serif"
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "8px"
                   }}>
-                    Проектов: {object.projectsCount}
+                    <div style={{
+                      fontSize: "0.85rem",
+                      color: "rgba(255,255,255,0.8)",
+                      fontFamily: "Arial, sans-serif"
+                    }}>
+                      Проектов: {object.projectsCount}
+                    </div>
+                    <div style={{
+                      fontSize: "0.85rem",
+                      color: "rgba(255,255,255,0.8)",
+                      fontFamily: "Arial, sans-serif"
+                    }}>
+                      Фото: {object.photosCount}
+                    </div>
+                    <div style={{
+                      fontSize: "0.85rem",
+                      color: "rgba(255,255,255,0.8)",
+                      fontFamily: "Arial, sans-serif"
+                    }}>
+                      Документов: {object.documentsCount}
+                    </div>
                   </div>
+                  
+                  {/* Статистика сообщений и комментариев */}
                   <div style={{
-                    fontSize: "0.85rem",
-                    color: "rgba(255,255,255,0.8)",
-                    fontFamily: "Arial, sans-serif"
+                    borderTop: "1px solid rgba(211, 163, 115, 0.2)",
+                    paddingTop: "6px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px"
                   }}>
-                    Фото: {object.photosCount}
-                  </div>
-                  <div style={{
-                    fontSize: "0.85rem",
-                    color: "rgba(255,255,255,0.8)",
-                    fontFamily: "Arial, sans-serif"
-                  }}>
-                    Документов: {object.documentsCount}
-                  </div>
-                  <div style={{
-                    fontSize: "0.85rem",
-                    color: "rgba(255,255,255,0.8)",
-                    fontFamily: "Arial, sans-serif"
-                  }}>
-                    Сообщений: {object.messagesCount}
+                    <div style={{
+                      fontSize: "0.85rem",
+                      color: (object.unreadMessagesCount || 0) > 0 ? "#d3a373" : "rgba(255,255,255,0.8)",
+                      fontFamily: "Arial, sans-serif"
+                    }}>
+                      💬 Сообщений: {object.totalMessagesCount || 0}
+                      {(object.unreadMessagesCount || 0) > 0 && (
+                        <span style={{ 
+                          color: "#ef4444", 
+                          fontWeight: 700,
+                          marginLeft: "4px" 
+                        }}>
+                          ({object.unreadMessagesCount} новых)
+                        </span>
+                      )}
+                    </div>
+                    <div style={{
+                      fontSize: "0.85rem",
+                      color: (object.unreadCommentsCount || 0) > 0 ? "#d3a373" : "rgba(255,255,255,0.8)",
+                      fontFamily: "Arial, sans-serif"
+                    }}>
+                      📷 Комментариев: {object.totalCommentsCount || 0}
+                      {(object.unreadCommentsCount || 0) > 0 && (
+                        <span style={{ 
+                          color: "#ef4444", 
+                          fontWeight: 700,
+                          marginLeft: "4px" 
+                        }}>
+                          ({object.unreadCommentsCount} новых)
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

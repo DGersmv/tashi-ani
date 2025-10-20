@@ -16,12 +16,16 @@ import AdminObjectsManager from "@/components/AdminObjectsManager";
 import AdminObjectDetailView from "@/components/AdminObjectDetailView";
 import CustomerPhotoViewer from "@/components/CustomerPhotoViewer";
 import Header from "@/components/Header";
+import NotificationToast from "@/components/NotificationToast";
 
 export default function Home() {
   const { mode } = useViewMode();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [showNotificationToast, setShowNotificationToast] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [unreadComments, setUnreadComments] = useState(0);
 
   useEffect(() => {
     setIsClient(true);
@@ -44,6 +48,28 @@ export default function Home() {
     checkAuth();
   }, [isClient]);
 
+  // Функция для загрузки непрочитанных уведомлений
+  const loadUnreadNotifications = async () => {
+    const userEmail = localStorage.getItem('userEmail');
+    const adminToken = localStorage.getItem('adminToken');
+    const isAdminUser = !!(adminToken || localStorage.getItem('isAdmin') === 'true');
+
+    if (!userEmail) return;
+
+    try {
+      const response = await fetch(`/api/notifications/unread?email=${encodeURIComponent(userEmail)}&isAdmin=${isAdminUser}`);
+      const data = await response.json();
+
+      if (data.success && data.total > 0) {
+        setUnreadMessages(data.unreadMessages || 0);
+        setUnreadComments(data.unreadComments || 0);
+        setShowNotificationToast(true);
+      }
+    } catch (error) {
+      console.error("Ошибка загрузки уведомлений:", error);
+    }
+  };
+
   // Функция для обновления состояния после входа
   const handleAuthUpdate = () => {
     const userEmail = localStorage.getItem('userEmail');
@@ -54,6 +80,9 @@ export default function Home() {
     
     setIsAuthenticated(!!(userEmail && (isLoggedIn === 'true' || userToken)));
     setIsAdmin(!!(adminToken || isAdminStatus === 'true'));
+    
+    // Загружаем уведомления после входа
+    loadUnreadNotifications();
   };
 
   return (
@@ -218,6 +247,15 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Toast уведомлений */}
+      {showNotificationToast && (
+        <NotificationToast
+          unreadMessages={unreadMessages}
+          unreadComments={unreadComments}
+          onClose={() => setShowNotificationToast(false)}
+        />
+      )}
     </main>
   );
 }

@@ -42,7 +42,9 @@ export async function GET(
         objects: {
           include: {
             projects: true,
-            photos: true,
+            photos: {
+              select: { id: true }
+            },
             documents: true,
             messages: true,
             _count: {
@@ -67,6 +69,85 @@ export async function GET(
       }, { status: 404 });
     }
 
+    // Считаем непрочитанные сообщения от заказчика для админа
+    const objectIds = user.objects.map(obj => obj.id);
+    const unreadMessagesCount = await prisma.message.count({
+      where: {
+        objectId: { in: objectIds },
+        isAdminMessage: false,
+        isReadByAdmin: false
+      }
+    });
+
+    // Считаем непрочитанные комментарии от заказчика
+    const unreadCommentsCount = await prisma.photoComment.count({
+      where: {
+        photo: {
+          objectId: { in: objectIds }
+        },
+        isAdminComment: false,
+        isReadByAdmin: false
+      }
+    });
+
+    // Считаем общее количество сообщений
+    const totalMessagesCount = await prisma.message.count({
+      where: {
+        objectId: { in: objectIds }
+      }
+    });
+
+    // Считаем общее количество комментариев
+    const totalCommentsCount = await prisma.photoComment.count({
+      where: {
+        photo: {
+          objectId: { in: objectIds }
+        }
+      }
+    });
+
+    // Для каждого объекта считаем статистику
+    const objectsWithStats = await Promise.all(user.objects.map(async (obj) => {
+      const photoIds = obj.photos.map(p => p.id);
+      
+      const unreadMessages = await prisma.message.count({
+        where: {
+          objectId: obj.id,
+          isAdminMessage: false,
+          isReadByAdmin: false
+        }
+      });
+
+      let unreadComments = 0;
+      let totalComments = 0;
+
+      if (photoIds.length > 0) {
+        unreadComments = await prisma.photoComment.count({
+          where: {
+            photoId: { in: photoIds },
+            isAdminComment: false,
+            isReadByAdmin: false
+          }
+        });
+
+        totalComments = await prisma.photoComment.count({
+          where: { photoId: { in: photoIds } }
+        });
+      }
+
+      const totalMessages = await prisma.message.count({
+        where: { objectId: obj.id }
+      });
+
+      return {
+        ...obj,
+        unreadMessagesCount: unreadMessages,
+        unreadCommentsCount: unreadComments,
+        totalMessagesCount: totalMessages,
+        totalCommentsCount: totalComments
+      };
+    }));
+
     return NextResponse.json({
       success: true,
       user: {
@@ -78,9 +159,13 @@ export async function GET(
         createdAt: user.createdAt,
         lastLogin: user.lastLogin,
         metadata: user.metadata,
-        objects: user.objects,
+        objects: objectsWithStats,
         messagesCount: user.messages.length,
-        photoCommentsCount: user.photoComments.length
+        photoCommentsCount: user.photoComments.length,
+        unreadMessagesCount,
+        unreadCommentsCount,
+        totalMessagesCount,
+        totalCommentsCount
       }
     });
 

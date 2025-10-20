@@ -44,9 +44,49 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, message: "Пользователь не найден" }, { status: 404 });
     }
 
+    // Для каждого объекта считаем статистику непрочитанных
+    const objectsWithStats = await Promise.all(user.objects.map(async (obj) => {
+      const photoIds = obj.photos.map(p => p.id);
+      
+      const unreadMessages = await prisma.message.count({
+        where: {
+          objectId: obj.id,
+          isAdminMessage: true,
+          isReadByCustomer: false
+        }
+      });
+
+      let unreadComments = 0;
+      let totalComments = 0;
+      
+      if (photoIds.length > 0) {
+        unreadComments = await prisma.photoComment.count({
+          where: {
+            photoId: { in: photoIds },
+            isAdminComment: true,
+            isReadByCustomer: false
+          }
+        });
+
+        totalComments = await prisma.photoComment.count({
+          where: { photoId: { in: photoIds } }
+        });
+      }
+
+      const totalMessages = obj._count.messages;
+
+      return {
+        ...obj,
+        unreadMessagesCount: unreadMessages,
+        unreadCommentsCount: unreadComments,
+        totalMessagesCount: totalMessages,
+        totalCommentsCount: totalComments
+      };
+    }));
+
     return NextResponse.json({ 
       success: true, 
-      objects: user.objects 
+      objects: objectsWithStats 
     });
 
   } catch (error) {

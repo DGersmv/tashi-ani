@@ -42,6 +42,9 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [unreadMessages, setUnreadMessages] = useState<{[key: number]: number}>({});
+  const [unreadComments, setUnreadComments] = useState<{[key: number]: number}>({});
+  const [totalMessages, setTotalMessages] = useState<{[key: number]: number}>({});
+  const [totalComments, setTotalComments] = useState<{[key: number]: number}>({});
   const [userObjectCounts, setUserObjectCounts] = useState<{[key: number]: number}>({});
 
   const fetchUsers = async () => {
@@ -58,10 +61,8 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
         // Фильтруем только обычных пользователей (не мастер-админов)
         const regularUsers = data.users.filter((user: User) => user.role === 'USER');
         setUsers(regularUsers);
-        // Загружаем непрочитанные сообщения для каждого пользователя
-        fetchUnreadMessages(regularUsers);
-        // Загружаем количество объектов для каждого пользователя
-        fetchUserObjectCounts(regularUsers);
+        // Загружаем статистику для каждого пользователя
+        fetchUserStats(regularUsers);
       } else {
         setError(data.message || "Не удалось загрузить пользователей");
       }
@@ -73,44 +74,48 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
     }
   };
 
-  const fetchUnreadMessages = async (usersList: User[]) => {
-    const unreadData: {[key: number]: number} = {};
-    
-    for (const user of usersList) {
-      try {
-        // Для админа считаем сообщения от заказчиков (isAdminMessage: false)
-        const response = await fetch(`/api/messages/unread-count?email=${encodeURIComponent(user.email)}&isAdminView=true`);
-        const data = await response.json();
-        if (data.success) {
-          unreadData[user.id] = data.unreadCount;
-        }
-      } catch (err) {
-        console.error(`Ошибка загрузки непрочитанных сообщений для пользователя ${user.id}:`, err);
-        unreadData[user.id] = 0;
-      }
-    }
-    
-    setUnreadMessages(unreadData);
-  };
-
-  const fetchUserObjectCounts = async (usersList: User[]) => {
+  const fetchUserStats = async (usersList: User[]) => {
+    const unreadMsgs: {[key: number]: number} = {};
+    const unreadComms: {[key: number]: number} = {};
+    const totalMsgs: {[key: number]: number} = {};
+    const totalComms: {[key: number]: number} = {};
     const objectCounts: {[key: number]: number} = {};
     
     for (const user of usersList) {
       try {
-        const response = await fetch(`/api/user/objects?email=${encodeURIComponent(user.email)}`);
+        const response = await fetch(`/api/admin/users/${user.id}`, {
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+          },
+        });
         const data = await response.json();
         if (data.success) {
-          objectCounts[user.id] = data.objects ? data.objects.length : 0;
+          unreadMsgs[user.id] = data.user.unreadMessagesCount || 0;
+          unreadComms[user.id] = data.user.unreadCommentsCount || 0;
+          totalMsgs[user.id] = data.user.totalMessagesCount || 0;
+          totalComms[user.id] = data.user.totalCommentsCount || 0;
+          objectCounts[user.id] = data.user.objects ? data.user.objects.length : 0;
         } else {
+          unreadMsgs[user.id] = 0;
+          unreadComms[user.id] = 0;
+          totalMsgs[user.id] = 0;
+          totalComms[user.id] = 0;
           objectCounts[user.id] = 0;
         }
       } catch (err) {
-        console.error(`Ошибка загрузки объектов для пользователя ${user.id}:`, err);
+        console.error(`Ошибка загрузки статистики для пользователя ${user.id}:`, err);
+        unreadMsgs[user.id] = 0;
+        unreadComms[user.id] = 0;
+        totalMsgs[user.id] = 0;
+        totalComms[user.id] = 0;
         objectCounts[user.id] = 0;
       }
     }
     
+    setUnreadMessages(unreadMsgs);
+    setUnreadComments(unreadComms);
+    setTotalMessages(totalMsgs);
+    setTotalComments(totalComms);
     setUserObjectCounts(objectCounts);
   };
 
@@ -641,9 +646,40 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
                     fontSize: 12, 
                     color: "rgba(255,255,255,.8)",
                     fontFamily: "Arial, sans-serif",
-                    fontWeight: 500
+                    fontWeight: 500,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px"
                   }}>
-                    Объектов: {userObjectCounts[user.id] || 0}
+                    <div>Объектов: {userObjectCounts[user.id] || 0}</div>
+                    <div style={{
+                      color: (unreadMessages[user.id] || 0) > 0 ? "#d3a373" : "rgba(255,255,255,.8)"
+                    }}>
+                      💬 Сообщений: {totalMessages[user.id] || 0} 
+                      {(unreadMessages[user.id] || 0) > 0 && (
+                        <span style={{ 
+                          color: "#ef4444", 
+                          fontWeight: 700,
+                          marginLeft: "4px" 
+                        }}>
+                          ({unreadMessages[user.id]} новых)
+                        </span>
+                      )}
+                    </div>
+                    <div style={{
+                      color: (unreadComments[user.id] || 0) > 0 ? "#d3a373" : "rgba(255,255,255,.8)"
+                    }}>
+                      📷 Комментариев: {totalComments[user.id] || 0}
+                      {(unreadComments[user.id] || 0) > 0 && (
+                        <span style={{ 
+                          color: "#ef4444", 
+                          fontWeight: 700,
+                          marginLeft: "4px" 
+                        }}>
+                          ({unreadComments[user.id]} новых)
+                        </span>
+                      )}
+                    </div>
                   </div>
                   
                   {/* Кнопки действий */}
@@ -679,55 +715,10 @@ export default function AdminCustomerPanels({ adminToken }: AdminCustomerPanelsP
                       Объекты
                     </button>
                     <button
+                      onClick={() => handleEditUser(user)}
                       style={{
                         flex: 1,
                         padding: "8px 14px",
-                        borderRadius: 8,
-                        border: "1px solid rgba(59, 130, 246, 0.5)",
-                        background: "rgba(59, 130, 246, 0.1)",
-                        color: "rgba(59, 130, 246, 1)",
-                        fontFamily: "Arial, sans-serif",
-                        fontSize: "0.85rem",
-                        cursor: "pointer",
-                        transition: "all 0.2s",
-                        fontWeight: 600
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.background = "rgba(59, 130, 246, 0.2)";
-                        e.currentTarget.style.transform = "translateY(-1px)";
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.background = "rgba(59, 130, 246, 0.1)";
-                        e.currentTarget.style.transform = "translateY(0)";
-                      }}
-                    >
-                      Сообщения
-                      {unreadMessages[user.id] > 0 && (
-                        <span style={{
-                          backgroundColor: "rgba(239, 68, 68, 0.9)",
-                          color: "white",
-                          fontSize: "0.7rem",
-                          padding: "2px 6px",
-                          borderRadius: "10px",
-                          marginLeft: "8px",
-                          fontWeight: "bold"
-                        }}>
-                          {unreadMessages[user.id]}
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                  
-                  {/* Кнопка редактирования */}
-                  <div style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    marginTop: 10
-                  }}>
-                    <button
-                      onClick={() => handleEditUser(user)}
-                      style={{
-                        padding: "8px 18px",
                         borderRadius: 8,
                         border: "1px solid rgba(34, 197, 94, 0.5)",
                         background: "rgba(34, 197, 94, 0.1)",

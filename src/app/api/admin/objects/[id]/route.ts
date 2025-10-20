@@ -98,13 +98,52 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ success: false, message: "Объект не найден" }, { status: 404 });
     }
 
+    // Считаем непрочитанные сообщения от заказчика
+    const unreadMessagesCount = await prisma.message.count({
+      where: {
+        objectId: objectId,
+        isAdminMessage: false,
+        isReadByAdmin: false
+      }
+    });
+
+    // Считаем непрочитанные комментарии от заказчика
+    const photoIds = object.photos.map(p => p.id);
+    let unreadCommentsCount = 0;
+
+    if (photoIds.length > 0) {
+      unreadCommentsCount = await prisma.photoComment.count({
+        where: {
+          photoId: { in: photoIds },
+          isAdminComment: false,
+          isReadByAdmin: false
+        }
+      });
+    }
+
+    // Для каждого фото считаем непрочитанные комментарии
+    const photosWithUnreadComments = await Promise.all(object.photos.map(async (photo) => {
+      const unreadPhotoComments = await prisma.photoComment.count({
+        where: {
+          photoId: photo.id,
+          isAdminComment: false,
+          isReadByAdmin: false
+        }
+      });
+
+      return {
+        ...photo,
+        url: `/uploads/objects/${objectId}/${photo.filename}`,
+        unreadCommentsCount: unreadPhotoComments
+      };
+    }));
+
     // Добавляем URL для фото
     const objectWithUrls = {
       ...object,
-      photos: object.photos.map(photo => ({
-        ...photo,
-        url: `/uploads/objects/${objectId}/${photo.filename}`
-      }))
+      photos: photosWithUnreadComments,
+      unreadMessagesCount,
+      unreadCommentsCount
     };
 
     return NextResponse.json({ success: true, object: objectWithUrls });
