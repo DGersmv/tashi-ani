@@ -44,7 +44,15 @@ export async function GET(
             projects: true,
             photos: true,
             documents: true,
-            messages: true
+            messages: true,
+            _count: {
+              select: {
+                projects: true,
+                photos: true,
+                documents: true,
+                messages: true
+              }
+            }
           }
         },
         messages: true,
