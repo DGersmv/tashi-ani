@@ -254,6 +254,15 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
       if (data.success) {
         fetchObjectDetail();
         loadFolders();
+        
+        // Обновляем selectedPhoto если оно открыто
+        if (selectedPhoto && selectedPhoto.id === photoId) {
+          setSelectedPhoto({
+            ...selectedPhoto,
+            folderId: data.photo.folderId,
+            folder: data.photo.folderId ? { id: data.photo.folderId, name: data.photo.folderName || '' } : null
+          } as any);
+        }
       } else {
         alert(data.message || "Ошибка назначения фото в папку");
       }
@@ -970,44 +979,33 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                         </button>
                       </div>
 
-                      {/* Селектор папки */}
-                      <div style={{ marginBottom: "12px" }}>
-                        <label style={{
-                          display: "block",
-                          fontSize: "0.75rem",
-                          color: "rgba(255,255,255,0.7)",
-                          marginBottom: "4px",
-                          fontFamily: "Arial, sans-serif"
+                      {/* Информация о папке */}
+                      {(photo as any).folder && (
+                        <div style={{ 
+                          marginBottom: "12px",
+                          padding: "8px",
+                          background: "rgba(211, 163, 115, 0.15)",
+                          borderRadius: "6px",
+                          border: "1px solid rgba(211, 163, 115, 0.3)"
                         }}>
-                          📁 Папка для заказчика:
-                        </label>
-                        <select
-                          value={(photo as any).folderId || ""}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            const folderId = e.target.value ? parseInt(e.target.value) : null;
-                            assignPhotoToFolder(photo.id, folderId);
-                          }}
-                          style={{
-                            width: "100%",
-                            padding: "6px 8px",
-                            background: "rgba(0, 0, 0, 0.3)",
-                            border: "1px solid rgba(255, 255, 255, 0.2)",
-                            borderRadius: "6px",
-                            color: "white",
+                          <div style={{
+                            fontSize: "0.75rem",
+                            color: "rgba(255,255,255,0.7)",
+                            marginBottom: "2px",
+                            fontFamily: "Arial, sans-serif"
+                          }}>
+                            📁 Папка:
+                          </div>
+                          <div style={{
                             fontSize: "0.85rem",
-                            fontFamily: "Arial, sans-serif",
-                            cursor: "pointer"
-                          }}
-                        >
-                          <option value="">Не назначена</option>
-                          {folders.map((folder) => (
-                            <option key={folder.id} value={folder.id}>
-                              {folder.name} ({folder.photoCount} фото)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                            color: "#d3a373",
+                            fontWeight: 600,
+                            fontFamily: "Arial, sans-serif"
+                          }}>
+                            {(photo as any).folder.name}
+                          </div>
+                        </div>
+                      )}
 
                       <div style={{
                         display: "flex",
@@ -1700,6 +1698,61 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
               maxHeight: "80vh",
               overflow: "hidden"
             }}>
+              {/* Селектор папки */}
+              <div style={{
+                padding: "12px",
+                background: "rgba(211, 163, 115, 0.15)",
+                borderRadius: "8px",
+                border: "1px solid rgba(211, 163, 115, 0.3)"
+              }}>
+                <label style={{
+                  display: "block",
+                  fontSize: "0.85rem",
+                  color: "rgba(255,255,255,0.9)",
+                  marginBottom: "8px",
+                  fontFamily: "Arial, sans-serif",
+                  fontWeight: 600
+                }}>
+                  📁 Папка для заказчика
+                </label>
+                <select
+                  value={(selectedPhoto as any).folderId || ""}
+                  onChange={(e) => {
+                    const folderId = e.target.value ? parseInt(e.target.value) : null;
+                    assignPhotoToFolder(selectedPhoto.id, folderId);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    background: "rgba(0, 0, 0, 0.4)",
+                    border: "1px solid rgba(255, 255, 255, 0.3)",
+                    borderRadius: "6px",
+                    color: "white",
+                    fontSize: "0.9rem",
+                    fontFamily: "Arial, sans-serif",
+                    cursor: "pointer"
+                  }}
+                >
+                  <option value="" style={{ background: "#1a1a1a" }}>Не назначена</option>
+                  {folders.map((folder) => (
+                    <option key={folder.id} value={folder.id} style={{ background: "#1a1a1a" }}>
+                      {folder.name} ({folder.photoCount} фото)
+                    </option>
+                  ))}
+                </select>
+                <div style={{
+                  fontSize: "0.75rem",
+                  color: "rgba(255,255,255,0.6)",
+                  marginTop: "6px",
+                  fontFamily: "Arial, sans-serif"
+                }}>
+                  {(selectedPhoto as any).folder 
+                    ? `✓ Назначено в "${(selectedPhoto as any).folder.name}"`
+                    : "Фото еще не добавлено в папку"
+                  }
+                </div>
+              </div>
+
               {/* Заголовок комментариев */}
               <div style={{
                 display: "flex",
