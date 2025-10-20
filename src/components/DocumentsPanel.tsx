@@ -534,6 +534,7 @@ export default function DocumentsPanel({
           onClose={() => setSelectedPDF(null)}
           source={requirePaymentCheck ? "projects" : "documents"}
           isAdmin={true}
+          adminToken={adminToken}
         />
       )}
 

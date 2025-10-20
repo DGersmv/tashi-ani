@@ -12,15 +12,20 @@ export async function GET(
 ) {
   try {
     // Проверяем авторизацию администратора
+    // Токен может быть в заголовке Authorization или в query параметре token
+    const { searchParams } = new URL(request.url);
+    const queryToken = searchParams.get('token');
     const authHeader = request.headers.get('Authorization');
-    const token = authHeader?.split(' ')[1];
+    const headerToken = authHeader?.split(' ')[1];
+    
+    const token = queryToken || headerToken;
 
     if (!token) {
       return NextResponse.json({ success: false, message: 'Требуется авторизация' }, { status: 401 });
     }
 
     const decodedToken = verifyToken(token);
-    if (!decodedToken || decodedToken.role !== 'MASTER') {
+    if (!decodedToken || (decodedToken.role !== 'MASTER' && decodedToken.role !== 'ADMIN')) {
       return NextResponse.json({ success: false, message: 'Недостаточно прав' }, { status: 403 });
     }
 
@@ -32,7 +37,8 @@ export async function GET(
       return NextResponse.json({ success: false, message: 'Неверный ID объекта' }, { status: 400 });
     }
 
-    // Проверяем, что фото существует (для админа доступны все фото)
+    // Проверяем, это фото или документ
+    // Сначала ищем в фотографиях
     const photo = await prisma.photo.findFirst({
       where: {
         objectId: objectId,
@@ -40,27 +46,56 @@ export async function GET(
       }
     });
 
-    if (!photo) {
-      return NextResponse.json({ success: false, message: 'Фото не найдено' }, { status: 404 });
+    if (photo) {
+      // Это фото - отдаем его
+      const filePath = join(process.cwd(), 'public', 'uploads', 'objects', objectId.toString(), filename);
+      
+      try {
+        const fileBuffer = await readFile(filePath);
+        
+        return new NextResponse(fileBuffer, {
+          headers: {
+            'Content-Type': photo.mimeType,
+            'Content-Length': fileBuffer.length.toString(),
+            'Cache-Control': 'public, max-age=31536000',
+          },
+        });
+      } catch (fileError) {
+        console.error('Ошибка при чтении фото:', fileError);
+        return NextResponse.json({ success: false, message: 'Файл не найден' }, { status: 404 });
+      }
     }
 
-    // Читаем файл
-    const filePath = join(process.cwd(), 'public', 'uploads', 'objects', objectId.toString(), filename);
-    
-    try {
-      const fileBuffer = await readFile(filePath);
+    // Если не фото, проверяем документы
+    const document = await prisma.document.findFirst({
+      where: {
+        objectId: objectId,
+        filename: filename
+      }
+    });
+
+    if (document) {
+      // Это документ - отдаем его
+      const filePath = join(process.cwd(), 'public', 'uploads', 'objects', objectId.toString(), filename);
       
-      return new NextResponse(fileBuffer, {
-        headers: {
-          'Content-Type': photo.mimeType,
-          'Content-Length': fileBuffer.length.toString(),
-          'Cache-Control': 'public, max-age=31536000',
-        },
-      });
-    } catch (fileError) {
-      console.error('Ошибка при чтении файла:', fileError);
-      return NextResponse.json({ success: false, message: 'Файл не найден' }, { status: 404 });
+      try {
+        const fileBuffer = await readFile(filePath);
+        
+        return new NextResponse(fileBuffer, {
+          headers: {
+            'Content-Type': document.mimeType,
+            'Content-Length': fileBuffer.length.toString(),
+            'Cache-Control': 'public, max-age=31536000',
+          },
+        });
+      } catch (fileError) {
+        console.error('Ошибка при чтении документа:', fileError);
+        return NextResponse.json({ success: false, message: 'Файл не найден' }, { status: 404 });
+      }
     }
+
+    // Файл не найден ни в фото, ни в документах
+    return NextResponse.json({ success: false, message: 'Файл не найден' }, { status: 404 });
 
   } catch (error) {
     console.error('Ошибка при получении фото:', error);

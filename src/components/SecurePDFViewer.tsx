@@ -10,6 +10,7 @@ interface SecurePDFViewerProps {
   source?: 'documents' | 'projects'; // Источник документа
   isAdmin?: boolean; // Флаг админа - для админа нет ограничений по оплате
   userEmail?: string; // Email пользователя для заказчиков
+  adminToken?: string; // Токен админа
 }
 
 interface DocumentStatus {
@@ -19,7 +20,7 @@ interface DocumentStatus {
   documentType: string;
 }
 
-export default function SecurePDFViewer({ documentId, fileName, onClose, source = 'documents', isAdmin = false, userEmail }: SecurePDFViewerProps) {
+export default function SecurePDFViewer({ documentId, fileName, onClose, source = 'documents', isAdmin = false, userEmail, adminToken }: SecurePDFViewerProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus | null>(null);
@@ -363,6 +364,8 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
               source={source}
               scale={scale}
               userEmail={userEmail}
+              isAdmin={isAdmin}
+              adminToken={adminToken}
             />
             
             {/* Водяной знак для неоплаченных документов */}
@@ -471,12 +474,14 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
 }
 
 // Компонент для iframe с правильным URL
-function PDFIframe({ documentId, fileName, source, scale, userEmail }: { 
+function PDFIframe({ documentId, fileName, source, scale, userEmail, isAdmin, adminToken }: { 
   documentId: number; 
   fileName: string; 
   source: 'documents' | 'projects'; 
   scale: number;
   userEmail?: string;
+  isAdmin?: boolean;
+  adminToken?: string;
 }) {
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -491,8 +496,14 @@ function PDFIframe({ documentId, fileName, source, scale, userEmail }: {
           let fileUrl;
           if (docResult.document.objectId) {
             // Документы объектов
-            const emailParam = userEmail ? `?email=${encodeURIComponent(userEmail)}` : '';
-            fileUrl = `/api/uploads/objects/${docResult.document.objectId}/${docResult.document.filename}${emailParam}#toolbar=1&navpanes=1&scrollbar=1&zoom=${Math.round(scale * 100)}`;
+            if (isAdmin && adminToken) {
+              // Для админа используем роут /admin с токеном в query
+              fileUrl = `/api/uploads/objects/${docResult.document.objectId}/${docResult.document.filename}/admin?token=${encodeURIComponent(adminToken)}#toolbar=1&navpanes=1&scrollbar=1&zoom=${Math.round(scale * 100)}`;
+            } else {
+              // Для заказчика используем обычный роут с email
+              const emailParam = userEmail ? `?email=${encodeURIComponent(userEmail)}` : '';
+              fileUrl = `/api/uploads/objects/${docResult.document.objectId}/${docResult.document.filename}${emailParam}#toolbar=1&navpanes=1&scrollbar=1&zoom=${Math.round(scale * 100)}`;
+            }
           } else if (docResult.document.projectId) {
             // Документы проектов
             fileUrl = `/api/uploads/projects/${docResult.document.projectId}/${docResult.document.filename}#toolbar=1&navpanes=1&scrollbar=1&zoom=${Math.round(scale * 100)}`;
@@ -511,7 +522,7 @@ function PDFIframe({ documentId, fileName, source, scale, userEmail }: {
     };
 
     getIframeSrc();
-  }, [documentId, fileName, source, scale]);
+  }, [documentId, fileName, source, scale, isAdmin]);
 
   if (loading) {
     return (
