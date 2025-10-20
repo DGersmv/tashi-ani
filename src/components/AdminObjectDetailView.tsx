@@ -99,6 +99,8 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   const [photoComments, setPhotoComments] = useState<any[]>([]);
   const [newPhotoComment, setNewPhotoComment] = useState('');
   const [sendingPhotoComment, setSendingPhotoComment] = useState(false);
+  const [folders, setFolders] = useState<any[]>([]);
+  const [loadingFolders, setLoadingFolders] = useState(false);
 
   const objectId = localStorage.getItem('selectedAdminObjectId');
 
@@ -109,6 +111,14 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
       setCustomer(JSON.parse(customerData));
     }
   }, []);
+
+  // Загружаем объект и папки когда customer готов
+  useEffect(() => {
+    if (customer && objectId) {
+      fetchObjectDetail();
+      loadFolders();
+    }
+  }, [customer, objectId]);
 
   const fetchObjectDetail = async () => {
     if (!objectId) return;
@@ -200,6 +210,57 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
 
   const handlePhotosUpdate = () => {
     fetchObjectDetail();
+    loadFolders(); // Обновляем папки при обновлении фото
+  };
+
+  // Загрузка папок
+  const loadFolders = async () => {
+    if (!objectId) return;
+    
+    setLoadingFolders(true);
+    try {
+      const response = await fetch(`/api/admin/objects/${objectId}/folders`, {
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setFolders(data.folders || []);
+      }
+    } catch (error) {
+      console.error("Ошибка загрузки папок:", error);
+    } finally {
+      setLoadingFolders(false);
+    }
+  };
+
+  // Назначить фото в папку
+  const assignPhotoToFolder = async (photoId: number, folderId: number | null) => {
+    if (!objectId) return;
+
+    try {
+      const response = await fetch(`/api/admin/objects/${objectId}/photos/${photoId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ folderId }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        fetchObjectDetail();
+        loadFolders();
+      } else {
+        alert(data.message || "Ошибка назначения фото в папку");
+      }
+    } catch (error) {
+      console.error("Ошибка назначения фото:", error);
+      alert("Ошибка назначения фото в папку");
+    }
   };
 
   const handleCreateProject = async () => {
@@ -907,12 +968,58 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                             photo.isVisibleToCustomer ? "Скрыть" : "Показать"
                           )}
                         </button>
+                      </div>
+
+                      {/* Селектор папки */}
+                      <div style={{ marginBottom: "12px" }}>
+                        <label style={{
+                          display: "block",
+                          fontSize: "0.75rem",
+                          color: "rgba(255,255,255,0.7)",
+                          marginBottom: "4px",
+                          fontFamily: "Arial, sans-serif"
+                        }}>
+                          📁 Папка для заказчика:
+                        </label>
+                        <select
+                          value={(photo as any).folderId || ""}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            const folderId = e.target.value ? parseInt(e.target.value) : null;
+                            assignPhotoToFolder(photo.id, folderId);
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "6px 8px",
+                            background: "rgba(0, 0, 0, 0.3)",
+                            border: "1px solid rgba(255, 255, 255, 0.2)",
+                            borderRadius: "6px",
+                            color: "white",
+                            fontSize: "0.85rem",
+                            fontFamily: "Arial, sans-serif",
+                            cursor: "pointer"
+                          }}
+                        >
+                          <option value="">Не назначена</option>
+                          {folders.map((folder) => (
+                            <option key={folder.id} value={folder.id}>
+                              {folder.name} ({folder.photoCount} фото)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{
+                        display: "flex",
+                        gap: "8px"
+                      }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             deletePhoto(photo.id);
                           }}
                           style={{
+                            flex: 1,
                             background: "rgba(239, 68, 68, 0.8)",
                             border: "none",
                             color: "white",

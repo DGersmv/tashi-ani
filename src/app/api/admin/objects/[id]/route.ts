@@ -61,7 +61,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             }
           }
         },
-        photos: true,
+        photos: {
+          include: {
+            folder: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          },
+          orderBy: { uploadedAt: 'desc' }
+        },
         documents: true,
         messages: {
           include: {

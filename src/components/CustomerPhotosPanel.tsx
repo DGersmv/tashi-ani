@@ -1,15 +1,20 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+interface Folder {
+  id: number;
+  name: string;
+  orderIndex: number;
+  photoCount: number;
+  createdAt: string;
+}
 
 interface Photo {
   id: number;
   filename: string;
   originalName: string;
-  fileSize: number;
-  mimeType: string;
-  isVisibleToCustomer: boolean;
   uploadedAt: string;
   url?: string;
 }
@@ -21,225 +26,440 @@ interface CustomerPhotosPanelProps {
 }
 
 export default function CustomerPhotosPanel({ objectId, adminToken, onPhotosUpdate }: CustomerPhotosPanelProps) {
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
+  const [folderPhotos, setFolderPhotos] = useState<Photo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
+  const [editFolderName, setEditFolderName] = useState("");
 
-  const handleFileUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+  // Загрузка папок
+  useEffect(() => {
+    loadFolders();
+  }, [objectId]);
 
-    setIsUploading(true);
-    setUploadProgress(0);
+  const loadFolders = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/admin/objects/${objectId}/folders`, {
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setFolders(data.folders || []);
+      }
+    } catch (error) {
+      console.error("Ошибка загрузки папок:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Создание папки
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) {
+      alert("Введите название папки");
+      return;
+    }
 
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('isVisibleToCustomer', 'true'); // Все загружаемые файлы сразу доступны заказчику
+      const response = await fetch(`/api/admin/objects/${objectId}/folders`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: newFolderName.trim() }),
+      });
 
-        const response = await fetch(`/api/admin/objects/${objectId}/photos`, {
-          method: 'POST',
+      const data = await response.json();
+      if (data.success) {
+        setFolders([...folders, data.folder]);
+        setNewFolderName("");
+        setCreatingFolder(false);
+        onPhotosUpdate();
+      } else {
+        alert(data.message || "Ошибка создания папки");
+      }
+    } catch (error) {
+      console.error("Ошибка создания папки:", error);
+      alert("Ошибка создания папки");
+    }
+  };
+
+  // Переименование папки
+  const handleRenameFolder = async (folder: Folder) => {
+    if (!editFolderName.trim()) {
+      alert("Введите новое название папки");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/admin/objects/${objectId}/folders/${folder.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: editFolderName.trim() }),
+        }
+      );
+
+      const data = await response.json();
+      if (data.success) {
+        setFolders(folders.map((f) => (f.id === folder.id ? data.folder : f)));
+        setEditingFolder(null);
+        setEditFolderName("");
+        onPhotosUpdate();
+      } else {
+        alert(data.message || "Ошибка переименования папки");
+      }
+    } catch (error) {
+      console.error("Ошибка переименования папки:", error);
+      alert("Ошибка переименования папки");
+    }
+  };
+
+  // Удаление папки
+  const handleDeleteFolder = async (folder: Folder) => {
+    if (!confirm(`Удалить папку "${folder.name}"? Фото останутся в объекте.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/admin/objects/${objectId}/folders/${folder.id}`,
+        {
+          method: "DELETE",
           headers: {
             Authorization: `Bearer ${adminToken}`,
           },
-          body: formData,
-        });
-
-        const data = await response.json();
-        if (!data.success) {
-          throw new Error(data.message || 'Ошибка загрузки файла');
         }
+      );
 
-        setUploadProgress(((i + 1) / files.length) * 100);
+      const data = await response.json();
+      if (data.success) {
+        setFolders(folders.filter((f) => f.id !== folder.id));
+        if (selectedFolder?.id === folder.id) {
+          setSelectedFolder(null);
+        }
+        onPhotosUpdate();
+      } else {
+        alert(data.message || "Ошибка удаления папки");
       }
-
-      // Обновляем список фото
-      onPhotosUpdate();
     } catch (error) {
-      console.error('Ошибка загрузки файлов:', error);
-      alert('Ошибка загрузки файлов: ' + (error as Error).message);
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
+      console.error("Ошибка удаления папки:", error);
+      alert("Ошибка удаления папки");
     }
   };
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileUpload(e.dataTransfer.files);
-    }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const getFileIcon = (mimeType: string) => {
-    if (mimeType.startsWith('image/')) {
-      return 'IMG';
-    } else if (mimeType.startsWith('video/')) {
-      return '🎥';
-    }
-    return 'FILE';
-  };
+  if (loading) {
+    return (
+      <div style={{ padding: "32px", textAlign: "center", color: "#a0a0a0" }}>
+        Загрузка папок...
+      </div>
+    );
+  }
 
   return (
-    <div style={{
-      backgroundColor: "rgba(255, 255, 255, 0.1)",
-      borderRadius: "16px",
-      padding: "24px",
-      backdropFilter: "blur(10px)",
-      border: "1px solid rgba(255, 255, 255, 0.1)",
-      marginBottom: "24px"
-    }}>
-      <h3 style={{
-        fontFamily: "ChinaCyr, sans-serif",
-        fontSize: "1.5rem",
-        color: "white",
-        margin: "0 0 20px 0",
-        display: "flex",
-        alignItems: "center",
-        gap: "12px"
-      }}>
-        Фото для заказчика
-      </h3>
-
-      {/* Зона загрузки */}
+    <div style={{ padding: "24px" }}>
+      {/* Заголовок и кнопка создания */}
       <div
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
         style={{
-          border: dragActive 
-            ? "2px dashed rgba(34, 197, 94, 0.8)" 
-            : "2px dashed rgba(255, 255, 255, 0.3)",
-          borderRadius: "12px",
-          padding: "40px 20px",
-          textAlign: "center",
-          backgroundColor: dragActive 
-            ? "rgba(34, 197, 94, 0.1)" 
-            : "rgba(255, 255, 255, 0.05)",
-          transition: "all 0.3s ease",
-          cursor: "pointer",
-          marginBottom: "20px"
-        }}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <div style={{
-          fontSize: "3rem",
-          marginBottom: "16px",
-          color: dragActive ? "rgba(34, 197, 94, 1)" : "rgba(255, 255, 255, 0.6)"
-        }}>
-          {dragActive ? "Отпустить" : "Загрузить"}
-        </div>
-        <p style={{
-          fontFamily: "Arial, sans-serif",
-          fontSize: "1.1rem",
-          color: "white",
-          margin: "0 0 8px 0"
-        }}>
-          {dragActive ? "Отпустите файлы для загрузки" : "Перетащите файлы сюда или нажмите для выбора"}
-        </p>
-        <p style={{
-          fontFamily: "Arial, sans-serif",
-          fontSize: "0.9rem",
-          color: "rgba(255, 255, 255, 0.6)",
-          margin: 0
-        }}>
-          Поддерживаются: JPG, PNG, GIF, WebP, MP4, AVI, MOV (до 50MB) • Можно выбрать несколько файлов
-        </p>
-
-        {/* Прогресс загрузки */}
-        {isUploading && (
-          <div style={{
-            marginTop: "20px",
-            width: "100%",
-            maxWidth: "300px",
-            margin: "20px auto 0"
-          }}>
-            <div style={{
-              backgroundColor: "rgba(255, 255, 255, 0.2)",
-              borderRadius: "8px",
-              height: "8px",
-              overflow: "hidden"
-            }}>
-              <div style={{
-                backgroundColor: "rgba(34, 197, 94, 1)",
-                height: "100%",
-                width: `${uploadProgress}%`,
-                transition: "width 0.3s ease"
-              }}></div>
-            </div>
-            <p style={{
-              fontFamily: "Arial, sans-serif",
-              fontSize: "0.9rem",
-              color: "rgba(255, 255, 255, 0.8)",
-              margin: "8px 0 0 0"
-            }}>
-              Загрузка: {Math.round(uploadProgress)}%
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Скрытый input для выбора файлов */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept="image/*,video/*"
-        style={{ display: "none" }}
-        onChange={(e) => handleFileUpload(e.target.files)}
-      />
-
-      {/* Информация о панели */}
-      <div style={{
-        backgroundColor: "rgba(34, 197, 94, 0.1)",
-        borderRadius: "8px",
-        padding: "16px",
-        border: "1px solid rgba(34, 197, 94, 0.3)"
-      }}>
-        <p style={{
-          fontFamily: "Arial, sans-serif",
-          fontSize: "0.9rem",
-          color: "white",
-          margin: "0 0 8px 0",
           display: "flex",
+          justifyContent: "space-between",
           alignItems: "center",
-          gap: "8px"
-        }}>
-          Все файлы в этой панели автоматически доступны заказчику
-        </p>
-        <p style={{
-          fontFamily: "Arial, sans-serif",
-          fontSize: "0.85rem",
-          color: "rgba(255, 255, 255, 0.7)",
-          margin: 0
-        }}>
-          Заказчик может просматривать только те фото и видео, которые находятся в этой панели
+          marginBottom: "24px",
+        }}
+      >
+        <h3 style={{ fontSize: "1.2rem", fontWeight: 600, color: "#e5e5e5" }}>
+          Папки для заказчика
+        </h3>
+        <button
+          onClick={() => setCreatingFolder(true)}
+          style={{
+            padding: "10px 20px",
+            background: "linear-gradient(135deg, #d3a373 0%, #b8895f 100%)",
+            border: "none",
+            borderRadius: "8px",
+            color: "white",
+            fontWeight: 600,
+            cursor: "pointer",
+            transition: "transform 0.2s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        >
+          + Создать папку
+        </button>
+      </div>
+
+      {/* Форма создания папки */}
+      <AnimatePresence>
+        {creatingFolder && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{
+              background: "rgba(255, 255, 255, 0.05)",
+              padding: "16px",
+              borderRadius: "8px",
+              marginBottom: "16px",
+            }}
+          >
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="Название папки"
+              style={{
+                width: "100%",
+                padding: "10px",
+                background: "rgba(0, 0, 0, 0.3)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: "6px",
+                color: "white",
+                marginBottom: "12px",
+              }}
+              onKeyPress={(e) => e.key === "Enter" && handleCreateFolder()}
+              autoFocus
+            />
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={handleCreateFolder}
+                style={{
+                  padding: "8px 16px",
+                  background: "#22c55e",
+                  border: "none",
+                  borderRadius: "6px",
+                  color: "white",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Создать
+              </button>
+              <button
+                onClick={() => {
+                  setCreatingFolder(false);
+                  setNewFolderName("");
+                }}
+                style={{
+                  padding: "8px 16px",
+                  background: "rgba(255, 255, 255, 0.1)",
+                  border: "none",
+                  borderRadius: "6px",
+                  color: "white",
+                  cursor: "pointer",
+                }}
+              >
+                Отмена
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Описание */}
+      <div
+        style={{
+          padding: "16px",
+          background: "rgba(211, 163, 115, 0.1)",
+          borderRadius: "8px",
+          marginBottom: "24px",
+          color: "#d3a373",
+          fontSize: "0.9rem",
+        }}
+      >
+        <p style={{ margin: 0 }}>
+          📁 Здесь вы управляете папками для организации фотографий заказчика.
+          <br />
+          💡 Чтобы добавить фото в папку, перейдите во вкладку "Фото" и назначьте
+          фотографии в нужные папки.
         </p>
       </div>
+
+      {/* Список папок */}
+      {folders.length === 0 ? (
+        <div
+          style={{
+            padding: "32px",
+            textAlign: "center",
+            color: "#808080",
+            background: "rgba(255, 255, 255, 0.02)",
+            borderRadius: "8px",
+          }}
+        >
+          Папок пока нет. Создайте первую папку для организации фотографий.
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+            gap: "16px",
+          }}
+        >
+          {folders.map((folder) => (
+            <motion.div
+              key={folder.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              style={{
+                background: "rgba(255, 255, 255, 0.05)",
+                backdropFilter: "blur(10px)",
+                border: "1.5px solid rgba(211, 163, 115, 0.3)",
+                borderRadius: "12px",
+                padding: "20px",
+                cursor: "pointer",
+                transition: "all 0.3s",
+              }}
+              whileHover={{ scale: 1.02, borderColor: "rgba(211, 163, 115, 0.6)" }}
+            >
+              {editingFolder?.id === folder.id ? (
+                <div>
+                  <input
+                    type="text"
+                    value={editFolderName}
+                    onChange={(e) => setEditFolderName(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "8px",
+                      background: "rgba(0, 0, 0, 0.3)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      borderRadius: "6px",
+                      color: "white",
+                      marginBottom: "8px",
+                    }}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" && handleRenameFolder(folder)
+                    }
+                    autoFocus
+                  />
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      onClick={() => handleRenameFolder(folder)}
+                      style={{
+                        padding: "6px 12px",
+                        background: "#22c55e",
+                        border: "none",
+                        borderRadius: "6px",
+                        color: "white",
+                        fontSize: "0.85rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✓
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingFolder(null);
+                        setEditFolderName("");
+                      }}
+                      style={{
+                        padding: "6px 12px",
+                        background: "rgba(255, 255, 255, 0.1)",
+                        border: "none",
+                        borderRadius: "6px",
+                        color: "white",
+                        fontSize: "0.85rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <h4
+                      style={{
+                        fontSize: "1.1rem",
+                        fontWeight: 600,
+                        color: "#e5e5e5",
+                        margin: 0,
+                      }}
+                    >
+                      📁 {folder.name}
+                    </h4>
+                    <div style={{ display: "flex", gap: "4px" }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingFolder(folder);
+                          setEditFolderName(folder.name);
+                        }}
+                        style={{
+                          padding: "4px 8px",
+                          background: "rgba(255, 255, 255, 0.1)",
+                          border: "none",
+                          borderRadius: "4px",
+                          color: "#d3a373",
+                          fontSize: "0.85rem",
+                          cursor: "pointer",
+                        }}
+                        title="Переименовать"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteFolder(folder);
+                        }}
+                        style={{
+                          padding: "4px 8px",
+                          background: "rgba(239, 68, 68, 0.2)",
+                          border: "none",
+                          borderRadius: "4px",
+                          color: "#ef4444",
+                          fontSize: "0.85rem",
+                          cursor: "pointer",
+                        }}
+                        title="Удалить"
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.9rem",
+                      color: "#a0a0a0",
+                    }}
+                  >
+                    {folder.photoCount === 0
+                      ? "Пока нет фото"
+                      : `${folder.photoCount} ${
+                          folder.photoCount === 1
+                            ? "фотография"
+                            : folder.photoCount < 5
+                            ? "фотографии"
+                            : "фотографий"
+                        }`}
+                  </div>
+                </>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

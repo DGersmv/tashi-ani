@@ -45,6 +45,7 @@ model Object {
   photos    Photo[]
   documents Document[]
   messages  Message[]
+  photoFolders PhotoFolder[]
   
   @@map("objects")
 }
@@ -84,12 +85,27 @@ model ProjectStage {
   @@map("project_stages")
 }
 
+// Папки для фотографий
+model PhotoFolder {
+  id          Int      @id @default(autoincrement())
+  objectId    Int
+  name        String
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+  
+  object Object @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  photos Photo[]
+  
+  @@map("photo_folders")
+}
+
 // Фотографии
 model Photo {
   id          Int      @id @default(autoincrement())
   objectId    Int?
   projectId   Int?
   stageId     Int?
+  folderId    Int?
   filename    String
   originalName String
   filePath    String
@@ -101,6 +117,7 @@ model Photo {
   object Object?       @relation(fields: [objectId], references: [id], onDelete: Cascade)
   project Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   stage   ProjectStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  folder  PhotoFolder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
   comments PhotoComment[]
   
   @@map("photos")
