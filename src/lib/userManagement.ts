@@ -17,10 +17,6 @@ export interface UserData {
 // Проверка, является ли пользователь мастер-админом
 export async function isMasterAdmin(email: string): Promise<boolean> {
   const masterEmail = process.env.MASTER_ADMIN_EMAIL
-  console.log("🔍 Проверка мастер-админа:");
-  console.log("📧 Входящий email:", email);
-  console.log("🔑 MASTER_ADMIN_EMAIL из env:", masterEmail);
-  console.log("✅ Совпадение:", email === masterEmail);
   return email === masterEmail
 }
 
@@ -69,6 +65,7 @@ export async function authenticateUser(email: string, password: string): Promise
   
   // Проверяем пароль
   const isPasswordValid = await bcrypt.compare(password, user.password)
+  
   if (!isPasswordValid) {
     return { success: false }
   }

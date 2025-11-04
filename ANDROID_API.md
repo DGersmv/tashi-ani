@@ -431,15 +431,71 @@ Authorization: Bearer {adminToken}
 - В ответе уже включены все фото, доступные для заказчика
 - Если нужен только список фото без другой информации, используйте `/api/user/objects/{objectId}/photos`
 
-### Заказчик: Получение списка фото объекта
+### Заказчик: Получение списка папок объекта
 
-**Endpoint:** `GET https://tashi-ani.ru/api/user/objects/{objectId}/photos?email={email}`
+**Endpoint:** `GET https://tashi-ani.ru/api/user/objects/{objectId}/folders?email={email}`
 
 **Query параметры:**
 - `email` (required) - Email заказчика
 
 **Описание:**
-Возвращает список всех фото объекта, доступных для заказчика, с информацией о папках и комментариях. Используется для отображения галереи фото объекта.
+Возвращает список всех папок объекта, которые содержат фото, доступные для заказчика. Включает папку "Все фото" с общим количеством фото.
+
+**Успешный ответ (200):**
+```json
+{
+  "success": true,
+  "folders": [
+    {
+      "id": null,
+      "name": "Все фото",
+      "orderIndex": -1,
+      "photoCount": 25,
+      "createdAt": "2025-01-20T12:00:00.000Z"
+    },
+    {
+      "id": 1,
+      "name": "Дом",
+      "orderIndex": 0,
+      "photoCount": 10,
+      "createdAt": "2025-01-20T12:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "name": "Участок",
+      "orderIndex": 1,
+      "photoCount": 15,
+      "createdAt": "2025-01-20T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+**Ошибки:**
+- `400` - Email не предоставлен или неверный ID объекта
+- `404` - Объект не найден или нет доступа
+- `500` - Внутренняя ошибка сервера
+
+**Примечание:** 
+- Папка "Все фото" всегда имеет `id: null` и `orderIndex: -1`
+- Папка "Все фото" отображается только если есть хотя бы одно фото
+- В список попадают только папки, которые содержат хотя бы одно фото с `isVisibleToCustomer = true`
+
+### Заказчик: Получение списка фото объекта
+
+**Endpoint:** `GET https://tashi-ani.ru/api/user/objects/{objectId}/photos?email={email}&folderId={folderId}`
+
+**Query параметры:**
+- `email` (required) - Email заказчика
+- `folderId` (optional) - ID папки для фильтрации. Если не указан или `null`, возвращаются все фото. Если указан конкретный ID, возвращаются только фото этой папки.
+
+**Описание:**
+Возвращает список фото объекта, доступных для заказчика, с информацией о папках и комментариях. Поддерживает фильтрацию по папке.
+
+**Примеры использования:**
+- `GET .../photos?email=user@example.com` - все фото объекта
+- `GET .../photos?email=user@example.com&folderId=1` - только фото из папки с ID=1
+- `GET .../photos?email=user@example.com&folderId=null` - только фото без папки
 
 **Успешный ответ (200):**
 ```json
@@ -654,10 +710,31 @@ if (jsonResponse.getBoolean("success")) {
 }
 ```
 
-### Получение списка фото (заказчик)
+### Получение списка папок (заказчик)
 
 ```kotlin
 // Пример на Kotlin
+val url = "https://tashi-ani.ru/api/user/objects/$objectId/folders?email=${URLEncoder.encode(email, "UTF-8")}"
+val request = Request.Builder()
+    .url(url)
+    .get()
+    .build()
+
+val response = client.newCall(request).execute()
+val responseBody = response.body()?.string()
+val jsonResponse = JSONObject(responseBody)
+
+if (jsonResponse.getBoolean("success")) {
+    val foldersArray = jsonResponse.getJSONArray("folders")
+    // Обработать список папок
+    // Первая папка обычно "Все фото" с id = null
+}
+```
+
+### Получение списка фото (заказчик)
+
+```kotlin
+// Пример на Kotlin - получить все фото
 val url = "https://tashi-ani.ru/api/user/objects/$objectId/photos?email=${URLEncoder.encode(email, "UTF-8")}"
 val request = Request.Builder()
     .url(url)
@@ -672,6 +749,15 @@ if (jsonResponse.getBoolean("success")) {
     val photosArray = jsonResponse.getJSONArray("photos")
     // Обработать список фото
 }
+
+// Пример - получить фото только из конкретной папки
+val folderId = 1
+val urlWithFolder = "https://tashi-ani.ru/api/user/objects/$objectId/photos?email=${URLEncoder.encode(email, "UTF-8")}&folderId=$folderId"
+val request2 = Request.Builder()
+    .url(urlWithFolder)
+    .get()
+    .build()
+// ...
 ```
 
 ### Получение файла фото (заказчик)
@@ -748,22 +834,27 @@ if (response.isSuccessful) {
 3. Получает информацию о пользователе (email, id, name)
 4. Загружает список своих объектов через `GET /api/user/objects?email={email}`
 5. Пользователь выбирает объект из списка
-6. Приложение загружает информацию об объекте через `GET /api/user/objects/{objectId}?email={email}`
-   - Получает список фото, доступных для заказчика
-   - Получает статистику непрочитанных сообщений и комментариев
-7. Приложение отображает:
-   - Список фото объекта (только с `isVisibleToCustomer = true`)
-   - Фильтр по папкам (если фото находятся в папках)
+6. Приложение загружает список папок через `GET /api/user/objects/{objectId}/folders?email={email}`
+   - Получает папки, содержащие фото, доступные для заказчика
+   - В списке всегда есть папка "Все фото" (id = null) с общим количеством фото
+7. Приложение отображает список папок, включая "Все фото"
+8. При выборе папки:
+   - Если выбрана "Все фото" (id = null): загружает все фото через `GET /api/user/objects/{objectId}/photos?email={email}`
+   - Если выбрана конкретная папка: загружает фото этой папки через `GET /api/user/objects/{objectId}/photos?email={email}&folderId={folderId}`
+9. Приложение отображает:
+   - Список фото выбранной папки (только с `isVisibleToCustomer = true`)
    - Превью фото
-8. При просмотре конкретного фото:
-   - Загружает файл через `GET /api/uploads/objects/{objectId}/{filename}?email={email}`
-   - Показывает комментарии к фото (если есть)
-   - Отмечает комментарии как прочитанные
+   - Информацию о папке, к которой привязано фото
+10. При просмотре конкретного фото:
+    - Загружает файл через `GET /api/uploads/objects/{objectId}/{filename}?email={email}`
+    - Показывает комментарии к фото (если есть)
+    - Отмечает комментарии как прочитанные
 
 **Важно:** 
 - Заказчик видит только фото, для которых `isVisibleToCustomer = true`
-- Фото без папки (`folderId = null`) отображаются в разделе "Все фото"
-- Фото с папками можно фильтровать по папкам
+- Папка "Все фото" показывает все доступные фото объекта
+- При выборе конкретной папки показываются только фото из этой папки
+- Фото без папки (`folderId = null`) можно посмотреть, выбрав `folderId=null` в запросе
 
 ## Дополнительные замечания
 

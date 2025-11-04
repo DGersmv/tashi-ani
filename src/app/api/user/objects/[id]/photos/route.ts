@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params;
     const { searchParams } = new URL(request.url);
     const email = searchParams.get('email');
-    const objectId = parseInt(params.id);
+    const folderIdParam = searchParams.get('folderId');
+    const objectId = parseInt(resolvedParams.id);
 
     if (!email) {
       return NextResponse.json({ success: false, message: 'Email не предоставлен' }, { status: 400 });
@@ -38,12 +38,29 @@ export async function GET(
       return NextResponse.json({ success: false, message: 'Объект не найден или нет доступа' }, { status: 404 });
     }
 
+    // Формируем условие для фильтрации по папке
+    // Если folderId = null или не указан, показываем все фото
+    // Если folderId указан, показываем фото только этой папки
+    const whereCondition: any = {
+      objectId: objectId,
+      isVisibleToCustomer: true
+    };
+
+    if (folderIdParam !== null && folderIdParam !== undefined) {
+      if (folderIdParam === 'null' || folderIdParam === '') {
+        // Показываем только фото без папки
+        whereCondition.folderId = null;
+      } else {
+        const folderId = parseInt(folderIdParam);
+        if (!isNaN(folderId)) {
+          whereCondition.folderId = folderId;
+        }
+      }
+    }
+
     // Получаем фото объекта, видимые для заказчика
     const photos = await prisma.photo.findMany({
-      where: {
-        objectId: objectId,
-        isVisibleToCustomer: true
-      },
+      where: whereCondition,
       include: {
         folder: {
           select: { id: true, name: true }
@@ -78,7 +95,5 @@ export async function GET(
       { success: false, message: 'Внутренняя ошибка сервера' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

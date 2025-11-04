@@ -79,9 +79,6 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
     
     if (isAdmin) {
       localStorage.setItem('isAdmin', 'true');
-      // Сохраняем adminToken если он есть в localStorage
-      const adminToken = localStorage.getItem('adminToken');
-      console.log('HeaderMenu: сохраняем adminToken', adminToken ? `${adminToken.substring(0, 20)}...` : 'null');
     }
     
     // Вызываем обновление состояния в родительском компоненте
