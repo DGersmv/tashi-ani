@@ -44,16 +44,50 @@ tashi-ani://view?email=user%40example.com&objectId=1
 
 ### Для админа
 
-- Использовать JWT токен админа в заголовке `Authorization: Bearer {token}`
-- Токен получается при входе админа в приложение через `/api/auth/login`
-- Endpoint: `POST /api/auth/login`
-- Body: `{ "email": "admin@example.com", "password": "password" }`
-- Ответ содержит `token` в поле `token`
+**Endpoint для входа:** `POST https://tashi-ani.ru/api/auth/login`
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Body:**
+```json
+{
+  "email": "admin@example.com",
+  "password": "password"
+}
+```
+
+**Успешный ответ (200):**
+```json
+{
+  "success": true,
+  "message": "Успешная аутентификация",
+  "user": {
+    "id": 1,
+    "email": "admin@example.com",
+    "name": "Admin",
+    "role": "MASTER",
+    "status": "ACTIVE"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Ошибки:**
+- `400` - Email и пароль обязательны
+- `401` - Неверный email или пароль
+- `500` - Ошибка аутентификации
+
+**Использование токена:**
+После получения токена использовать его в заголовке `Authorization: Bearer {token}` для всех запросов админа.
 
 ### Для заказчика
 
 - Использовать email заказчика как параметр в запросах
 - Email передается в query параметре `email` для всех endpoints заказчика
+- Аутентификация через email не требует токена
 
 ## API Endpoints
 
@@ -219,6 +253,38 @@ Authorization: Bearer {adminToken}
 - `500` - Внутренняя ошибка сервера
 
 ## Примеры использования
+
+### Вход админа (получение токена)
+
+```kotlin
+// Пример на Kotlin
+val url = "https://tashi-ani.ru/api/auth/login"
+val json = JSONObject().apply {
+    put("email", "2277277@bk.ru")
+    put("password", "admin123")
+}
+
+val requestBody = RequestBody.create(
+    MediaType.parse("application/json"), 
+    json.toString()
+)
+
+val request = Request.Builder()
+    .url(url)
+    .post(requestBody)
+    .addHeader("Content-Type", "application/json")
+    .build()
+
+val response = client.newCall(request).execute()
+val responseBody = response.body()?.string()
+val jsonResponse = JSONObject(responseBody)
+
+if (jsonResponse.getBoolean("success")) {
+    val token = jsonResponse.getString("token")
+    val user = jsonResponse.getJSONObject("user")
+    // Сохранить токен для дальнейших запросов
+}
+```
 
 ### Загрузка фото (админ)
 
