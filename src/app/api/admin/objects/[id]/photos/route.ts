@@ -94,7 +94,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         fileSize: photo.fileSize,
         mimeType: photo.mimeType,
         isVisibleToCustomer: photo.isVisibleToCustomer,
-        uploadedAt: photo.uploadedAt,
+        uploadedAt: photo.uploadedAt.toISOString(),
         url: `/uploads/objects/${objectId}/${fileName}`
       }
     });

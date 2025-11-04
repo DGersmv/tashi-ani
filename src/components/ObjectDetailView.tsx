@@ -642,6 +642,53 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                 </button>
               ))}
             </div>
+            
+            {/* Кнопка "Открыть в приложении" */}
+            {userEmail && objectId && (
+              <div style={{ marginTop: "16px", marginBottom: "16px", marginLeft: "48px" }}>
+                <button
+                  onClick={() => {
+                    const deepLink = `tashi-ani://view?email=${encodeURIComponent(userEmail)}&objectId=${objectId}`;
+                    window.location.href = deepLink;
+                  }}
+                  style={{
+                    padding: "12px 24px",
+                    background: "rgba(211, 163, 115, 0.8)",
+                    border: "none",
+                    borderRadius: "12px",
+                    color: "white",
+                    fontWeight: 600,
+                    fontSize: "14px",
+                    fontFamily: "ChinaCyr, sans-serif",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(211, 163, 115, 1)";
+                    e.currentTarget.style.transform = "scale(1.02)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(211, 163, 115, 0.8)";
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                >
+                  <span>📱</span>
+                  <span>Открыть в приложении</span>
+                </button>
+                <p style={{
+                  fontSize: "12px",
+                  color: "rgba(255,255,255,0.6)",
+                  marginTop: "8px",
+                  fontFamily: "Arial, sans-serif"
+                }}>
+                  Откроет приложение для просмотра фото этого объекта
+                </p>
+              </div>
+            )}
+            
             <div style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",

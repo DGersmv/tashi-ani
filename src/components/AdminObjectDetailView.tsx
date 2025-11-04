@@ -874,6 +874,52 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
               onPhotosUpdate={handlePhotosUpdate} 
             />
             
+            {/* Кнопка "Загрузить с телефона" */}
+            {customer?.id && objectId && (
+              <div style={{ marginTop: "16px", marginBottom: "16px" }}>
+                <button
+                  onClick={() => {
+                    const deepLink = `tashi-ani://upload?userId=${customer.id}&objectId=${objectId}`;
+                    window.location.href = deepLink;
+                  }}
+                  style={{
+                    padding: "12px 24px",
+                    background: "rgba(211, 163, 115, 0.8)",
+                    border: "none",
+                    borderRadius: "12px",
+                    color: "white",
+                    fontWeight: 600,
+                    fontSize: "14px",
+                    fontFamily: "ChinaCyr, sans-serif",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(211, 163, 115, 1)";
+                    e.currentTarget.style.transform = "scale(1.02)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(211, 163, 115, 0.8)";
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                >
+                  <span>📱</span>
+                  <span>Загрузить с телефона</span>
+                </button>
+                <p style={{
+                  fontSize: "12px",
+                  color: "rgba(255,255,255,0.6)",
+                  marginTop: "8px",
+                  fontFamily: "Arial, sans-serif"
+                }}>
+                  Откроет приложение для загрузки фото в этот объект
+                </p>
+              </div>
+            )}
+            
             {/* Сетка фотографий с превью */}
             {object.photos && object.photos.length > 0 ? (
               <div style={{
