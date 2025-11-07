@@ -53,22 +53,24 @@ export async function GET(
     });
 
     if (photo) {
-      // Это фото - отдаем его
-      const filePath = join(process.cwd(), 'public', 'uploads', 'objects', objectId.toString(), filename);
+      const relativePath = typeof photo.filePath === 'string' && photo.filePath.trim().length > 0
+        ? photo.filePath.replace(/^\/+/, '')
+        : ['uploads', 'objects', objectId.toString(), photo.filename].join('/');
+      const filePath = join(process.cwd(), 'public', relativePath);
       
       try {
         const fileBuffer = await readFile(filePath);
         
         return new NextResponse(fileBuffer, {
           headers: {
-            'Content-Type': photo.mimeType,
+            'Content-Type': photo.mimeType || 'application/octet-stream',
             'Content-Length': fileBuffer.length.toString(),
             'Cache-Control': 'public, max-age=31536000',
           },
         });
       } catch (fileError) {
         console.error('Ошибка при чтении фото:', fileError);
-        return NextResponse.json({ success: false, message: 'Файл не найден' }, { status: 404 });
+        return NextResponse.json({ success: false, message: 'Файл не найден на диске' }, { status: 404 });
       }
     }
 
@@ -81,22 +83,24 @@ export async function GET(
     });
 
     if (document) {
-      // Это документ - отдаем его
-      const filePath = join(process.cwd(), 'public', 'uploads', 'objects', objectId.toString(), filename);
+      const relativePath = typeof document.filePath === 'string' && document.filePath.trim().length > 0
+        ? document.filePath.replace(/^\/+/, '')
+        : ['uploads', 'objects', objectId.toString(), document.filename].join('/');
+      const filePath = join(process.cwd(), 'public', relativePath);
       
       try {
         const fileBuffer = await readFile(filePath);
         
         return new NextResponse(fileBuffer, {
           headers: {
-            'Content-Type': document.mimeType,
+            'Content-Type': document.mimeType || 'application/octet-stream',
             'Content-Length': fileBuffer.length.toString(),
             'Cache-Control': 'public, max-age=31536000',
           },
         });
       } catch (fileError) {
         console.error('Ошибка при чтении документа:', fileError);
-        return NextResponse.json({ success: false, message: 'Файл не найден' }, { status: 404 });
+        return NextResponse.json({ success: false, message: 'Файл не найден на диске' }, { status: 404 });
       }
     }
 
