@@ -114,6 +114,8 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   const [sendingMessage, setSendingMessage] = useState(false);
   const [imageUrls, setImageUrls] = useState<{[key: string]: string}>({});
   const [panoramaUrls, setPanoramaUrls] = useState<{[key: string]: string}>({});
+  const imageUrlsRef = useRef<{[key: string]: string}>({});
+  const panoramaUrlsRef = useRef<{[key: string]: string}>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteType, setDeleteType] = useState<'photo' | 'document' | 'message' | 'panorama' | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -146,6 +148,14 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
     const background = isPending ? "rgba(59,130,246,0.75)" : color;
     return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${background};border:${border};box-shadow:0 0 12px rgba(0,0,0,0.45);"></div>`;
   }, []);
+
+  useEffect(() => {
+    imageUrlsRef.current = imageUrls;
+  }, [imageUrls]);
+
+  useEffect(() => {
+    panoramaUrlsRef.current = panoramaUrls;
+  }, [panoramaUrls]);
 
   const panoramaMarkers = useMemo(() => {
     const markers: any[] = [];
@@ -339,7 +349,14 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
       }
     }
     
-    setImageUrls(newImageUrls);
+    setImageUrls(prev => {
+      Object.values(prev).forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      return newImageUrls;
+    });
   };
 
   const loadPanoramasWithAuth = async (objectData: any) => {
@@ -1202,18 +1219,18 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   // Очистка blob URLs при размонтировании
   useEffect(() => {
     return () => {
-      Object.values(imageUrls).forEach(url => {
+      Object.values(imageUrlsRef.current).forEach(url => {
         if (url.startsWith('blob:')) {
           URL.revokeObjectURL(url);
         }
       });
-      Object.values(panoramaUrls).forEach(url => {
+      Object.values(panoramaUrlsRef.current).forEach(url => {
         if (url.startsWith('blob:')) {
           URL.revokeObjectURL(url);
         }
       });
     };
-  }, [imageUrls, panoramaUrls]);
+  }, []);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ru-RU', {
