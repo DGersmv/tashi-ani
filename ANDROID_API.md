@@ -253,6 +253,17 @@ Authorization: Bearer {adminToken}
     "address": "ул. Ленина, 10",
     "status": "ACTIVE",
     "photos": [...],
+    "panoramas": [
+      {
+        "id": 42,
+        "filename": "1730973132000-xyz789.jpg",
+        "originalName": "living-room-360.jpg",
+        "uploadedAt": "2025-01-22T09:15:00.000Z",
+        "isVisibleToCustomer": true,
+        "unreadCommentsCount": 1,
+        "url": "/uploads/objects/1/panoramas/1730973132000-xyz789.jpg"
+      }
+    ],
     "documents": [...],
     "messages": [...],
     "projects": [...],
@@ -262,7 +273,9 @@ Authorization: Bearer {adminToken}
       "name": "Иван Петров"
     },
     "unreadMessagesCount": 2,
-    "unreadCommentsCount": 5
+    "unreadCommentsCount": 5,
+    "unreadPhotoCommentsCount": 3,
+    "unreadPanoramaCommentsCount": 2
   }
 }
 ```
@@ -272,6 +285,10 @@ Authorization: Bearer {adminToken}
 - `403` - Доступ запрещен
 - `404` - Объект не найден
 - `500` - Внутренняя ошибка сервера
+
+**Примечания:**
+- `unreadCommentsCount` включает суммарно и фото-, и панорама-комментарии. Для раздельных счётчиков доступны поля `unreadPhotoCommentsCount` и `unreadPanoramaCommentsCount`.
+- Каждый элемент `panoramas[]` содержит `unreadCommentsCount` — количество непрочитанных комментариев от заказчика к конкретной панораме.
 
 ### Админ: Загрузка фото
 
@@ -317,6 +334,237 @@ Authorization: Bearer {adminToken}
 
 **Примечание:** Фото загружаются в альбом "Все фото" (без привязки к папке, `folderId = null`).
 
+### Админ: Загрузка панорамы
+
+**Endpoint:** `POST https://tashi-ani.ru/api/admin/objects/{objectId}/panoramas`
+
+**Headers:**
+```
+Authorization: Bearer {adminToken}
+```
+
+**Body:** `multipart/form-data`
+- `file` (File, обязательно) — equirectangular-изображение 360°
+- `isVisibleToCustomer` (boolean, опционально, по умолчанию `false`) — видимость панорамы для заказчика
+
+**Поддерживаемые форматы:** JPEG, PNG, WebP, GIF
+
+**Максимальный размер файла:** 50MB
+
+**Успешный ответ (200):**
+```json
+{
+  "success": true,
+  "panorama": {
+    "id": 321,
+    "filename": "1730973132000-xyz789.jpg",
+    "originalName": "living-room-360.jpg",
+    "fileSize": 5120000,
+    "mimeType": "image/jpeg",
+    "isVisibleToCustomer": false,
+    "uploadedAt": "2025-01-22T09:15:00.000Z",
+    "url": "/uploads/objects/1/panoramas/1730973132000-xyz789.jpg"
+  }
+}
+```
+
+**Ошибки:**
+- `401` — Не авторизован
+- `403` — Доступ запрещен
+- `400` — Неверные параметры (файл не найден, неподдерживаемый тип, файл слишком большой)
+- `500` — Внутренняя ошибка сервера
+
+**Примечание:** Админская панель автоматически помещает загруженную панораму в отдельную вкладку «Панорамы» и отображает индикатор видимости.
+
+### Админ: Обновление видимости панорамы
+
+**Endpoint:** `PUT https://tashi-ani.ru/api/admin/objects/{objectId}/panoramas`
+
+**Headers:**
+```
+Authorization: Bearer {adminToken}
+Content-Type: application/json
+```
+
+**Body:**
+```json
+{
+  "panoramaId": 321,
+  "isVisibleToCustomer": true
+}
+```
+
+**Успешный ответ (200):**
+```json
+{
+  "success": true,
+  "panorama": {
+    "id": 321,
+    "isVisibleToCustomer": true
+  }
+}
+```
+
+**Ошибки:**
+- `401` — Не авторизован
+- `403` — Доступ запрещен
+- `400` — Неверные параметры (например, отсутствует `panoramaId`)
+- `404` — Панорама не найдена для указанного объекта
+- `500` — Внутренняя ошибка сервера
+
+### Админ: Удаление панорамы
+
+**Endpoint:** `DELETE https://tashi-ani.ru/api/admin/objects/{objectId}/panoramas`
+
+**Headers:**
+```
+Authorization: Bearer {adminToken}
+Content-Type: application/json
+```
+
+**Body:**
+```json
+{
+  "panoramaId": 321
+}
+```
+
+**Успешный ответ (200):**
+```json
+{
+  "success": true
+}
+```
+
+**Ошибки:**
+- `401` — Не авторизован
+- `403` — Доступ запрещен
+- `400` — Неверные параметры
+- `404` — Панорама не найдена
+- `500` — Внутренняя ошибка сервера
+
+**Примечание:** При удалении панорамы файл в директории `/uploads/objects/{objectId}/panoramas` удаляется автоматически.
+
+### Админ: Получение комментариев панорамы
+
+**Endpoint:** `GET https://tashi-ani.ru/api/panorama-comments?panoramaId={panoramaId}`
+
+**Query параметры:**
+- `panoramaId` (required) — ID панорамы
+
+**Описание:**
+Возвращает список комментариев, привязанных к конкретной панораме. Используется для отображения маркеров в админской панели.
+
+**Успешный ответ (200):**
+```json
+{
+  "success": true,
+  "comments": [
+    {
+      "id": 11,
+      "panoramaId": 42,
+      "userId": 7,
+      "content": "Проверить отделку потолка",
+      "yaw": 1.52,
+      "pitch": -0.18,
+      "isAdminComment": false,
+      "isReadByAdmin": false,
+      "isReadByCustomer": true,
+      "createdAt": "2025-01-23T08:10:00.000Z",
+      "user": {
+        "id": 7,
+        "name": "Алексей",
+        "email": "client@example.com",
+        "role": "USER"
+      }
+    }
+  ]
+}
+```
+
+**Ошибки:**
+- `400` — Не указан `panoramaId`
+- `404` — Панорама не найдена
+- `500` — Внутренняя ошибка сервера
+
+### Админ: Добавление комментария к панораме
+
+**Endpoint:** `POST https://tashi-ani.ru/api/panorama-comments`
+
+**Headers:**
+```
+Authorization: Bearer {adminToken}
+Content-Type: application/json
+```
+
+**Body:**
+```json
+{
+  "panoramaId": 42,
+  "content": "Заказчику показать альтернативный вид",
+  "yaw": 1.52,
+  "pitch": -0.18
+}
+```
+
+**Примечания:**
+- `yaw` и `pitch` передаются в радианах и соответствуют точке, выбранной на сфере.
+- `isAdminComment` проставляется автоматически на основе роли пользователя.
+
+**Успешный ответ (200):**
+```json
+{
+  "success": true,
+  "comment": {
+    "id": 12,
+    "panoramaId": 42,
+    "content": "Заказчику показать альтернативный вид",
+    "yaw": 1.52,
+    "pitch": -0.18,
+    "isAdminComment": true,
+    "createdAt": "2025-01-23T10:45:00.000Z",
+    "user": {
+      "id": 1,
+      "name": "Администратор",
+      "email": "admin@example.com",
+      "role": "MASTER"
+    }
+  }
+}
+```
+
+**Ошибки:**
+- `401` — Не авторизован
+- `403` — Доступ запрещен
+- `400` — Неверные параметры (`panoramaId`, `content`, координаты)
+- `404` — Панорама не найдена
+- `500` — Внутренняя ошибка сервера
+
+### Админ: Пометка комментариев панорамы прочитанными
+
+**Endpoint:** `PATCH https://tashi-ani.ru/api/panorama-comments/mark-read?email={email}&isAdmin=true&panoramaId={panoramaId}`
+
+**Query параметры:**
+- `email` (required) — Email заказчика, от имени которого ведётся переписка
+- `isAdmin` (required) — Всегда `true` для админ-панели
+- `panoramaId` (optional) — Если указан, помечаются комментарии конкретной панорамы, иначе — всех панорам пользователя
+
+**Описание:**
+Помечает все комментарии заказчика к указанной панораме как прочитанные администратором, чтобы очистить индикаторы непрочитанного. Для мобильного приложения заказчика используется тот же endpoint, но с `isAdmin=false`, чтобы отметить прочитанными ответы администратора.
+
+**Успешный ответ (200):**
+```json
+{
+  "success": true,
+  "message": "Комментарии помечены как прочитанные"
+}
+```
+
+**Ошибки:**
+- `400` — Не указан `email`
+- `404` — Пользователь не найден
+- `500` — Внутренняя ошибка сервера
+
 ### Заказчик: Получение списка объектов
 
 **Endpoint:** `GET https://tashi-ani.ru/api/user/objects?email={email}`
@@ -341,8 +589,12 @@ Authorization: Bearer {adminToken}
       "createdAt": "2025-01-20T12:00:00.000Z",
       "unreadMessagesCount": 2,
       "unreadCommentsCount": 5,
+      "unreadPhotoCommentsCount": 3,
+      "unreadPanoramaCommentsCount": 2,
       "totalMessagesCount": 10,
-      "totalCommentsCount": 15
+      "totalCommentsCount": 15,
+      "totalPhotoCommentsCount": 9,
+      "totalPanoramaCommentsCount": 6
     }
   ]
 }
@@ -352,6 +604,10 @@ Authorization: Bearer {adminToken}
 - `400` - Email обязателен
 - `404` - Пользователь не найден
 - `500` - Внутренняя ошибка сервера
+
+**Примечания:**
+- `unreadCommentsCount` объединяет фото- и панорама-комментарии; для отдельных значений смотрите `unreadPhotoCommentsCount` и `unreadPanoramaCommentsCount`.
+- Аналогично, суммарное поле `totalCommentsCount` сопровождается `totalPhotoCommentsCount` и `totalPanoramaCommentsCount`.
 
 **Query параметры:**
 - `email` (required) - Email заказчика
@@ -370,8 +626,12 @@ Authorization: Bearer {adminToken}
       "createdAt": "2025-01-20T12:00:00.000Z",
       "unreadMessagesCount": 2,
       "unreadCommentsCount": 5,
+      "unreadPhotoCommentsCount": 3,
+      "unreadPanoramaCommentsCount": 2,
       "totalMessagesCount": 10,
-      "totalCommentsCount": 15
+      "totalCommentsCount": 15,
+      "totalPhotoCommentsCount": 9,
+      "totalPanoramaCommentsCount": 6
     }
   ]
 }
@@ -411,13 +671,27 @@ Authorization: Bearer {adminToken}
         "unreadCommentsCount": 2
       }
     ],
+    "panoramas": [
+      {
+        "id": 42,
+        "filename": "1730973132000-xyz789.jpg",
+        "originalName": "living-room-360.jpg",
+        "uploadedAt": "2025-01-22T09:15:00.000Z",
+        "isVisibleToCustomer": true,
+        "unreadCommentsCount": 1
+      }
+    ],
     "documents": [...],
     "messages": [...],
     "projects": [...],
     "unreadMessagesCount": 2,
     "unreadCommentsCount": 5,
+    "unreadPhotoCommentsCount": 3,
+    "unreadPanoramaCommentsCount": 2,
     "totalMessagesCount": 10,
-    "totalCommentsCount": 15
+    "totalCommentsCount": 15,
+    "totalPhotoCommentsCount": 9,
+    "totalPanoramaCommentsCount": 6
   }
 }
 ```
@@ -429,6 +703,8 @@ Authorization: Bearer {adminToken}
 
 **Примечание:** 
 - В ответе уже включены все фото, доступные для заказчика
+- Поле `unreadCommentsCount` включает как фото-, так и панорама-комментарии. Для раздельных счётчиков используйте `unreadPhotoCommentsCount` и `unreadPanoramaCommentsCount`.
+- Массив `panoramas` возвращается только для панорам с `isVisibleToCustomer = true` и содержит поле `unreadCommentsCount` для отображения индикатора непрочитанного.
 - Если нужен только список фото без другой информации, используйте `/api/user/objects/{objectId}/photos`
 
 ### Заказчик: Получение списка папок объекта
@@ -646,6 +922,30 @@ val request = MultipartBody.Builder()
     .setType(MultipartBody.FORM)
     .addFormDataPart("file", "photo.jpg", 
         RequestBody.create(MediaType.parse("image/jpeg"), file))
+    .addFormDataPart("isVisibleToCustomer", "false")
+    .build()
+
+val httpRequest = Request.Builder()
+    .url(url)
+    .addHeader("Authorization", "Bearer $adminToken")
+    .post(request)
+    .build()
+
+val response = client.newCall(httpRequest).execute()
+```
+
+### Загрузка панорамы (админ)
+
+```kotlin
+// Пример на Kotlin
+val url = "https://tashi-ani.ru/api/admin/objects/$objectId/panoramas"
+val request = MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart(
+        "file",
+        "panorama.jpg",
+        RequestBody.create(MediaType.parse("image/jpeg"), file)
+    )
     .addFormDataPart("isVisibleToCustomer", "false")
     .build()
 

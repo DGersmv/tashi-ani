@@ -29,6 +29,11 @@ export async function GET(request: NextRequest) {
                 isVisibleToCustomer: true
               }
             },
+            panoramas: {
+              where: {
+                isVisibleToCustomer: true
+              }
+            },
             _count: {
               select: {
                 documents: true,
@@ -47,6 +52,7 @@ export async function GET(request: NextRequest) {
     // Для каждого объекта считаем статистику непрочитанных
     const objectsWithStats = await Promise.all(user.objects.map(async (obj) => {
       const photoIds = obj.photos.map(p => p.id);
+      const panoramaIds = obj.panoramas.map(p => p.id);
       
       const unreadMessages = await prisma.message.count({
         where: {
@@ -56,11 +62,13 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      let unreadComments = 0;
-      let totalComments = 0;
+      let unreadPhotoComments = 0;
+      let unreadPanoramaComments = 0;
+      let totalPhotoComments = 0;
+      let totalPanoramaComments = 0;
       
       if (photoIds.length > 0) {
-        unreadComments = await prisma.photoComment.count({
+        unreadPhotoComments = await prisma.photoComment.count({
           where: {
             photoId: { in: photoIds },
             isAdminComment: true,
@@ -68,8 +76,22 @@ export async function GET(request: NextRequest) {
           }
         });
 
-        totalComments = await prisma.photoComment.count({
+        totalPhotoComments = await prisma.photoComment.count({
           where: { photoId: { in: photoIds } }
+        });
+      }
+
+      if (panoramaIds.length > 0) {
+        unreadPanoramaComments = await prisma.panoramaComment.count({
+          where: {
+            panoramaId: { in: panoramaIds },
+            isAdminComment: true,
+            isReadByCustomer: false
+          }
+        });
+
+        totalPanoramaComments = await prisma.panoramaComment.count({
+          where: { panoramaId: { in: panoramaIds } }
         });
       }
 
@@ -78,9 +100,13 @@ export async function GET(request: NextRequest) {
       return {
         ...obj,
         unreadMessagesCount: unreadMessages,
-        unreadCommentsCount: unreadComments,
+        unreadCommentsCount: unreadPhotoComments + unreadPanoramaComments,
+        unreadPhotoCommentsCount: unreadPhotoComments,
+        unreadPanoramaCommentsCount: unreadPanoramaComments,
         totalMessagesCount: totalMessages,
-        totalCommentsCount: totalComments
+        totalCommentsCount: totalPhotoComments + totalPanoramaComments,
+        totalPhotoCommentsCount: totalPhotoComments,
+        totalPanoramaCommentsCount: totalPanoramaComments
       };
     }));
 

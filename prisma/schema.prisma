@@ -25,6 +25,7 @@ model User {
   objects   Object[]
   messages  Message[]
   photoComments PhotoComment[]
+  panoramaComments PanoramaComment[]
   
   @@map("users")
 }
@@ -43,6 +44,7 @@ model Object {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   projects  Project[]
   photos    Photo[]
+  panoramas Panorama[]
   documents Document[]
   messages  Message[]
   photoFolders PhotoFolder[]
@@ -121,6 +123,43 @@ model Photo {
   comments PhotoComment[]
   
   @@map("photos")
+}
+
+// Панорамы
+model Panorama {
+  id          Int      @id @default(autoincrement())
+  objectId    Int
+  filename    String
+  originalName String
+  filePath    String
+  fileSize    Int
+  mimeType    String
+  isVisibleToCustomer Boolean @default(false)
+  uploadedAt  DateTime @default(now())
+
+  object Object @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  comments PanoramaComment[]
+
+  @@map("panoramas")
+}
+
+// Комментарии к панорамам
+model PanoramaComment {
+  id            Int      @id @default(autoincrement())
+  panoramaId    Int
+  userId        Int
+  content       String
+  yaw           Float
+  pitch         Float
+  isAdminComment Boolean @default(false)
+  isReadByAdmin Boolean @default(false)
+  isReadByCustomer Boolean @default(false)
+  createdAt     DateTime @default(now())
+
+  panorama Panorama @relation(fields: [panoramaId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("panorama_comments")
 }
 
 // Комментарии к фото

@@ -45,6 +45,9 @@ export async function GET(
             photos: {
               select: { id: true }
             },
+            panoramas: {
+              select: { id: true }
+            },
             documents: true,
             messages: true,
             _count: {
@@ -58,7 +61,8 @@ export async function GET(
           }
         },
         messages: true,
-        photoComments: true
+        photoComments: true,
+        panoramaComments: true
       }
     });
 
@@ -80,9 +84,19 @@ export async function GET(
     });
 
     // Считаем непрочитанные комментарии от заказчика
-    const unreadCommentsCount = await prisma.photoComment.count({
+    const unreadPhotoCommentsCount = await prisma.photoComment.count({
       where: {
         photo: {
+          objectId: { in: objectIds }
+        },
+        isAdminComment: false,
+        isReadByAdmin: false
+      }
+    });
+
+    const unreadPanoramaCommentsCount = await prisma.panoramaComment.count({
+      where: {
+        panorama: {
           objectId: { in: objectIds }
         },
         isAdminComment: false,
@@ -98,9 +112,17 @@ export async function GET(
     });
 
     // Считаем общее количество комментариев
-    const totalCommentsCount = await prisma.photoComment.count({
+    const totalPhotoCommentsCount = await prisma.photoComment.count({
       where: {
         photo: {
+          objectId: { in: objectIds }
+        }
+      }
+    });
+
+    const totalPanoramaCommentsCount = await prisma.panoramaComment.count({
+      where: {
+        panorama: {
           objectId: { in: objectIds }
         }
       }
@@ -109,6 +131,7 @@ export async function GET(
     // Для каждого объекта считаем статистику
     const objectsWithStats = await Promise.all(user.objects.map(async (obj) => {
       const photoIds = obj.photos.map(p => p.id);
+      const panoramaIds = obj.panoramas.map(p => p.id);
       
       const unreadMessages = await prisma.message.count({
         where: {
@@ -118,11 +141,13 @@ export async function GET(
         }
       });
 
-      let unreadComments = 0;
-      let totalComments = 0;
+      let unreadPhotoComments = 0;
+      let unreadPanoramaComments = 0;
+      let totalPhotoComments = 0;
+      let totalPanoramaComments = 0;
 
       if (photoIds.length > 0) {
-        unreadComments = await prisma.photoComment.count({
+        unreadPhotoComments = await prisma.photoComment.count({
           where: {
             photoId: { in: photoIds },
             isAdminComment: false,
@@ -130,8 +155,22 @@ export async function GET(
           }
         });
 
-        totalComments = await prisma.photoComment.count({
+        totalPhotoComments = await prisma.photoComment.count({
           where: { photoId: { in: photoIds } }
+        });
+      }
+
+      if (panoramaIds.length > 0) {
+        unreadPanoramaComments = await prisma.panoramaComment.count({
+          where: {
+            panoramaId: { in: panoramaIds },
+            isAdminComment: false,
+            isReadByAdmin: false
+          }
+        });
+
+        totalPanoramaComments = await prisma.panoramaComment.count({
+          where: { panoramaId: { in: panoramaIds } }
         });
       }
 
@@ -142,9 +181,13 @@ export async function GET(
       return {
         ...obj,
         unreadMessagesCount: unreadMessages,
-        unreadCommentsCount: unreadComments,
+        unreadCommentsCount: unreadPhotoComments + unreadPanoramaComments,
+        unreadPhotoCommentsCount: unreadPhotoComments,
+        unreadPanoramaCommentsCount: unreadPanoramaComments,
         totalMessagesCount: totalMessages,
-        totalCommentsCount: totalComments
+        totalCommentsCount: totalPhotoComments + totalPanoramaComments,
+        totalPhotoCommentsCount: totalPhotoComments,
+        totalPanoramaCommentsCount: totalPanoramaComments
       };
     }));
 
@@ -162,10 +205,15 @@ export async function GET(
         objects: objectsWithStats,
         messagesCount: user.messages.length,
         photoCommentsCount: user.photoComments.length,
+        panoramaCommentsCount: user.panoramaComments.length,
         unreadMessagesCount,
-        unreadCommentsCount,
+        unreadCommentsCount: unreadPhotoCommentsCount + unreadPanoramaCommentsCount,
+        unreadPhotoCommentsCount,
+        unreadPanoramaCommentsCount,
         totalMessagesCount,
-        totalCommentsCount
+        totalCommentsCount: totalPhotoCommentsCount + totalPanoramaCommentsCount,
+        totalPhotoCommentsCount,
+        totalPanoramaCommentsCount
       }
     });
 

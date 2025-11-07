@@ -37,7 +37,7 @@ export async function GET(
       return NextResponse.json({ success: false, message: 'Неверный ID объекта' }, { status: 400 });
     }
 
-    // Проверяем, это фото или документ
+    // Проверяем, это фото, панорама или документ
     // Сначала ищем в фотографиях
     const photo = await prisma.photo.findFirst({
       where: {
@@ -48,20 +48,53 @@ export async function GET(
 
     if (photo) {
       // Это фото - отдаем его
-      const filePath = join(process.cwd(), 'public', 'uploads', 'objects', objectId.toString(), filename);
+      const relativePath = typeof photo.filePath === 'string' && photo.filePath.trim().length > 0
+        ? photo.filePath.replace(/^\/+/, '')
+        : ['uploads', 'objects', objectId.toString(), photo.filename].join('/');
+      const filePath = join(process.cwd(), 'public', relativePath);
       
       try {
         const fileBuffer = await readFile(filePath);
         
         return new NextResponse(fileBuffer, {
           headers: {
-            'Content-Type': photo.mimeType,
+            'Content-Type': photo.mimeType || 'application/octet-stream',
             'Content-Length': fileBuffer.length.toString(),
             'Cache-Control': 'public, max-age=31536000',
           },
         });
       } catch (fileError) {
         console.error('Ошибка при чтении фото:', fileError);
+        return NextResponse.json({ success: false, message: 'Файл не найден' }, { status: 404 });
+      }
+    }
+
+    // Затем ищем среди панорам
+    const panorama = await prisma.panorama.findFirst({
+      where: {
+        objectId: objectId,
+        filename: filename
+      }
+    });
+
+    if (panorama) {
+      const relativePath = typeof panorama.filePath === 'string' && panorama.filePath.trim().length > 0
+        ? panorama.filePath.replace(/^\/+/, '')
+        : ['uploads', 'objects', objectId.toString(), 'panoramas', panorama.filename].join('/');
+      const filePath = join(process.cwd(), 'public', relativePath);
+
+      try {
+        const fileBuffer = await readFile(filePath);
+
+        return new NextResponse(fileBuffer, {
+          headers: {
+            'Content-Type': panorama.mimeType || 'application/octet-stream',
+            'Content-Length': fileBuffer.length.toString(),
+            'Cache-Control': 'public, max-age=31536000',
+          },
+        });
+      } catch (fileError) {
+        console.error('Ошибка при чтении панорамы:', fileError);
         return NextResponse.json({ success: false, message: 'Файл не найден' }, { status: 404 });
       }
     }
@@ -76,14 +109,17 @@ export async function GET(
 
     if (document) {
       // Это документ - отдаем его
-      const filePath = join(process.cwd(), 'public', 'uploads', 'objects', objectId.toString(), filename);
+      const relativePath = typeof document.filePath === 'string' && document.filePath.trim().length > 0
+        ? document.filePath.replace(/^\/+/, '')
+        : ['uploads', 'objects', objectId.toString(), 'documents', document.filename].join('/');
+      const filePath = join(process.cwd(), 'public', relativePath);
       
       try {
         const fileBuffer = await readFile(filePath);
         
         return new NextResponse(fileBuffer, {
           headers: {
-            'Content-Type': document.mimeType,
+            'Content-Type': document.mimeType || 'application/octet-stream',
             'Content-Length': fileBuffer.length.toString(),
             'Cache-Control': 'public, max-age=31536000',
           },

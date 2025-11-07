@@ -1,12 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useViewMode } from "./ui/ViewMode";
 import CustomerPhotosPanel from "./CustomerPhotosPanel";
 import AllPhotosPanel from "./AllPhotosPanel";
 import DocumentsPanel from "./DocumentsPanel";
-import ProjectsPanel from "./ProjectsPanel";
+import PanoramasPanel from "./PanoramasPanel";
+import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
+import "@photo-sphere-viewer/markers-plugin/index.css";
+
+const ReactPhotoSphereViewer = dynamic<any>(
+  () =>
+    import("react-photo-sphere-viewer").then((mod: any) =>
+      mod.ReactPhotoSphereViewer ? mod.ReactPhotoSphereViewer : mod.default
+    ),
+  { ssr: false }
+);
 
 interface Project {
   id: number;
@@ -28,6 +38,16 @@ interface Photo {
   originalName: string;
   uploadedAt: string;
   isVisibleToCustomer?: boolean;
+}
+
+interface Panorama {
+  id: number;
+  filename: string;
+  originalName: string;
+  uploadedAt: string;
+  isVisibleToCustomer: boolean;
+  mimeType?: string;
+  unreadCommentsCount?: number;
 }
 
 interface Document {
@@ -68,6 +88,7 @@ interface ObjectDetail {
   createdAt: string;
   projects: Project[];
   photos: Photo[];
+  panoramas: Panorama[];
   documents: Document[];
   messages: Message[];
   user: {
@@ -86,16 +107,18 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   const [object, setObject] = useState<ObjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all-photos' | 'customer-photos' | 'projects' | 'payments' | 'messages' | 'documents'>('all-photos');
+  const [activeTab, setActiveTab] = useState<'all-photos' | 'customer-photos' | 'panoramas' | 'projects' | 'payments' | 'messages' | 'documents'>('all-photos');
   const [customer, setCustomer] = useState<any>(null);
   const [updatingPhotos, setUpdatingPhotos] = useState<Set<number>>(new Set());
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [imageUrls, setImageUrls] = useState<{[key: string]: string}>({});
+  const [panoramaUrls, setPanoramaUrls] = useState<{[key: string]: string}>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteType, setDeleteType] = useState<'photo' | 'document' | 'message' | null>(null);
+  const [deleteType, setDeleteType] = useState<'photo' | 'document' | 'message' | 'panorama' | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [selectedPanorama, setSelectedPanorama] = useState<Panorama | null>(null);
   const [photoComments, setPhotoComments] = useState<any[]>([]);
   const [newPhotoComment, setNewPhotoComment] = useState('');
   const [sendingPhotoComment, setSendingPhotoComment] = useState(false);
@@ -103,6 +126,126 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [selectedCustomerFolder, setSelectedCustomerFolder] = useState<number | null>(null);
   const [tempSelectedFolder, setTempSelectedFolder] = useState<number | null>(null);
+  const [updatingPanoramas, setUpdatingPanoramas] = useState<Set<number>>(new Set());
+  const [panoramaComments, setPanoramaComments] = useState<any[]>([]);
+  const [newPanoramaComment, setNewPanoramaComment] = useState('');
+  const [sendingPanoramaComment, setSendingPanoramaComment] = useState(false);
+  const [pendingPanoramaCoords, setPendingPanoramaCoords] = useState<{ yaw: number; pitch: number } | null>(null);
+  const [selectedPanoramaCommentId, setSelectedPanoramaCommentId] = useState<number | null>(null);
+  const [deletingPanoramaCommentIds, setDeletingPanoramaCommentIds] = useState<Set<number>>(new Set());
+  const panoramaViewerRef = useRef<any>(null);
+  const [markersPluginInstance, setMarkersPluginInstance] = useState<any>(null);
+  const panoramaViewerPlugins = useMemo(() => [[MarkersPlugin, {}]], []);
+  const [missingPanoramaIds, setMissingPanoramaIds] = useState<Set<number>>(new Set());
+  const [panoramasReady, setPanoramasReady] = useState(false);
+  const panoramaCommentsReadRef = useRef<Set<number>>(new Set());
+  const lastFetchedPanoramaIdRef = useRef<number | null>(null);
+  const createMarkerHtml = useCallback((color: string, isActive: boolean, isPending = false) => {
+    const size = isActive ? 20 : 16;
+    const border = isPending ? "2px dashed rgba(59,130,246,0.9)" : "2px solid rgba(255,255,255,0.9)";
+    const background = isPending ? "rgba(59,130,246,0.75)" : color;
+    return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${background};border:${border};box-shadow:0 0 12px rgba(0,0,0,0.45);"></div>`;
+  }, []);
+
+  const panoramaMarkers = useMemo(() => {
+    const markers: any[] = [];
+
+    panoramaComments.forEach((comment) => {
+      if (!comment?.hasValidPosition || typeof comment?.yaw !== 'number' || typeof comment?.pitch !== 'number') {
+        return;
+      }
+
+      const yaw = comment.yaw;
+      const pitch = comment.pitch;
+      if (!Number.isFinite(yaw) || !Number.isFinite(pitch)) {
+        return;
+      }
+
+      const isActive = selectedPanoramaCommentId === comment.id;
+      const color = comment.isAdminComment ? "#38bdf8" : "#f97316";
+      markers.push({
+        id: `panorama-comment-${comment.id}`,
+        longitude: comment.longitude ?? yaw,
+        latitude: comment.latitude ?? pitch,
+        position: {
+          yaw,
+          pitch,
+        },
+        html: createMarkerHtml(color, isActive),
+        anchor: "bottom center",
+        tooltip: comment.content,
+        data: { commentId: comment.id }
+      });
+    });
+
+    return markers;
+  }, [panoramaComments, selectedPanoramaCommentId, createMarkerHtml]);
+
+  useEffect(() => {
+    if (!markersPluginInstance) {
+      return;
+    }
+
+    const safeMarkers = panoramaMarkers.filter((marker) =>
+      typeof marker.longitude === 'number' &&
+      Number.isFinite(marker.longitude) &&
+      typeof marker.latitude === 'number' &&
+      Number.isFinite(marker.latitude)
+    );
+
+    const pluginAny = markersPluginInstance as any;
+
+    const batchUpdate = (markers: any[]) => {
+      if (typeof pluginAny.setMarkers === 'function') {
+        pluginAny.setMarkers(markers);
+        return;
+      }
+
+      if (typeof pluginAny.clearMarkers === 'function') {
+        pluginAny.clearMarkers();
+      }
+
+      if (typeof pluginAny.addMarker === 'function') {
+        markers.forEach((marker) => {
+          try {
+            pluginAny.addMarker(marker);
+          } catch (addError) {
+            console.error('Не удалось добавить маркер панорамы', marker, addError);
+          }
+        });
+      }
+    };
+
+    batchUpdate(safeMarkers);
+  }, [markersPluginInstance, panoramaMarkers]);
+
+  useEffect(() => {
+    if (!markersPluginInstance || typeof markersPluginInstance.on !== 'function') return;
+
+    const handleSelectMarker = (event: any) => {
+      const commentId = event?.marker?.config?.data?.commentId;
+      if (!commentId) return;
+      const comment = panoramaComments.find((item) => item.id === commentId);
+      if (!comment) return;
+      setSelectedPanoramaCommentId(commentId);
+      if (comment.hasValidPosition && typeof comment.yaw === 'number' && typeof comment.pitch === 'number') {
+        setPendingPanoramaCoords({ yaw: comment.yaw, pitch: comment.pitch });
+        if (panoramaViewerRef.current?.animate) {
+          panoramaViewerRef.current.animate({ yaw: comment.yaw, pitch: comment.pitch });
+        }
+      } else {
+        setPendingPanoramaCoords(null);
+      }
+    };
+
+    markersPluginInstance.on("select-marker", handleSelectMarker);
+
+    return () => {
+      if (typeof markersPluginInstance.off === 'function') {
+        markersPluginInstance.off("select-marker", handleSelectMarker);
+      }
+    };
+  }, [markersPluginInstance, panoramaComments]);
 
   const objectId = localStorage.getItem('selectedAdminObjectId');
 
@@ -156,7 +299,10 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
       if (data.success) {
         setObject(data.object);
         // Загружаем изображения с авторизацией
-        await loadImagesWithAuth(data.object);
+        await Promise.all([
+          loadImagesWithAuth(data.object),
+          loadPanoramasWithAuth(data.object)
+        ]);
       } else {
         setError(data.message || "Не удалось загрузить объект");
       }
@@ -196,6 +342,47 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
     setImageUrls(newImageUrls);
   };
 
+  const loadPanoramasWithAuth = async (objectData: any) => {
+    if (!objectData?.panoramas) {
+      setPanoramasReady(true);
+      return;
+    }
+
+    setPanoramasReady(false);
+    const newPanoramaUrls: { [key: string]: string } = {};
+    const missing = new Set<number>();
+
+    try {
+      for (const panorama of objectData.panoramas) {
+        if (!(panorama as any).mimeType?.startsWith('image/')) {
+          continue;
+        }
+
+        const directUrl = (panorama as any).url || (panorama as any).filePath || `/uploads/objects/${objectData.id}/panoramas/${panorama.filename}`;
+
+        try {
+          const response = await fetch(directUrl, { method: 'HEAD' });
+
+          if (!response.ok && response.status !== 405) {
+            console.warn(`Панорама ${panorama.filename} недоступна (status ${response.status}).`);
+            missing.add(panorama.id);
+            continue;
+          }
+
+          newPanoramaUrls[panorama.filename] = directUrl;
+        } catch (error) {
+          console.error(`Ошибка проверки панорамы ${panorama.filename}:`, error);
+          missing.add(panorama.id);
+        }
+      }
+
+      setPanoramaUrls(newPanoramaUrls);
+      setMissingPanoramaIds(missing);
+    } finally {
+      setPanoramasReady(true);
+    }
+  };
+
   const sendMessage = async () => {
     if (!newMessage.trim() || !objectId) return;
     
@@ -232,6 +419,10 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   const handlePhotosUpdate = () => {
     fetchObjectDetail();
     loadFolders(); // Обновляем папки при обновлении фото
+  };
+
+  const handlePanoramasUpdate = () => {
+    fetchObjectDetail();
   };
 
   // Загрузка папок
@@ -413,10 +604,75 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
     }
   };
 
+  const togglePanoramaVisibility = async (panoramaId: number, newVisibility: boolean) => {
+    setUpdatingPanoramas(prev => new Set(prev).add(panoramaId));
+
+    if (object) {
+      setObject(prevObject => ({
+        ...prevObject!,
+        panoramas: prevObject!.panoramas.map(panorama =>
+          panorama.id === panoramaId
+            ? { ...panorama, isVisibleToCustomer: newVisibility }
+            : panorama
+        )
+      }));
+    }
+
+    try {
+      const response = await fetch(`/api/admin/objects/${object?.id}/panoramas`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ panoramaId, isVisibleToCustomer: newVisibility }),
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        if (object) {
+          setObject(prevObject => ({
+            ...prevObject!,
+            panoramas: prevObject!.panoramas.map(panorama =>
+              panorama.id === panoramaId
+                ? { ...panorama, isVisibleToCustomer: !newVisibility }
+                : panorama
+            )
+          }));
+        }
+        alert('Ошибка: ' + data.message);
+      }
+    } catch (error) {
+      if (object) {
+        setObject(prevObject => ({
+          ...prevObject!,
+          panoramas: prevObject!.panoramas.map(panorama =>
+            panorama.id === panoramaId
+              ? { ...panorama, isVisibleToCustomer: !newVisibility }
+              : panorama
+          )
+        }));
+      }
+      alert('Ошибка сети');
+    } finally {
+      setUpdatingPanoramas(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(panoramaId);
+        return newSet;
+      });
+    }
+  };
+
   // Удаление фото
   const deletePhoto = async (photoId: number) => {
     setDeleteType('photo');
     setDeleteId(photoId);
+    setShowDeleteConfirm(true);
+  };
+
+  const deletePanorama = async (panoramaId: number) => {
+    setDeleteType('panorama');
+    setDeleteId(panoramaId);
     setShowDeleteConfirm(true);
   };
 
@@ -452,6 +708,54 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
     } catch (error) {
       console.error('Ошибка удаления фото:', error);
       alert('Ошибка удаления фото');
+    }
+  };
+
+  const confirmDeletePanorama = async () => {
+    if (!deleteId) return;
+
+    try {
+      const response = await fetch(`/api/admin/objects/${object?.id}/panoramas`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ panoramaId: deleteId })
+      });
+
+      if (!response.ok) {
+        throw new Error('Ошибка удаления панорамы');
+      }
+
+      if (object) {
+        const panoramaToRemove = object.panoramas.find(p => p.id === deleteId);
+
+        setObject(prevObject => ({
+          ...prevObject!,
+          panoramas: prevObject!.panoramas.filter(panorama => panorama.id !== deleteId)
+        }));
+
+        if (panoramaToRemove) {
+          setPanoramaUrls(prev => {
+            const updated = { ...prev };
+            delete updated[panoramaToRemove.filename];
+            return updated;
+          });
+        }
+      }
+
+      if (selectedPanorama && selectedPanorama.id === deleteId) {
+        setSelectedPanorama(null);
+      }
+
+      setShowDeleteConfirm(false);
+      setDeleteType(null);
+      setDeleteId(null);
+
+    } catch (error) {
+      console.error('Ошибка удаления панорамы:', error);
+      alert('Ошибка удаления панорамы');
     }
   };
 
@@ -547,6 +851,9 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
       case 'message':
         await confirmDeleteMessage();
         break;
+      case 'panorama':
+        await confirmDeletePanorama();
+        break;
     }
   };
 
@@ -580,6 +887,215 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
     } catch (error) {
       console.error("Ошибка пометки комментариев:", error);
     }
+  };
+
+  const markPanoramaCommentsAsRead = async (panoramaId: number) => {
+    if (!customer) return;
+    if (panoramaCommentsReadRef.current.has(panoramaId)) return;
+
+    try {
+      await fetch(`/api/panorama-comments/mark-read?email=${encodeURIComponent(customer.email)}&isAdmin=true&panoramaId=${panoramaId}`, {
+        method: 'PATCH'
+      });
+
+      panoramaCommentsReadRef.current.add(panoramaId);
+
+      setObject(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          panoramas: prev.panoramas.map(p =>
+            p.id === panoramaId ? { ...p, unreadCommentsCount: 0 } : p
+          )
+        };
+      });
+
+      setSelectedPanorama(prev => {
+        if (!prev || prev.id !== panoramaId) return prev;
+        return { ...prev, unreadCommentsCount: 0 } as any;
+      });
+    } catch (error) {
+      console.error("Ошибка пометки комментариев панорамы:", error);
+    }
+  };
+
+  const fetchPanoramaComments = async (panoramaId: number) => {
+    try {
+      const response = await fetch(`/api/panorama-comments?panoramaId=${panoramaId}`);
+      const data = await response.json();
+      if (data.success) {
+        const normalizedComments = Array.isArray(data.comments)
+          ? data.comments.map((comment: any) => {
+              const rawYaw = typeof comment?.yaw === 'number' ? comment.yaw : Number(comment?.yaw);
+              const rawPitch = typeof comment?.pitch === 'number' ? comment.pitch : Number(comment?.pitch);
+              const hasValidPosition = Number.isFinite(rawYaw) && Number.isFinite(rawPitch);
+
+              return {
+                ...comment,
+                yaw: hasValidPosition ? rawYaw : null,
+                pitch: hasValidPosition ? rawPitch : null,
+                longitude: hasValidPosition ? rawYaw : undefined,
+                latitude: hasValidPosition ? rawPitch : undefined,
+                hasValidPosition,
+              };
+            })
+          : [];
+
+        setPanoramaComments(normalizedComments);
+        const hasUnreadForAdmin = Array.isArray(data.comments) && data.comments.some((comment: any) => !comment.isAdminComment && comment.isReadByAdmin === false);
+        if (hasUnreadForAdmin) {
+          panoramaCommentsReadRef.current.delete(panoramaId);
+        }
+        markPanoramaCommentsAsRead(panoramaId);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки комментариев к панораме:', error);
+    }
+  };
+
+  const sendPanoramaComment = async () => {
+    if (!newPanoramaComment.trim() || !selectedPanorama || !pendingPanoramaCoords) {
+      return;
+    }
+
+    const yaw = Number(pendingPanoramaCoords.yaw);
+    const pitch = Number(pendingPanoramaCoords.pitch);
+
+    if (!Number.isFinite(yaw) || !Number.isFinite(pitch)) {
+      alert('Не удалось определить позицию на панораме. Выберите точку ещё раз.');
+      return;
+    }
+
+    setSendingPanoramaComment(true);
+    try {
+      const response = await fetch('/api/panorama-comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({
+          panoramaId: selectedPanorama.id,
+          content: newPanoramaComment.trim(),
+          yaw,
+          pitch
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setNewPanoramaComment('');
+        setPendingPanoramaCoords(null);
+        setSelectedPanoramaCommentId(data.comment.id);
+        await fetchPanoramaComments(selectedPanorama.id);
+      } else {
+        console.error('Ошибка отправки комментария к панораме:', data.message);
+      }
+    } catch (error) {
+      console.error('Ошибка отправки комментария к панораме:', error);
+    } finally {
+      setSendingPanoramaComment(false);
+    }
+  };
+
+  const deletePanoramaComment = async (commentId: number) => {
+    if (!selectedPanorama) return;
+
+    const confirmed = typeof window !== 'undefined'
+      ? window.confirm('Удалить этот комментарий?')
+      : true;
+
+    if (!confirmed) return;
+
+    setDeletingPanoramaCommentIds(prev => {
+      const updated = new Set(prev);
+      updated.add(commentId);
+      return updated;
+    });
+
+    try {
+      const response = await fetch(`/api/panorama-comments?commentId=${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setPanoramaComments(prev => prev.filter(comment => comment.id !== commentId));
+        if (selectedPanoramaCommentId === commentId) {
+          setSelectedPanoramaCommentId(null);
+          setPendingPanoramaCoords(null);
+        }
+        await fetchPanoramaComments(selectedPanorama.id);
+      } else {
+        console.error('Ошибка удаления комментария панорамы:', data.message);
+      }
+    } catch (error) {
+      console.error('Ошибка удаления комментария панорамы:', error);
+    } finally {
+      setDeletingPanoramaCommentIds(prev => {
+        const updated = new Set(prev);
+        updated.delete(commentId);
+        return updated;
+      });
+    }
+  };
+
+  const handlePanoramaReady = useCallback((viewer: any) => {
+    panoramaViewerRef.current = viewer;
+    const plugin = viewer.getPlugin(MarkersPlugin);
+    if (plugin) {
+      setMarkersPluginInstance(plugin);
+    }
+  }, []);
+
+  const handlePanoramaClick = useCallback((event: any) => {
+    if (!selectedPanorama) return;
+
+    const data = (event && (event.data || {})) || {};
+    const originalEvent = data?.originalEvent || event?.originalEvent || event;
+
+    const isRightClick = data.rightclick === true || originalEvent?.button === 2;
+    if (!isRightClick) {
+      return;
+    }
+
+    const longitude = [event?.longitude, event?.yaw, data.longitude, data.yaw]
+      .find((value) => typeof value === 'number') as number | undefined;
+    const latitude = [event?.latitude, event?.pitch, data.latitude, data.pitch]
+      .find((value) => typeof value === 'number') as number | undefined;
+
+    if (typeof longitude !== 'number' || typeof latitude !== 'number') {
+      return;
+    }
+
+    setPendingPanoramaCoords({ yaw: longitude, pitch: latitude });
+    setSelectedPanoramaCommentId(null);
+  }, [selectedPanorama]);
+
+  const handlePanoramaContextMenu = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+  }, []);
+
+  const focusOnPanoramaComment = useCallback((comment: any) => {
+    setSelectedPanoramaCommentId(comment.id);
+    if (comment.hasValidPosition && typeof comment.yaw === 'number' && typeof comment.pitch === 'number') {
+      setPendingPanoramaCoords({ yaw: comment.yaw, pitch: comment.pitch });
+      if (panoramaViewerRef.current?.animate) {
+        panoramaViewerRef.current.animate({ yaw: comment.yaw, pitch: comment.pitch });
+      }
+    } else {
+      setPendingPanoramaCoords(null);
+    }
+  }, []);
+
+  const toDegrees = (value: number | null | undefined) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return '—';
+    }
+    return (value * 180 / Math.PI).toFixed(1);
   };
 
   const sendPhotoComment = async () => {
@@ -627,6 +1143,47 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
     }
   }, [selectedPhoto]);
 
+  useEffect(() => {
+    if (!selectedPanorama) {
+      setPanoramaComments([]);
+      setNewPanoramaComment('');
+      setPendingPanoramaCoords(null);
+      setSelectedPanoramaCommentId(null);
+      setMarkersPluginInstance(null);
+      panoramaViewerRef.current = null;
+      lastFetchedPanoramaIdRef.current = null;
+      return;
+    }
+
+    const isSamePanorama = lastFetchedPanoramaIdRef.current === selectedPanorama.id;
+
+    if (!isSamePanorama) {
+      setPanoramaComments([]);
+      setNewPanoramaComment('');
+      setPendingPanoramaCoords(null);
+      setSelectedPanoramaCommentId(null);
+    }
+
+    lastFetchedPanoramaIdRef.current = selectedPanorama.id;
+    fetchPanoramaComments(selectedPanorama.id);
+  }, [selectedPanorama]);
+
+  useEffect(() => {
+    if (!selectedPanorama || !object) return;
+    const updated = object.panoramas.find(p => p.id === selectedPanorama.id);
+    if (!updated) return;
+
+    setSelectedPanorama(prev => {
+      if (!prev || prev.id !== updated.id) return prev;
+      const unreadPrev = (prev as any).unreadCommentsCount ?? 0;
+      const unreadNext = (updated as any).unreadCommentsCount ?? 0;
+      if (prev.isVisibleToCustomer === updated.isVisibleToCustomer && unreadPrev === unreadNext) {
+        return prev;
+      }
+      return { ...prev, ...updated } as any;
+    });
+  }, [object, selectedPanorama?.id]);
+
   // Очистка blob URLs при размонтировании
   useEffect(() => {
     return () => {
@@ -635,8 +1192,9 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
           URL.revokeObjectURL(url);
         }
       });
+      // Панорамные URL больше не создаются как blob, поэтому ничего не делаем
     };
-  }, [imageUrls]);
+  }, [imageUrls, panoramaUrls]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ru-RU', {
@@ -808,6 +1366,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
         {[
           { key: 'all-photos', label: 'Все фото', count: object?.photos?.length || 0, icon: '' },
           { key: 'customer-photos', label: 'Фото для заказчика', count: object?.photos?.filter(p => p.isVisibleToCustomer).length || 0, icon: '' },
+          { key: 'panoramas', label: 'Панорамы', count: object?.panoramas?.length || 0, icon: '' },
           { key: 'projects', label: 'Проекты', count: object.projects?.flatMap(project => project.documents || []).length || 0, icon: '' },
           { key: 'payments', label: 'Статусы оплаты', count: 0, icon: '' }, // Пока заглушка
           { key: 'messages', label: 'Сообщения', count: object.messages?.length || 0, icon: '' },
@@ -1316,6 +1875,275 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
           </div>
         )}
 
+        {activeTab === 'panoramas' && (
+          <div>
+            <PanoramasPanel
+              objectId={objectId || "0"}
+              adminToken={adminToken}
+              onPanoramasUpdate={handlePanoramasUpdate}
+            />
+
+            {object.panoramas && object.panoramas.length > 0 ? (
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                gap: "20px",
+                marginTop: "24px"
+              }}>
+                {object.panoramas.map((panorama) => (
+                  <div
+                    key={panorama.id}
+                    onClick={() => {
+                      if (!panoramasReady) {
+                        alert('Панорамы ещё загружаются, попробуйте чуть позже.');
+                        return;
+                      }
+                      if (missingPanoramaIds.has(panorama.id)) {
+                        alert('Файл панорамы недоступен. Загрузите панораму заново.');
+                        return;
+                      }
+                      setSelectedPanorama(panorama);
+                    }}
+                    style={{
+                      backgroundColor: "rgba(59, 130, 246, 0.08)",
+                      borderRadius: "16px",
+                      padding: "0",
+                      border: "1px solid rgba(59, 130, 246, 0.3)",
+                      backdropFilter: "blur(10px)",
+                      overflow: "hidden",
+                      cursor: (!panoramasReady || missingPanoramaIds.has(panorama.id)) ? "not-allowed" : "pointer",
+                      opacity: (!panoramasReady || missingPanoramaIds.has(panorama.id)) ? 0.6 : 1,
+                      transition: "all 0.3s ease"
+                    }}
+                    onMouseEnter={(e) => {
+                      if (panoramasReady && !missingPanoramaIds.has(panorama.id)) {
+                        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
+                        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 32px rgba(59, 130, 246, 0.25)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+                    }}
+                  >
+                    <div style={{
+                      width: "100%",
+                      height: "200px",
+                      background: "linear-gradient(135deg, rgba(59,130,246,0.4), rgba(14,165,233,0.4))",
+                      position: "relative",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden"
+                    }}>
+                      {(panorama as any).mimeType?.startsWith('image/') ? (
+                        <img
+                          src={panoramaUrls[panorama.filename] || `/api/uploads/objects/${object.id}/${panorama.filename}/admin`}
+                          alt={panorama.originalName}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            opacity: 0.9,
+                            transition: "opacity 0.3s ease"
+                          }}
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
+                            if (fallback) fallback.style.display = "flex";
+                          }}
+                        />
+                      ) : null}
+                      <div style={{
+                        display: (panorama as any).mimeType?.startsWith('image/') ? "none" : "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: "100%",
+                        height: "100%",
+                        fontSize: "3rem",
+                        color: "rgba(255,255,255,0.9)"
+                      }}>
+                        🌀
+                      </div>
+                      <div style={{
+                        position: "absolute",
+                        top: "8px",
+                        right: "8px",
+                        backgroundColor: panorama.isVisibleToCustomer ? "rgba(34, 197, 94, 0.9)" : "rgba(239, 68, 68, 0.9)",
+                        color: "white",
+                        padding: "4px 8px",
+                        borderRadius: "12px",
+                        fontSize: "0.75rem",
+                        fontFamily: "Arial, sans-serif",
+                        fontWeight: 600
+                      }}>
+                        {panorama.isVisibleToCustomer ? "Видно" : "Скрыто"}
+                      </div>
+                      {missingPanoramaIds.has(panorama.id) && (
+                        <div style={{
+                          position: "absolute",
+                          bottom: "12px",
+                          right: "12px",
+                          backgroundColor: "rgba(239, 68, 68, 0.85)",
+                          color: "white",
+                          padding: "6px 10px",
+                          borderRadius: "12px",
+                          fontSize: "0.75rem",
+                          fontFamily: "Arial, sans-serif",
+                          fontWeight: 600
+                        }}>
+                          Файл отсутствует
+                        </div>
+                      )}
+                      {!missingPanoramaIds.has(panorama.id) && !panoramasReady && (
+                        <div style={{
+                          position: "absolute",
+                          bottom: "12px",
+                          right: "12px",
+                          backgroundColor: "rgba(59, 130, 246, 0.4)",
+                          color: "white",
+                          padding: "6px 10px",
+                          borderRadius: "12px",
+                          fontSize: "0.75rem",
+                          fontFamily: "Arial, sans-serif",
+                          fontWeight: 600
+                        }}>
+                          Проверяем файл…
+                        </div>
+                      )}
+                      <div style={{
+                        position: "absolute",
+                        bottom: "12px",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        backgroundColor: "rgba(0,0,0,0.4)",
+                        color: "white",
+                        padding: "6px 12px",
+                        borderRadius: "999px",
+                        fontSize: "0.8rem",
+                        fontFamily: "Arial, sans-serif",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px"
+                      }}>
+                        360° Просмотр
+                      </div>
+                    </div>
+
+                    <div style={{ padding: "16px" }}>
+                      <h4 style={{
+                        fontFamily: "Arial, sans-serif",
+                        fontSize: "0.9rem",
+                        color: "white",
+                        margin: "0 0 8px 0",
+                        fontWeight: 600,
+                        wordBreak: "break-word"
+                      }}>
+                        {panorama.originalName}
+                      </h4>
+
+                      <div style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "12px"
+                      }}>
+                        <span style={{
+                          fontSize: "0.75rem",
+                          color: "rgba(255,255,255,0.7)",
+                          fontFamily: "Arial, sans-serif"
+                        }}>
+                          {formatDate(panorama.uploadedAt)}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePanoramaVisibility(panorama.id, !panorama.isVisibleToCustomer);
+                          }}
+                          disabled={updatingPanoramas.has(panorama.id)}
+                          style={{
+                            background: panorama.isVisibleToCustomer ? "rgba(239, 68, 68, 0.8)" : "rgba(34, 197, 94, 0.8)",
+                            border: "none",
+                            color: "white",
+                            padding: "6px 12px",
+                            borderRadius: "6px",
+                            fontSize: "0.75rem",
+                            fontFamily: "Arial, sans-serif",
+                            cursor: updatingPanoramas.has(panorama.id) ? "not-allowed" : "pointer",
+                            opacity: updatingPanoramas.has(panorama.id) ? 0.6 : 1,
+                            transition: "all 0.2s ease",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px"
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!updatingPanoramas.has(panorama.id)) {
+                              e.currentTarget.style.opacity = "0.8";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!updatingPanoramas.has(panorama.id)) {
+                              e.currentTarget.style.opacity = "1";
+                            }
+                          }}
+                        >
+                          {updatingPanoramas.has(panorama.id) ? 'Обновление...' : panorama.isVisibleToCustomer ? 'Скрыть' : 'Показать'}
+                        </button>
+                      </div>
+
+                      <div style={{
+                        display: "flex",
+                        gap: "8px"
+                      }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deletePanorama(panorama.id);
+                          }}
+                          style={{
+                            flex: 1,
+                            background: "rgba(239, 68, 68, 0.8)",
+                            border: "none",
+                            color: "white",
+                            padding: "6px 12px",
+                            borderRadius: "6px",
+                            fontSize: "0.75rem",
+                            fontFamily: "Arial, sans-serif",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.opacity = "0.8";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.opacity = "1";
+                          }}
+                        >
+                          🗑️ Удалить
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{
+                textAlign: "center",
+                color: "rgba(255,255,255,0.6)",
+                padding: "60px 20px",
+                fontFamily: "Arial, sans-serif"
+              }}>
+                <div style={{ fontSize: "3rem", marginBottom: "16px" }}>🌀</div>
+                <p style={{ fontSize: "1.2rem", marginBottom: "8px" }}>Пока нет панорам</p>
+                <p style={{ fontSize: "0.9rem" }}>Загрузите панорамы через панель выше</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'projects' && (
           <div>
             <h3 style={{
@@ -1540,6 +2368,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
         {/* Сообщение если нет данных */}
         {(activeTab === 'all-photos' && object.photos.length === 0) ||
          (activeTab === 'customer-photos' && object.photos.filter(p => p.isVisibleToCustomer).length === 0) ||
+         (activeTab === 'panoramas' && object.panoramas.length === 0) ||
          (activeTab === 'projects' && object.projects.length === 0) ||
          (activeTab === 'messages' && object.messages.length === 0) ||
          (activeTab === 'documents' && object.documents.length === 0) ? (
@@ -1597,6 +2426,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
               {deleteType === 'photo' && 'Вы уверены, что хотите удалить это фото?'}
               {deleteType === 'document' && 'Вы уверены, что хотите удалить этот документ?'}
               {deleteType === 'message' && 'Вы уверены, что хотите удалить это сообщение?'}
+              {deleteType === 'panorama' && 'Вы уверены, что хотите удалить эту панораму?'}
             </p>
             <div style={{
               display: "flex",
@@ -1648,6 +2478,333 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                 Удалить
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Panorama Viewer */}
+      {selectedPanorama && (
+        <div style={{
+          position: "fixed",
+          top: "120px",
+          left: "20px",
+          right: "20px",
+          bottom: "20px",
+          backgroundColor: "rgba(0,0,0,0.92)",
+          borderRadius: "12px",
+          zIndex: 1000,
+          display: "flex",
+          flexDirection: "column",
+          padding: "24px"
+        }}>
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "16px"
+          }}>
+            <h2 style={{
+              color: "white",
+              fontSize: "1.5rem",
+              fontFamily: "Arial, sans-serif",
+              margin: 0
+            }}>
+              {selectedPanorama.originalName}
+            </h2>
+            <button
+              onClick={() => {
+                setSelectedPanorama(null);
+                setPanoramaComments([]);
+                setNewPanoramaComment('');
+                setPendingPanoramaCoords(null);
+                setSelectedPanoramaCommentId(null);
+                setMarkersPluginInstance(null);
+                panoramaViewerRef.current = null;
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "white",
+                fontSize: "2rem",
+                cursor: "pointer",
+                padding: 0,
+                width: "40px",
+                height: "40px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          <div style={{
+            flex: 1,
+            display: "flex",
+            gap: "20px",
+            overflow: "hidden"
+          }}>
+            <div style={{
+              flex: 1,
+              borderRadius: "12px",
+              overflow: "hidden",
+              backgroundColor: "rgba(0,0,0,0.6)"
+            }} onContextMenu={handlePanoramaContextMenu}>
+              <ReactPhotoSphereViewer
+                key={selectedPanorama.id}
+                ref={panoramaViewerRef}
+                src={panoramaUrls[selectedPanorama.filename] || `/uploads/objects/${object?.id}/panoramas/${selectedPanorama.filename}`}
+                height="100%"
+                width="100%"
+                littlePlanet={false}
+                navbar={["zoom", "fullscreen"]}
+                plugins={panoramaViewerPlugins}
+                onReady={handlePanoramaReady}
+                onClick={handlePanoramaClick}
+              />
+            </div>
+
+            <div style={{
+              width: "360px",
+              backgroundColor: "rgba(255,255,255,0.06)",
+              borderRadius: "12px",
+              border: "1px solid rgba(255,255,255,0.12)",
+              padding: "16px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+              backdropFilter: "blur(10px)"
+            }}>
+              <div>
+                <h3 style={{
+                  color: "white",
+                  fontSize: "1.1rem",
+                  margin: "0 0 10px 0",
+                  fontFamily: "ChinaCyr, sans-serif"
+                }}>
+                  Комментарии ({panoramaComments.length})
+                </h3>
+                <p style={{
+                  fontSize: "0.85rem",
+                  color: "rgba(255,255,255,0.7)",
+                  margin: "0 0 12px 0",
+                  fontFamily: "Arial, sans-serif",
+                  lineHeight: 1.4
+                }}>
+                  Кликните на панораме, чтобы выбрать точку, и оставьте комментарий с привязкой к виду.
+                </p>
+                {pendingPanoramaCoords ? (
+                  <div style={{
+                    fontSize: "0.8rem",
+                    color: "rgba(59,130,246,0.95)",
+                    background: "rgba(59,130,246,0.15)",
+                    padding: "8px",
+                    borderRadius: "8px",
+                    border: "1px solid rgba(59,130,246,0.3)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "8px"
+                  }}>
+                    <span>Выбранная точка: {toDegrees(pendingPanoramaCoords.yaw)}° / {toDegrees(pendingPanoramaCoords.pitch)}°</span>
+                    <button
+                      onClick={() => {
+                        setPendingPanoramaCoords(null);
+                        setSelectedPanoramaCommentId(null);
+                      }}
+                      style={{
+                        background: "rgba(239, 68, 68, 0.15)",
+                        border: "1px solid rgba(239, 68, 68, 0.3)",
+                        color: "rgba(239, 68, 68, 0.9)",
+                        padding: "4px 8px",
+                        borderRadius: "6px",
+                        fontSize: "0.75rem",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Очистить
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{
+                    fontSize: "0.8rem",
+                    color: "rgba(255,255,255,0.65)",
+                    background: "rgba(255,255,255,0.05)",
+                    padding: "8px",
+                    borderRadius: "8px",
+                    border: "1px dashed rgba(255,255,255,0.2)"
+                  }}>
+                    Точка не выбрана
+                  </div>
+                )}
+              </div>
+
+              <div style={{
+                flex: 1,
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px"
+              }}>
+                {panoramaComments.map((comment) => {
+                  const isActive = selectedPanoramaCommentId === comment.id;
+                  return (
+                    <div
+                      key={comment.id}
+                      onClick={() => focusOnPanoramaComment(comment)}
+                      style={{
+                        cursor: "pointer",
+                        padding: "12px",
+                        borderRadius: "10px",
+                        backgroundColor: comment.isAdminComment ? "rgba(59,130,246,0.12)" : "rgba(34,197,94,0.12)",
+                        border: isActive ? "1px solid rgba(59,130,246,0.6)" : "1px solid rgba(255,255,255,0.1)",
+                        transition: "border 0.2s ease, transform 0.2s ease"
+                      }}
+                    >
+                      <div style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        marginBottom: "6px",
+                        gap: "8px"
+                      }}>
+                        <span style={{
+                          fontSize: "0.85rem",
+                          color: comment.isAdminComment ? "rgba(59,130,246,1)" : "rgba(34,197,94,1)",
+                          fontWeight: 600,
+                          fontFamily: "Arial, sans-serif"
+                        }}>
+                          {comment.isAdminComment ? "Команда" : (comment.user?.name || comment.user?.email)}
+                        </span>
+                        <div style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px"
+                        }}>
+                          <span style={{
+                            fontSize: "0.7rem",
+                            color: "rgba(255,255,255,0.55)",
+                            fontFamily: "Arial, sans-serif"
+                          }}>
+                            {new Date(comment.createdAt).toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              deletePanoramaComment(comment.id);
+                            }}
+                            disabled={deletingPanoramaCommentIds.has(comment.id)}
+                            style={{
+                              background: "transparent",
+                              border: "1px solid rgba(239,68,68,0.4)",
+                              color: "rgba(239,68,68,0.85)",
+                              fontSize: "0.7rem",
+                              padding: "4px 8px",
+                              borderRadius: "6px",
+                              cursor: deletingPanoramaCommentIds.has(comment.id) ? 'not-allowed' : 'pointer',
+                              transition: 'all 0.2s ease',
+                              opacity: deletingPanoramaCommentIds.has(comment.id) ? 0.6 : 1
+                            }}
+                          >
+                            {deletingPanoramaCommentIds.has(comment.id) ? 'Удаляем...' : 'Удалить'}
+                          </button>
+                        </div>
+                      </div>
+                      <p style={{
+                        fontSize: "0.85rem",
+                        color: "white",
+                        fontFamily: "Arial, sans-serif",
+                        lineHeight: 1.4,
+                        margin: "0 0 6px 0"
+                      }}>
+                        {comment.content}
+                      </p>
+                      <div style={{
+                        fontSize: "0.75rem",
+                        color: "rgba(255,255,255,0.55)",
+                        fontFamily: "Arial, sans-serif"
+                      }}>
+                        Позиция: {comment.hasValidPosition && typeof comment.yaw === 'number' && typeof comment.pitch === 'number'
+                          ? `${toDegrees(comment.yaw)}° / ${toDegrees(comment.pitch)}°`
+                          : 'нет координат'}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {panoramaComments.length === 0 && (
+                  <div style={{
+                    textAlign: "center",
+                    color: "rgba(255,255,255,0.6)",
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "0.85rem",
+                    padding: "24px"
+                  }}>
+                    Пока нет комментариев
+                  </div>
+                )}
+              </div>
+
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px"
+              }}>
+                <textarea
+                  value={newPanoramaComment}
+                  onChange={(e) => setNewPanoramaComment(e.target.value)}
+                  placeholder={pendingPanoramaCoords ? "Добавьте комментарий к выбранной точке" : "Сначала выберите точку на панораме"}
+                  disabled={!pendingPanoramaCoords || sendingPanoramaComment}
+                  style={{
+                    width: "100%",
+                    minHeight: "80px",
+                    padding: "10px",
+                    borderRadius: "8px",
+                    border: "1px solid rgba(255,255,255,0.25)",
+                    backgroundColor: "rgba(0,0,0,0.35)",
+                    color: "white",
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "0.9rem",
+                    resize: "vertical"
+                  }}
+                />
+                <button
+                  onClick={sendPanoramaComment}
+                  disabled={!pendingPanoramaCoords || !newPanoramaComment.trim() || sendingPanoramaComment}
+                  style={{
+                    width: "100%",
+                    backgroundColor: (!pendingPanoramaCoords || !newPanoramaComment.trim() || sendingPanoramaComment) ? "rgba(107,114,128,0.5)" : "rgba(34,197,94,0.8)",
+                    border: "none",
+                    color: "white",
+                    padding: "10px 16px",
+                    borderRadius: "8px",
+                    fontSize: "0.95rem",
+                    fontFamily: "Arial, sans-serif",
+                    cursor: (!pendingPanoramaCoords || !newPanoramaComment.trim() || sendingPanoramaComment) ? "not-allowed" : "pointer",
+                    transition: "all 0.2s ease"
+                  }}
+                >
+                  {sendingPanoramaComment ? "Отправка..." : "Добавить комментарий"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div style={{
+            marginTop: "16px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            color: "rgba(255,255,255,0.75)",
+            fontFamily: "Arial, sans-serif",
+            fontSize: "0.85rem"
+          }}>
+            <span>Управление: зажмите и перемещайте мышь, колесо приближает.</span>
+            <span>
+              {selectedPanorama.isVisibleToCustomer ? "Видно заказчику" : "Скрыто от заказчика"}
+              &nbsp;•&nbsp;{formatDate(selectedPanorama.uploadedAt)}
+            </span>
           </div>
         </div>
       )}

@@ -72,6 +72,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           },
           orderBy: { uploadedAt: 'desc' }
         },
+        panoramas: {
+          orderBy: { uploadedAt: 'desc' }
+        },
         documents: true,
         messages: {
           include: {
@@ -109,12 +112,24 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     // Считаем непрочитанные комментарии от заказчика
     const photoIds = object.photos.map(p => p.id);
-    let unreadCommentsCount = 0;
+    const panoramaIds = object.panoramas.map(p => p.id);
+    let unreadPhotoCommentsCount = 0;
+    let unreadPanoramaCommentsCount = 0;
 
     if (photoIds.length > 0) {
-      unreadCommentsCount = await prisma.photoComment.count({
+      unreadPhotoCommentsCount = await prisma.photoComment.count({
         where: {
           photoId: { in: photoIds },
+          isAdminComment: false,
+          isReadByAdmin: false
+        }
+      });
+    }
+
+    if (panoramaIds.length > 0) {
+      unreadPanoramaCommentsCount = await prisma.panoramaComment.count({
+        where: {
+          panoramaId: { in: panoramaIds },
           isAdminComment: false,
           isReadByAdmin: false
         }
@@ -138,12 +153,31 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       };
     }));
 
+    const panoramasWithUnreadComments = await Promise.all(object.panoramas.map(async (panorama) => {
+      const unreadPanoramaComments = await prisma.panoramaComment.count({
+        where: {
+          panoramaId: panorama.id,
+          isAdminComment: false,
+          isReadByAdmin: false
+        }
+      });
+
+      return {
+        ...panorama,
+        url: `/uploads/objects/${objectId}/panoramas/${panorama.filename}`,
+        unreadCommentsCount: unreadPanoramaComments
+      };
+    }));
+
     // Добавляем URL для фото
     const objectWithUrls = {
       ...object,
       photos: photosWithUnreadComments,
+      panoramas: panoramasWithUnreadComments,
       unreadMessagesCount,
-      unreadCommentsCount
+      unreadCommentsCount: unreadPhotoCommentsCount + unreadPanoramaCommentsCount,
+      unreadPhotoCommentsCount,
+      unreadPanoramaCommentsCount
     };
 
     return NextResponse.json({ success: true, object: objectWithUrls });

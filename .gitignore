@@ -4,6 +4,7 @@
 /node_modules
 /.pnp
 /public/cesium
+public/uploads/
 .pnp.*
 .yarn/*
 !.yarn/patches

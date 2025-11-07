@@ -61,6 +61,11 @@ export async function GET(
             }
           }
         },
+        panoramas: {
+          where: {
+            isVisibleToCustomer: true
+          }
+        },
         documents: true,
         messages: {
           include: {
@@ -93,11 +98,14 @@ export async function GET(
 
     // Считаем непрочитанные комментарии от админа
     const photoIds = object.photos.map(p => p.id);
-    let unreadCommentsCount = 0;
-    let totalCommentsCount = 0;
+    const panoramaIds = object.panoramas.map(p => p.id);
+    let unreadPhotoCommentsCount = 0;
+    let unreadPanoramaCommentsCount = 0;
+    let totalPhotoCommentsCount = 0;
+    let totalPanoramaCommentsCount = 0;
 
     if (photoIds.length > 0) {
-      unreadCommentsCount = await prisma.photoComment.count({
+      unreadPhotoCommentsCount = await prisma.photoComment.count({
         where: {
           photoId: { in: photoIds },
           isAdminComment: true,
@@ -105,8 +113,22 @@ export async function GET(
         }
       });
 
-      totalCommentsCount = await prisma.photoComment.count({
+      totalPhotoCommentsCount = await prisma.photoComment.count({
         where: { photoId: { in: photoIds } }
+      });
+    }
+
+    if (panoramaIds.length > 0) {
+      unreadPanoramaCommentsCount = await prisma.panoramaComment.count({
+        where: {
+          panoramaId: { in: panoramaIds },
+          isAdminComment: true,
+          isReadByCustomer: false
+        }
+      });
+
+      totalPanoramaCommentsCount = await prisma.panoramaComment.count({
+        where: { panoramaId: { in: panoramaIds } }
       });
     }
 
@@ -131,15 +153,35 @@ export async function GET(
       };
     }));
 
+    const panoramasWithUnreadComments = await Promise.all(object.panoramas.map(async (panorama) => {
+      const unreadPanoramaComments = await prisma.panoramaComment.count({
+        where: {
+          panoramaId: panorama.id,
+          isAdminComment: true,
+          isReadByCustomer: false
+        }
+      });
+
+      return {
+        ...panorama,
+        unreadCommentsCount: unreadPanoramaComments
+      };
+    }));
+
     return NextResponse.json({ 
       success: true, 
       object: {
         ...object,
         photos: photosWithUnreadComments,
+        panoramas: panoramasWithUnreadComments,
         unreadMessagesCount,
-        unreadCommentsCount,
+        unreadCommentsCount: unreadPhotoCommentsCount + unreadPanoramaCommentsCount,
+        unreadPhotoCommentsCount,
+        unreadPanoramaCommentsCount,
         totalMessagesCount,
-        totalCommentsCount
+        totalCommentsCount: totalPhotoCommentsCount + totalPanoramaCommentsCount,
+        totalPhotoCommentsCount,
+        totalPanoramaCommentsCount
       }
     });
 
