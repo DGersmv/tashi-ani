@@ -62,9 +62,11 @@ export default function CustomerPanoramasSection({
   panoramas,
   onCommentsRead,
 }: CustomerPanoramasSectionProps) {
-  const [panoramaUrls, setPanoramaUrls] = React.useState<Record<string, string>>({});
-  const [missingPanoramaIds, setMissingPanoramaIds] = React.useState<Set<number>>(new Set());
-  const [panoramasReady, setPanoramasReady] = React.useState(false);
+  const [panoramaOriginalUrls, setPanoramaOriginalUrls] = React.useState<Record<string, string>>({});
+  const panoramaOriginalUrlsRef = React.useRef<Record<string, string>>({});
+  const [loadingPanoramaIds, setLoadingPanoramaIds] = React.useState<Set<number>>(new Set());
+  const loadingPanoramaIdsRef = React.useRef<Set<number>>(new Set());
+  const [panoramasReady, setPanoramasReady] = React.useState(true);
   const [selectedPanorama, setSelectedPanorama] = React.useState<Panorama | null>(null);
   const [panoramaComments, setPanoramaComments] = React.useState<PanoramaComment[]>([]);
   const [newPanoramaComment, setNewPanoramaComment] = React.useState("");
@@ -76,84 +78,112 @@ export default function CustomerPanoramasSection({
   const panoramaCommentsReadRef = React.useRef<Set<number>>(new Set());
 
   React.useEffect(() => {
-    let isMounted = true;
+    panoramaOriginalUrlsRef.current = panoramaOriginalUrls;
+  }, [panoramaOriginalUrls]);
 
-    const loadPanoramaFiles = async () => {
-      setPanoramasReady(false);
-      const newUrls: Record<string, string> = {};
-      const missing = new Set<number>();
+  React.useEffect(() => {
+    loadingPanoramaIdsRef.current = loadingPanoramaIds;
+  }, [loadingPanoramaIds]);
 
-      for (const panorama of panoramas) {
-        if (!(panorama.mimeType || "").startsWith("image/")) {
-          continue;
-        }
-
-        const requestUrl = `/api/uploads/objects/${objectId}/panoramas/${panorama.filename}?email=${encodeURIComponent(userEmail)}`;
-
-        try {
-          const response = await fetch(requestUrl, {
-            method: "GET",
-            cache: "no-store",
-          });
-
-          if (!response.ok) {
-            console.warn(`Панорама ${panorama.filename} недоступна (status ${response.status}).`);
-            missing.add(panorama.id);
-            continue;
-          }
-
-          const blob = await response.blob();
-          const objectUrl = URL.createObjectURL(blob);
-          newUrls[panorama.filename] = objectUrl;
-        } catch (error) {
-          console.error(`Ошибка загрузки панорамы ${panorama.filename}:`, error);
-          missing.add(panorama.id);
-        }
-      }
-
-      if (!isMounted) return;
-
-      setPanoramaUrls((prev) => {
-        Object.values(prev).forEach((url) => {
-          if (url.startsWith("blob:")) {
-            URL.revokeObjectURL(url);
-          }
-        });
-        return newUrls;
-      });
-      setMissingPanoramaIds(missing);
-      setPanoramasReady(true);
-    };
-
-    if (panoramas?.length) {
-      loadPanoramaFiles();
-    } else {
-      setPanoramasReady(true);
-      setPanoramaUrls((prev) => {
-        Object.values(prev).forEach((url) => {
-          if (url.startsWith("blob:")) {
-            URL.revokeObjectURL(url);
-          }
-        });
-        return {};
-      });
-      setMissingPanoramaIds(new Set());
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [objectId, userEmail, panoramas]);
+  React.useEffect(() => {
+    setPanoramasReady(true);
+  }, [panoramas]);
 
   React.useEffect(() => {
     return () => {
-      Object.values(panoramaUrls).forEach((url) => {
+      Object.values(panoramaOriginalUrlsRef.current).forEach((url) => {
         if (url.startsWith("blob:")) {
           URL.revokeObjectURL(url);
         }
       });
     };
-  }, [panoramaUrls]);
+  }, []);
+
+  const panoramaThumbnailUrls = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    (panoramas || []).forEach((panorama) => {
+      if ((panorama.mimeType || '').startsWith('image/')) {
+        if ((panorama as any).thumbnailUrl) {
+          map[panorama.filename] = (panorama as any).thumbnailUrl as string;
+        } else if (panorama.url) {
+          map[panorama.filename] = panorama.url;
+        }
+      }
+    });
+    return map;
+  }, [panoramas]);
+
+  const missingPanoramaIds = React.useMemo(() => {
+    const missing = new Set<number>();
+    (panoramas || []).forEach((panorama) => {
+      if ((panorama.mimeType || '').startsWith('image/')) {
+        if (!(panorama as any).thumbnailUrl && !panorama.url) {
+          missing.add(panorama.id);
+        }
+      }
+    });
+    return missing;
+  }, [panoramas]);
+
+  React.useEffect(() => {
+    const keep = new Set((panoramas || []).map((panorama) => panorama.filename));
+    setPanoramaOriginalUrls((prev) => {
+      const next: Record<string, string> = {};
+      Object.entries(prev).forEach(([filename, url]) => {
+        if (keep.has(filename)) {
+          next[filename] = url;
+        } else if (url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      return next;
+    });
+  }, [panoramas]);
+
+  const fetchPanoramaOriginal = React.useCallback(async (panorama: Panorama) => {
+    if (!panorama) return;
+    if (!(panorama.mimeType || "").startsWith("image/")) return;
+    if (panoramaOriginalUrlsRef.current[panorama.filename]) return;
+    if (loadingPanoramaIdsRef.current.has(panorama.id)) return;
+
+    loadingPanoramaIdsRef.current.add(panorama.id);
+    setLoadingPanoramaIds(new Set(loadingPanoramaIdsRef.current));
+
+    try {
+      const requestUrl = `/api/uploads/objects/${objectId}/panoramas/${panorama.filename}?email=${encodeURIComponent(userEmail)}`;
+      const response = await fetch(requestUrl, {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        console.warn(`Панорама ${panorama.filename} недоступна (status ${response.status}).`);
+        return;
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      setPanoramaOriginalUrls((prev) => {
+        const existing = prev[panorama.filename];
+        if (existing && existing.startsWith("blob:")) {
+          URL.revokeObjectURL(existing);
+        }
+        return { ...prev, [panorama.filename]: objectUrl };
+      });
+    } catch (error) {
+      console.error(`Ошибка загрузки панорамы ${panorama.filename}:`, error);
+    } finally {
+      loadingPanoramaIdsRef.current.delete(panorama.id);
+      setLoadingPanoramaIds(new Set(loadingPanoramaIdsRef.current));
+    }
+  }, [objectId, userEmail]);
+
+  React.useEffect(() => {
+    if (selectedPanorama) {
+      fetchPanoramaOriginal(selectedPanorama);
+    }
+  }, [selectedPanorama, fetchPanoramaOriginal]);
 
   React.useEffect(() => {
     if (!selectedPanorama) {
@@ -480,9 +510,9 @@ export default function CustomerPanoramasSection({
                   position: "relative",
                 }}
               >
-                {panoramaUrls[panorama.filename] ? (
+                {panoramaThumbnailUrls[panorama.filename] ? (
                   <img
-                    src={panoramaUrls[panorama.filename]}
+                    src={panoramaThumbnailUrls[panorama.filename]}
                     alt={panorama.originalName}
                     style={{
                       width: "100%",
@@ -679,6 +709,7 @@ export default function CustomerPanoramasSection({
                   borderRadius: "12px",
                   overflow: "hidden",
                   backgroundColor: "rgba(0,0,0,0.6)",
+                  position: "relative",
                 }}
                 onContextMenu={handlePanoramaContextMenu}
               >
@@ -686,8 +717,9 @@ export default function CustomerPanoramasSection({
                   key={selectedPanorama.id}
                   ref={panoramaViewerRef}
                   src={
-                    panoramaUrls[selectedPanorama.filename] ||
+                    panoramaOriginalUrls[selectedPanorama.filename] ||
                     selectedPanorama.url ||
+                    panoramaThumbnailUrls[selectedPanorama.filename] ||
                     `/api/uploads/objects/${objectId}/panoramas/${selectedPanorama.filename}?email=${encodeURIComponent(userEmail)}`
                   }
                   height="100%"
@@ -698,6 +730,23 @@ export default function CustomerPanoramasSection({
                   onReady={handlePanoramaReady}
                   onClick={handlePanoramaClick}
                 />
+                {loadingPanoramaIds.has(selectedPanorama.id) && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "16px",
+                      right: "16px",
+                      backgroundColor: "rgba(17,24,39,0.7)",
+                      color: "white",
+                      padding: "6px 12px",
+                      borderRadius: "999px",
+                      fontSize: "0.8rem",
+                      fontFamily: "Arial, sans-serif",
+                    }}
+                  >
+                    Загрузка панорамы…
+                  </div>
+                )}
               </div>
 
               <div

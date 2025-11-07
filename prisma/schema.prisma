@@ -115,6 +115,12 @@ model Photo {
   mimeType    String
   isVisibleToCustomer Boolean @default(false)
   uploadedAt  DateTime @default(now())
+  thumbnailFilename String?
+  thumbnailFilePath String?
+  thumbnailFileSize Int?
+  thumbnailWidth Int?
+  thumbnailHeight Int?
+  thumbnailMimeType String?
   
   object Object?       @relation(fields: [objectId], references: [id], onDelete: Cascade)
   project Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -136,6 +142,12 @@ model Panorama {
   mimeType    String
   isVisibleToCustomer Boolean @default(false)
   uploadedAt  DateTime @default(now())
+  thumbnailFilename String?
+  thumbnailFilePath String?
+  thumbnailFileSize Int?
+  thumbnailWidth Int?
+  thumbnailHeight Int?
+  thumbnailMimeType String?
 
   object Object @relation(fields: [objectId], references: [id], onDelete: Cascade)
   comments PanoramaComment[]

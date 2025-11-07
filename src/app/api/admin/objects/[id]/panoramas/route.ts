@@ -4,6 +4,7 @@ import { verifyToken } from '@/lib/userManagement';
 import { mkdir, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { generateThumbnail } from '@/lib/imageProcessing';
 
 const MAX_FILE_SIZE_MB = 50;
 const ALLOWED_MIME_TYPES = [
@@ -13,8 +14,27 @@ const ALLOWED_MIME_TYPES = [
   'image/gif',
 ];
 
+const resolveFilePath = (explicitPath: string | null | undefined, fallbackPath: string) => {
+  if (typeof explicitPath === 'string' && explicitPath.trim().length > 0) {
+    return explicitPath;
+  }
+  return fallbackPath;
+};
+
 const buildPanoramaUrl = (objectId: number, panorama: any) => {
-  const baseUrl = `/uploads/objects/${objectId}/panoramas/${panorama.filename}`;
+  const fallbackPath = `/uploads/objects/${objectId}/panoramas/${panorama.filename}`;
+  const baseUrl = resolveFilePath(panorama?.filePath, fallbackPath);
+  const uploadedAt = panorama?.uploadedAt ? new Date(panorama.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
+
+const buildPanoramaThumbnailUrl = (objectId: number, panorama: any) => {
+  if (!panorama?.thumbnailFilename && !panorama?.thumbnailFilePath) {
+    return null;
+  }
+  const fallbackPath = `/uploads/objects/${objectId}/panoramas/thumbnails/${panorama.thumbnailFilename}`;
+  const baseUrl = resolveFilePath(panorama?.thumbnailFilePath, fallbackPath);
   const uploadedAt = panorama?.uploadedAt ? new Date(panorama.uploadedAt) : new Date();
   const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
   return `${baseUrl}?v=${cacheBuster}`;
@@ -75,20 +95,55 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(filePath, buffer);
 
+    let thumbnailData: Record<string, any> = {};
+    let thumbnailUrl: string | null = null;
+
+    if (file.type.startsWith('image/') && file.type !== 'image/gif') {
+      try {
+        const thumbnailDir = join(uploadDir, 'thumbnails');
+        if (!existsSync(thumbnailDir)) {
+          await mkdir(thumbnailDir, { recursive: true });
+        }
+
+        const thumbnailFilename = `thumb-${fileName}`;
+        const thumbnailPath = join(thumbnailDir, thumbnailFilename);
+        const thumbnail = await generateThumbnail(buffer, { width: 768 });
+
+        await writeFile(thumbnailPath, thumbnail.buffer);
+
+        thumbnailData = {
+          thumbnailFilename,
+          thumbnailFilePath: `/uploads/objects/${objectId}/panoramas/thumbnails/${thumbnailFilename}`,
+          thumbnailFileSize: thumbnail.buffer.length,
+          thumbnailWidth: thumbnail.width ?? null,
+          thumbnailHeight: thumbnail.height ?? null,
+          thumbnailMimeType: thumbnail.mimeType,
+        };
+
+        thumbnailUrl = `${thumbnailData.thumbnailFilePath}?v=${Date.now()}`;
+      } catch (thumbError) {
+        console.error('Ошибка генерации превью панорамы:', thumbError);
+      }
+    }
+
+    const panoramaData: Record<string, any> = {
+      objectId,
+      filename: fileName,
+      originalName: file.name,
+      filePath: `/uploads/objects/${objectId}/panoramas/${fileName}`,
+      fileSize: file.size,
+      mimeType: file.type,
+      isVisibleToCustomer,
+      uploadedAt: new Date(),
+      ...thumbnailData,
+    };
+
     const panorama = await prisma.panorama.create({
-      data: {
-        objectId,
-        filename: fileName,
-        originalName: file.name,
-        filePath: `/uploads/objects/${objectId}/panoramas/${fileName}`,
-        fileSize: file.size,
-        mimeType: file.type,
-        isVisibleToCustomer,
-        uploadedAt: new Date(),
-      },
+      data: panoramaData,
     });
 
     const url = buildPanoramaUrl(objectId, panorama);
+    const defaultThumbnailUrl = buildPanoramaThumbnailUrl(objectId, panorama);
 
     return NextResponse.json({
       success: true,
@@ -96,6 +151,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         ...panorama,
         uploadedAt: panorama.uploadedAt.toISOString(),
         url,
+        thumbnailUrl: thumbnailUrl ?? defaultThumbnailUrl,
       },
     });
   } catch (error) {
@@ -134,6 +190,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       panorama: {
         ...updatedPanorama,
         url: buildPanoramaUrl(objectId, updatedPanorama),
+        thumbnailUrl: buildPanoramaThumbnailUrl(objectId, updatedPanorama),
       },
     });
   } catch (error) {
@@ -170,11 +227,18 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ success: false, message: 'Панорама не найдена' }, { status: 404 });
     }
 
-    const publicPath = panorama.filePath.replace(/^\/+/, '');
-    const absolutePath = join(process.cwd(), 'public', publicPath);
+    const relativePath = resolveFilePath(panorama.filePath, `/uploads/objects/${objectId}/panoramas/${panorama.filename}`);
+    const absolutePath = join(process.cwd(), 'public', relativePath.replace(/^\/+/, ''));
 
     if (existsSync(absolutePath)) {
       await import('fs/promises').then((fs) => fs.unlink(absolutePath));
+    }
+
+    if (panorama.thumbnailFilePath) {
+      const thumbPath = join(process.cwd(), 'public', panorama.thumbnailFilePath.replace(/^\/+/, ''));
+      if (existsSync(thumbPath)) {
+        await import('fs/promises').then((fs) => fs.unlink(thumbPath));
+      }
     }
 
     await prisma.panorama.delete({ where: { id: panoramaId } });

@@ -102,6 +102,10 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
   const [newPhotoComment, setNewPhotoComment] = useState('');
   const [sendingPhotoComment, setSendingPhotoComment] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [photoOriginalUrls, setPhotoOriginalUrls] = useState<{ [key: string]: string }>({});
+  const photoOriginalUrlsRef = useRef<{ [key: string]: string }>({});
+  const [photoLoadingIds, setPhotoLoadingIds] = useState<Set<number>>(new Set());
+  const photoLoadingIdsRef = useRef<Set<number>>(new Set());
 
   const objectId = localStorage.getItem('selectedObjectId');
 
@@ -162,6 +166,103 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
       fetchPhotoComments(selectedPhoto.id);
     }
   }, [selectedPhoto]);
+
+  useEffect(() => {
+    photoOriginalUrlsRef.current = photoOriginalUrls;
+  }, [photoOriginalUrls]);
+
+  useEffect(() => {
+    photoLoadingIdsRef.current = photoLoadingIds;
+  }, [photoLoadingIds]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(photoOriginalUrlsRef.current).forEach((url) => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!object?.photos) return;
+    const keep = new Set(object.photos.map((photo) => photo.filename));
+    setPhotoOriginalUrls((prev) => {
+      const next: Record<string, string> = {};
+      Object.entries(prev).forEach(([filename, url]) => {
+        if (keep.has(filename)) {
+          next[filename] = url;
+        } else if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      return next;
+    });
+  }, [object?.photos]);
+
+  const photoThumbnailUrls = useMemo(() => {
+    const map: Record<string, string> = {};
+    if (object?.photos) {
+      object.photos.forEach((photo) => {
+        if ((photo as any).mimeType?.startsWith('image/')) {
+          if ((photo as any).thumbnailUrl) {
+            map[photo.filename] = (photo as any).thumbnailUrl as string;
+          } else if ((photo as any).url) {
+            map[photo.filename] = (photo as any).url as string;
+          } else if (object.id) {
+            map[photo.filename] = `/api/uploads/objects/${object.id}/${photo.filename}?email=${encodeURIComponent(userEmail)}`;
+          }
+        }
+      });
+    }
+    return map;
+  }, [object?.photos, object?.id, userEmail]);
+
+  const fetchPhotoOriginalUrl = useCallback(async (photo: Photo) => {
+    if (!photo) return;
+    if (!(photo as any).mimeType?.startsWith('image/')) return;
+    if (!object?.id) return;
+    if (photoOriginalUrlsRef.current[photo.filename]) return;
+    if (photoLoadingIdsRef.current.has(photo.id)) return;
+
+    photoLoadingIdsRef.current.add(photo.id);
+    setPhotoLoadingIds(new Set(photoLoadingIdsRef.current));
+
+    try {
+      const response = await fetch(`/api/uploads/objects/${object.id}/${photo.filename}?email=${encodeURIComponent(userEmail)}`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        console.warn(`Не удалось загрузить фото ${photo.filename}:`, response.statusText);
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      setPhotoOriginalUrls((prev) => {
+        const existing = prev[photo.filename];
+        if (existing && existing.startsWith('blob:')) {
+          URL.revokeObjectURL(existing);
+        }
+        return { ...prev, [photo.filename]: url };
+      });
+    } catch (error) {
+      console.error('Ошибка загрузки фото:', error);
+    } finally {
+      photoLoadingIdsRef.current.delete(photo.id);
+      setPhotoLoadingIds(new Set(photoLoadingIdsRef.current));
+    }
+  }, [object?.id, userEmail]);
+
+  useEffect(() => {
+    if (selectedPhoto) {
+      fetchPhotoOriginalUrl(selectedPhoto);
+    }
+  }, [selectedPhoto, fetchPhotoOriginalUrl]);
 
   const markMessagesAsRead = async () => {
     if (!objectId || !userEmail) return;
@@ -725,7 +826,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                   position: "relative"
                 }}>
                   <img
-                    src={`/api/uploads/objects/${object.id}/${photo.filename}?email=${encodeURIComponent(userEmail)}`}
+                    src={photoThumbnailUrls[photo.filename] || (photo as any).url || `/api/uploads/objects/${object.id}/${photo.filename}?email=${encodeURIComponent(userEmail)}`}
                     alt={photo.originalName}
                     style={{
                       width: "100%",
@@ -1133,10 +1234,11 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                minHeight: "400px"
+                minHeight: "400px",
+                position: "relative"
               }}>
                 <img
-                  src={`/api/uploads/objects/${object.id}/${selectedPhoto.filename}?email=${encodeURIComponent(userEmail)}`}
+                  src={photoOriginalUrls[selectedPhoto.filename] || (selectedPhoto as any).url || photoThumbnailUrls[selectedPhoto.filename] || `/api/uploads/objects/${object.id}/${selectedPhoto.filename}?email=${encodeURIComponent(userEmail)}`}
                   alt={selectedPhoto.originalName}
                   style={{
                     maxWidth: "100%",
@@ -1145,6 +1247,23 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                     borderRadius: "8px"
                   }}
                 />
+                {photoLoadingIds.has(selectedPhoto.id) && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "20px",
+                      right: "20px",
+                      backgroundColor: "rgba(17,24,39,0.7)",
+                      color: "white",
+                      padding: "6px 12px",
+                      borderRadius: "999px",
+                      fontSize: "0.8rem",
+                      fontFamily: "Arial, sans-serif"
+                    }}
+                  >
+                    Загрузка фото…
+                  </div>
+                )}
               </div>
 
               {/* Navigation */}
