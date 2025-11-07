@@ -178,6 +178,8 @@ export default function CustomerPanoramasSection({
     return panoramaComments
       .filter((comment) => Number.isFinite(comment.yaw) && Number.isFinite(comment.pitch))
       .map((comment) => ({
+         type: "html",
+         anchor: "bottom center",
         id: `panorama-comment-${comment.id}`,
         longitude: comment.yaw as number,
         latitude: comment.pitch as number,
