@@ -118,6 +118,14 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
       } else {
         setError(data.message || "Не удалось загрузить объект");
       }
+    } catch (err) {
+      console.error('Ошибка загрузки объекта:', err);
+      setError("Ошибка сети при загрузке объекта");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePanoramaCommentsRead = useCallback((panoramaId: number) => {
     setObject((prev) => {
       if (!prev) return prev;
@@ -134,14 +142,6 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
       };
     });
   }, []);
-
-    } catch (err) {
-      console.error('Ошибка загрузки объекта:', err);
-      setError("Ошибка сети при загрузке объекта");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     if (objectId && userEmail) {
