@@ -191,22 +191,48 @@ export default function CustomerPanoramasSection({
   React.useEffect(() => {
     if (!markersPluginInstance) return;
 
-    markersPluginInstance.clearMarkers();
-    markersPluginInstance.addMarkers(panoramaMarkers);
+    const pluginAny = markersPluginInstance as any;
+    const safeMarkers = panoramaMarkers.filter(
+      (marker) =>
+        typeof marker.longitude === "number" &&
+        Number.isFinite(marker.longitude) &&
+        typeof marker.latitude === "number" &&
+        Number.isFinite(marker.latitude)
+    );
 
-    const handleSelectMarker = (marker: any) => {
-      const commentId = marker?.config?.data?.commentId;
-      if (commentId) {
-        setSelectedPanoramaCommentId(commentId);
-        setPendingPanoramaCoords({ yaw: marker.config.longitude, pitch: marker.config.latitude });
+    if (typeof pluginAny.setMarkers === "function") {
+      pluginAny.setMarkers(safeMarkers);
+    } else {
+      if (typeof pluginAny.clearMarkers === "function") {
+        pluginAny.clearMarkers();
       }
-    };
 
-    markersPluginInstance.on("select-marker", handleSelectMarker);
+      if (typeof pluginAny.addMarker === "function") {
+        safeMarkers.forEach((marker) => {
+          try {
+            pluginAny.addMarker(marker);
+          } catch (error) {
+            console.error("Не удалось добавить маркер панорамы", marker, error);
+          }
+        });
+      }
+    }
 
-    return () => {
-      markersPluginInstance.off("select-marker", handleSelectMarker);
-    };
+    if (typeof pluginAny.on === "function" && typeof pluginAny.off === "function") {
+      const handleSelectMarker = (marker: any) => {
+        const commentId = marker?.config?.data?.commentId;
+        if (commentId) {
+          setSelectedPanoramaCommentId(commentId);
+          setPendingPanoramaCoords({ yaw: marker.config.longitude, pitch: marker.config.latitude });
+        }
+      };
+
+      pluginAny.on("select-marker", handleSelectMarker);
+
+      return () => {
+        pluginAny.off("select-marker", handleSelectMarker);
+      };
+    }
   }, [markersPluginInstance, panoramaMarkers]);
 
   const panoramaViewerPlugins = React.useMemo(() => {
