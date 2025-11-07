@@ -177,18 +177,27 @@ export default function CustomerPanoramasSection({
 
     return panoramaComments
       .filter((comment) => Number.isFinite(comment.yaw) && Number.isFinite(comment.pitch))
-      .map((comment) => ({
-         type: "html",
-         anchor: "bottom center",
-        id: `panorama-comment-${comment.id}`,
-        longitude: comment.yaw as number,
-        latitude: comment.pitch as number,
-        position: { yaw: comment.yaw as number, pitch: comment.pitch as number },
-        html: `<div style="padding:6px;font-size:12px;max-width:180px;">${comment.isAdminComment ? "<strong>Команда:</strong>" : "<strong>Вы:</strong>"}<br/>${comment.content}</div>`,
-        data: { commentId: comment.id },
-        size: 32,
-      }));
-  }, [panoramaComments, selectedPanorama]);
+      .map((comment) => {
+        const isActive = selectedPanoramaCommentId === comment.id;
+        const size = isActive ? 22 : 16;
+        const color = comment.isAdminComment ? "#38bdf8" : "#f97316";
+        const border = isActive ? "3px solid rgba(255,255,255,0.95)" : "2px solid rgba(255,255,255,0.85)";
+
+        const description = `${comment.isAdminComment ? "Команда" : "Вы"} • ${comment.content}`;
+
+        return {
+          type: "html",
+          anchor: "bottom center",
+          id: `panorama-comment-${comment.id}`,
+          longitude: comment.yaw as number,
+          latitude: comment.pitch as number,
+          position: { yaw: comment.yaw as number, pitch: comment.pitch as number },
+          html: `<div title="${description.replace(/"/g, '&quot;') }" style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:${border};box-shadow:0 0 12px rgba(0,0,0,0.45);"></div>`,
+          data: { commentId: comment.id },
+          size: 32,
+        };
+      });
+  }, [panoramaComments, selectedPanoramaCommentId]);
 
   React.useEffect(() => {
     if (!markersPluginInstance) return;
