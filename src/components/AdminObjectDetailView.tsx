@@ -358,22 +358,37 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
           continue;
         }
 
-        const directUrl = (panorama as any).url || (panorama as any).filePath || `/uploads/objects/${objectData.id}/panoramas/${panorama.filename}`;
+        const baseUrl = (panorama as any).url || (panorama as any).filePath || `/uploads/objects/${objectData.id}/panoramas/${panorama.filename}`;
 
-        try {
-          const response = await fetch(directUrl, { method: 'HEAD' });
+        const checkUrl = async (url: string) => {
+          try {
+            const response = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+            if (response.ok || response.status === 405) {
+              return true;
+            }
+            console.warn(`Панорама ${panorama.filename} недоступна (status ${response.status}). URL: ${url}`);
+            return false;
+          } catch (error) {
+            console.error(`Ошибка проверки панорамы ${panorama.filename} по адресу ${url}:`, error);
+            return false;
+          }
+        };
 
-          if (!response.ok && response.status !== 405) {
-            console.warn(`Панорама ${panorama.filename} недоступна (status ${response.status}).`);
+        let urlToUse = baseUrl;
+        const initialOk = await checkUrl(urlToUse);
+        if (!initialOk) {
+          const fallbackUrl = urlToUse.includes('?')
+            ? `${urlToUse}&cb=${Date.now()}`
+            : `${urlToUse}?cb=${Date.now()}`;
+          const fallbackOk = await checkUrl(fallbackUrl);
+          if (!fallbackOk) {
             missing.add(panorama.id);
             continue;
           }
-
-          newPanoramaUrls[panorama.filename] = directUrl;
-        } catch (error) {
-          console.error(`Ошибка проверки панорамы ${panorama.filename}:`, error);
-          missing.add(panorama.id);
+          urlToUse = fallbackUrl;
         }
+
+        newPanoramaUrls[panorama.filename] = urlToUse;
       }
 
       setPanoramaUrls(newPanoramaUrls);
@@ -1938,7 +1953,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                     }}>
                       {(panorama as any).mimeType?.startsWith('image/') ? (
                         <img
-                          src={panoramaUrls[panorama.filename] || `/api/uploads/objects/${object.id}/${panorama.filename}/admin`}
+                          src={panoramaUrls[panorama.filename] || panorama.url || `/api/uploads/objects/${object.id}/${panorama.filename}/admin`}
                           alt={panorama.originalName}
                           style={{
                             width: "100%",
@@ -2554,7 +2569,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
               <ReactPhotoSphereViewer
                 key={selectedPanorama.id}
                 ref={panoramaViewerRef}
-                src={panoramaUrls[selectedPanorama.filename] || `/uploads/objects/${object?.id}/panoramas/${selectedPanorama.filename}`}
+                src={panoramaUrls[selectedPanorama.filename] || selectedPanorama.url || `/uploads/objects/${object?.id}/panoramas/${selectedPanorama.filename}`}
                 height="100%"
                 width="100%"
                 littlePlanet={false}

@@ -13,6 +13,13 @@ const ALLOWED_MIME_TYPES = [
   'image/gif',
 ];
 
+const buildPanoramaUrl = (objectId: number, panorama: any) => {
+  const baseUrl = `/uploads/objects/${objectId}/panoramas/${panorama.filename}`;
+  const uploadedAt = panorama?.uploadedAt ? new Date(panorama.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
+
 const ensureAdminAccess = (request: NextRequest) => {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
@@ -81,12 +88,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
     });
 
+    const url = buildPanoramaUrl(objectId, panorama);
+
     return NextResponse.json({
       success: true,
       panorama: {
         ...panorama,
         uploadedAt: panorama.uploadedAt.toISOString(),
-        url: `/uploads/objects/${objectId}/panoramas/${fileName}`,
+        url,
       },
     });
   } catch (error) {
@@ -120,7 +129,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       data: { isVisibleToCustomer },
     });
 
-    return NextResponse.json({ success: true, panorama: updatedPanorama });
+    return NextResponse.json({
+      success: true,
+      panorama: {
+        ...updatedPanorama,
+        url: buildPanoramaUrl(objectId, updatedPanorama),
+      },
+    });
   } catch (error) {
     console.error('Ошибка обновления панорамы:', error);
     return NextResponse.json({ success: false, message: 'Внутренняя ошибка сервера' }, { status: 500 });

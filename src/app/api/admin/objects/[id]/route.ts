@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/userManagement';
 
+const buildPanoramaUrl = (objectId: number, panorama: any) => {
+  const baseUrl = `/uploads/objects/${objectId}/panoramas/${panorama.filename}`;
+  const uploadedAt = panorama?.uploadedAt ? new Date(panorama.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
+
 // GET - получить детальную информацию об объекте
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -164,7 +171,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
       return {
         ...panorama,
-        url: `/uploads/objects/${objectId}/panoramas/${panorama.filename}`,
+        url: buildPanoramaUrl(objectId, panorama),
         unreadCommentsCount: unreadPanoramaComments
       };
     }));
