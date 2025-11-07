@@ -3,6 +3,7 @@
 import React from "react";
 import dynamic from "next/dynamic";
 import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
+import "@photo-sphere-viewer/markers-plugin/index.css";
 
 const ReactPhotoSphereViewer = dynamic<any>(
   () =>
@@ -173,31 +174,51 @@ export default function CustomerPanoramasSection({
   }, [selectedPanorama?.id, panoramas]);
 
   const panoramaMarkers = React.useMemo(() => {
-    if (!selectedPanorama) return [];
+    if (!selectedPanorama) return [] as any[];
 
-    return panoramaComments
+    const markers: any[] = [];
+
+    panoramaComments
       .filter((comment) => Number.isFinite(comment.yaw) && Number.isFinite(comment.pitch))
-      .map((comment) => {
+      .forEach((comment) => {
         const isActive = selectedPanoramaCommentId === comment.id;
         const size = isActive ? 22 : 16;
         const color = comment.isAdminComment ? "#38bdf8" : "#f97316";
         const border = isActive ? "3px solid rgba(255,255,255,0.95)" : "2px solid rgba(255,255,255,0.85)";
-
         const description = `${comment.isAdminComment ? "Команда" : "Вы"} • ${comment.content}`;
 
-        return {
+        markers.push({
           type: "html",
           anchor: "bottom center",
           id: `panorama-comment-${comment.id}`,
           longitude: comment.yaw as number,
           latitude: comment.pitch as number,
           position: { yaw: comment.yaw as number, pitch: comment.pitch as number },
-          html: `<div title="${description.replace(/"/g, '&quot;') }" style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:${border};box-shadow:0 0 12px rgba(0,0,0,0.45);"></div>`,
+          html: `<div title="${description.replace(/"/g, '&quot;')}" style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:${border};box-shadow:0 0 12px rgba(0,0,0,0.45);"></div>`,
           data: { commentId: comment.id },
+          tooltip: comment.content,
           size: 32,
-        };
+        });
       });
-  }, [panoramaComments, selectedPanoramaCommentId]);
+
+    if (pendingPanoramaCoords) {
+      const { yaw, pitch } = pendingPanoramaCoords;
+      if (Number.isFinite(yaw) && Number.isFinite(pitch)) {
+        markers.push({
+          type: "html",
+          anchor: "bottom center",
+          id: "pending-panorama-comment",
+          longitude: yaw,
+          latitude: pitch,
+          position: { yaw, pitch },
+          html: `<div style="width:22px;height:22px;border-radius:50%;background:rgba(59,130,246,0.75);border:2px dashed rgba(59,130,246,0.95);box-shadow:0 0 14px rgba(59,130,246,0.6);"></div>`,
+          data: { pending: true },
+        });
+      }
+    }
+
+    return markers;
+  }, [panoramaComments, selectedPanoramaCommentId, pendingPanoramaCoords]);
 
   React.useEffect(() => {
     if (!markersPluginInstance) return;
