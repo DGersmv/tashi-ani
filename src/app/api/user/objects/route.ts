@@ -1,6 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+const resolveFilePath = (explicitPath: string | null | undefined, fallbackPath: string) => {
+  if (typeof explicitPath === 'string' && explicitPath.trim().length > 0) {
+    return explicitPath;
+  }
+  return fallbackPath;
+};
+
+const buildPhotoUrl = (objectId: number, photo: any) => {
+  const fallbackPath = `/uploads/objects/${objectId}/${photo.filename}`;
+  const baseUrl = resolveFilePath(photo?.filePath, fallbackPath);
+  const uploadedAt = photo?.uploadedAt ? new Date(photo.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
+
+const buildPhotoThumbnailUrl = (objectId: number, photo: any) => {
+  if (!photo?.thumbnailFilename && !photo?.thumbnailFilePath) {
+    return null;
+  }
+  const fallbackPath = `/uploads/objects/${objectId}/thumbnails/${photo.thumbnailFilename}`;
+  const baseUrl = resolveFilePath(photo?.thumbnailFilePath, fallbackPath);
+  const uploadedAt = photo?.uploadedAt ? new Date(photo.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
+
+const buildPanoramaUrl = (objectId: number, panorama: any) => {
+  const fallbackPath = `/uploads/objects/${objectId}/panoramas/${panorama.filename}`;
+  const baseUrl = resolveFilePath(panorama?.filePath, fallbackPath);
+  const uploadedAt = panorama?.uploadedAt ? new Date(panorama.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
+
+const buildPanoramaThumbnailUrl = (objectId: number, panorama: any) => {
+  if (!panorama?.thumbnailFilename && !panorama?.thumbnailFilePath) {
+    return null;
+  }
+  const fallbackPath = `/uploads/objects/${objectId}/panoramas/thumbnails/${panorama.thumbnailFilename}`;
+  const baseUrl = resolveFilePath(panorama?.thumbnailFilePath, fallbackPath);
+  const uploadedAt = panorama?.uploadedAt ? new Date(panorama.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -97,8 +142,22 @@ export async function GET(request: NextRequest) {
 
       const totalMessages = obj._count.messages;
 
+      const photosWithUrls = obj.photos.map(photo => ({
+        ...photo,
+        url: buildPhotoUrl(obj.id, photo),
+        thumbnailUrl: buildPhotoThumbnailUrl(obj.id, photo),
+      }));
+
+      const panoramasWithUrls = obj.panoramas.map(panorama => ({
+        ...panorama,
+        url: buildPanoramaUrl(obj.id, panorama),
+        thumbnailUrl: buildPanoramaThumbnailUrl(obj.id, panorama),
+      }));
+
       return {
         ...obj,
+        photos: photosWithUrls,
+        panoramas: panoramasWithUrls,
         unreadMessagesCount: unreadMessages,
         unreadCommentsCount: unreadPhotoComments + unreadPanoramaComments,
         unreadPhotoCommentsCount: unreadPhotoComments,

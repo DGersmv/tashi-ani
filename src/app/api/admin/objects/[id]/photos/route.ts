@@ -4,6 +4,7 @@ import { verifyToken } from '@/lib/userManagement';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { generateThumbnail } from '@/lib/imageProcessing';
 
 // POST - загрузить фото/видео для заказчика
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -43,6 +44,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Проверяем тип файла
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/avi', 'video/mov'];
+
+const resolveFilePath = (explicitPath: string | null | undefined, fallbackPath: string) => {
+  if (typeof explicitPath === 'string' && explicitPath.trim().length > 0) {
+    return explicitPath;
+  }
+  return fallbackPath;
+};
+
+const buildPhotoUrl = (objectId: number, photo: any) => {
+  const fallbackPath = `/uploads/objects/${objectId}/${photo.filename}`;
+  const baseUrl = resolveFilePath(photo?.filePath, fallbackPath);
+  const uploadedAt = photo?.uploadedAt ? new Date(photo.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
+
+const buildPhotoThumbnailUrl = (objectId: number, photo: any) => {
+  if (!photo?.thumbnailFilename && !photo?.thumbnailFilePath) {
+    return null;
+  }
+  const fallbackPath = `/uploads/objects/${objectId}/thumbnails/${photo.thumbnailFilename}`;
+  const baseUrl = resolveFilePath(photo?.thumbnailFilePath, fallbackPath);
+  const uploadedAt = photo?.uploadedAt ? new Date(photo.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json({ success: false, message: "Неподдерживаемый тип файла" }, { status: 400 });
     }
@@ -68,21 +95,53 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Сохраняем файл
     await writeFile(filePath, buffer);
 
-    // Сохраняем информацию в базу данных
-    const photo = await prisma.photo.create({
-      data: {
-        objectId: objectId,
-        filename: fileName,
-        originalName: file.name,
-        filePath: `/uploads/objects/${objectId}/${fileName}`,
-        fileSize: file.size,
-        mimeType: file.type,
-        isVisibleToCustomer: isVisibleToCustomer,
-        uploadedAt: new Date(),
+    let thumbnailData: Record<string, any> = {};
+    let thumbnailUrl: string | null = null;
+
+    if (file.type.startsWith('image/') && file.type !== 'image/gif') {
+      try {
+        const thumbnailDir = join(uploadDir, 'thumbnails');
+        if (!existsSync(thumbnailDir)) {
+          await mkdir(thumbnailDir, { recursive: true });
+        }
+
+        const thumbnailFilename = `thumb-${fileName}`;
+        const thumbnailPath = join(thumbnailDir, thumbnailFilename);
+        const thumbnail = await generateThumbnail(buffer);
+
+        await writeFile(thumbnailPath, thumbnail.buffer);
+
+        thumbnailData = {
+          thumbnailFilename,
+          thumbnailFilePath: `/uploads/objects/${objectId}/thumbnails/${thumbnailFilename}`,
+          thumbnailFileSize: thumbnail.buffer.length,
+          thumbnailWidth: thumbnail.width ?? null,
+          thumbnailHeight: thumbnail.height ?? null,
+          thumbnailMimeType: thumbnail.mimeType,
+        };
+
+        thumbnailUrl = `${thumbnailData.thumbnailFilePath}?v=${Date.now()}`;
+      } catch (thumbError) {
+        console.error('Ошибка генерации превью фотографии:', thumbError);
       }
+    }
+
+    const photoData: Record<string, any> = {
+      objectId: objectId,
+      filename: fileName,
+      originalName: file.name,
+      filePath: `/uploads/objects/${objectId}/${fileName}`,
+      fileSize: file.size,
+      mimeType: file.type,
+      isVisibleToCustomer: isVisibleToCustomer,
+      uploadedAt: new Date(),
+      ...thumbnailData,
+    };
+
+    const photo = await prisma.photo.create({
+      data: photoData,
     });
 
     return NextResponse.json({ 
@@ -95,7 +154,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         mimeType: photo.mimeType,
         isVisibleToCustomer: photo.isVisibleToCustomer,
         uploadedAt: photo.uploadedAt.toISOString(),
-        url: `/uploads/objects/${objectId}/${fileName}`
+        url: buildPhotoUrl(objectId, photo),
+        thumbnailUrl: thumbnailUrl ?? buildPhotoThumbnailUrl(objectId, photo),
       }
     });
 
@@ -147,7 +207,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       data: { isVisibleToCustomer }
     });
 
-    return NextResponse.json({ success: true, photo: updatedPhoto });
+    return NextResponse.json({ 
+      success: true, 
+      photo: {
+        ...updatedPhoto,
+        url: buildPhotoUrl(objectId, updatedPhoto),
+        thumbnailUrl: buildPhotoThumbnailUrl(objectId, updatedPhoto),
+      }
+    });
 
   } catch (error) {
     console.error("Ошибка обновления фото:", error);
@@ -202,9 +269,17 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     // Удаляем файл с диска
-    const filePath = join(process.cwd(), 'public', 'uploads', 'objects', objectId.toString(), photo.filename);
-    if (existsSync(filePath)) {
-      await import('fs/promises').then(fs => fs.unlink(filePath));
+    const relativeFilePath = resolveFilePath(photo.filePath, `/uploads/objects/${objectId}/${photo.filename}`);
+    const absoluteFilePath = join(process.cwd(), 'public', relativeFilePath.replace(/^\/+/, ''));
+    if (existsSync(absoluteFilePath)) {
+      await import('fs/promises').then(fs => fs.unlink(absoluteFilePath));
+    }
+
+    if (photo.thumbnailFilePath) {
+      const thumbnailPath = join(process.cwd(), 'public', photo.thumbnailFilePath.replace(/^\/+/, ''));
+      if (existsSync(thumbnailPath)) {
+        await import('fs/promises').then(fs => fs.unlink(thumbnailPath));
+      }
     }
 
     // Удаляем запись из базы данных

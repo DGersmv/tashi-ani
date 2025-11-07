@@ -2,6 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/userManagement";
 
+const resolveFilePath = (explicitPath: string | null | undefined, fallbackPath: string) => {
+  if (typeof explicitPath === 'string' && explicitPath.trim().length > 0) {
+    return explicitPath;
+  }
+  return fallbackPath;
+};
+
+const buildPhotoUrl = (objectId: number, photo: any) => {
+  const fallbackPath = `/uploads/objects/${objectId}/${photo.filename}`;
+  const baseUrl = resolveFilePath(photo?.filePath, fallbackPath);
+  const uploadedAt = photo?.uploadedAt ? new Date(photo.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
+
+const buildPhotoThumbnailUrl = (objectId: number, photo: any) => {
+  if (!photo?.thumbnailFilename && !photo?.thumbnailFilePath) {
+    return null;
+  }
+  const fallbackPath = `/uploads/objects/${objectId}/thumbnails/${photo.thumbnailFilename}`;
+  const baseUrl = resolveFilePath(photo?.thumbnailFilePath, fallbackPath);
+  const uploadedAt = photo?.uploadedAt ? new Date(photo.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
+
 // PATCH /api/admin/objects/[id]/photos/[photoId] - обновить фото (назначить в папку)
 export async function PATCH(
   request: NextRequest,
@@ -123,7 +149,9 @@ export async function PATCH(
         isVisibleToCustomer: updatedPhoto.isVisibleToCustomer,
         folderId: updatedPhoto.folderId,
         folderName: updatedPhoto.folder?.name || null,
-        uploadedAt: updatedPhoto.uploadedAt.toISOString()
+        uploadedAt: updatedPhoto.uploadedAt.toISOString(),
+        url: buildPhotoUrl(objectId, updatedPhoto),
+        thumbnailUrl: buildPhotoThumbnailUrl(objectId, updatedPhoto),
       }
     });
 

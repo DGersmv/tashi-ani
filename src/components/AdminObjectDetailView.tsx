@@ -113,9 +113,17 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [imageUrls, setImageUrls] = useState<{[key: string]: string}>({});
+  const [fullImageUrls, setFullImageUrls] = useState<{[key: string]: string}>({});
+  const [panoramaThumbnailUrls, setPanoramaThumbnailUrls] = useState<{[key: string]: string}>({});
   const [panoramaUrls, setPanoramaUrls] = useState<{[key: string]: string}>({});
   const imageUrlsRef = useRef<{[key: string]: string}>({});
+  const fullImageUrlsRef = useRef<{[key: string]: string}>({});
+  const panoramaThumbnailUrlsRef = useRef<{[key: string]: string}>({});
   const panoramaUrlsRef = useRef<{[key: string]: string}>({});
+  const [loadingPhotoIds, setLoadingPhotoIds] = useState<Set<number>>(new Set());
+  const loadingPhotoIdsRef = useRef<Set<number>>(new Set());
+  const [loadingPanoramaIds, setLoadingPanoramaIds] = useState<Set<number>>(new Set());
+  const loadingPanoramaIdsRef = useRef<Set<number>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteType, setDeleteType] = useState<'photo' | 'document' | 'message' | 'panorama' | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -152,6 +160,14 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   useEffect(() => {
     imageUrlsRef.current = imageUrls;
   }, [imageUrls]);
+
+useEffect(() => {
+  fullImageUrlsRef.current = fullImageUrls;
+}, [fullImageUrls]);
+
+useEffect(() => {
+  panoramaThumbnailUrlsRef.current = panoramaThumbnailUrls;
+}, [panoramaThumbnailUrls]);
 
   useEffect(() => {
     panoramaUrlsRef.current = panoramaUrls;
@@ -325,95 +341,203 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   };
 
   const loadImagesWithAuth = async (objectData: any) => {
-    if (!objectData?.photos) return;
-    
-    const newImageUrls: {[key: string]: string} = {};
-    
+    if (!objectData?.photos) {
+      setImageUrls(prev => {
+        Object.values(prev).forEach(url => {
+          if (url.startsWith('blob:')) {
+            URL.revokeObjectURL(url);
+          }
+        });
+        return {};
+      });
+      setFullImageUrls(prev => {
+        Object.values(prev).forEach(url => {
+          if (url.startsWith('blob:')) {
+            URL.revokeObjectURL(url);
+          }
+        });
+        return {};
+      });
+      return;
+    }
+
+    const newPreviewUrls: {[key: string]: string} = {};
+
     for (const photo of objectData.photos) {
       if ((photo as any).mimeType?.startsWith('image/')) {
-        try {
-          const response = await fetch(`/api/uploads/objects/${objectData.id}/${photo.filename}/admin`, {
-            headers: {
-              Authorization: `Bearer ${adminToken}`,
-            },
-          });
-          
-          if (response.ok) {
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            newImageUrls[photo.filename] = url;
-          }
-        } catch (error) {
-          console.error(`Ошибка загрузки изображения ${photo.filename}:`, error);
-        }
+        const previewUrl = (photo as any).thumbnailUrl || (photo as any).url || `/api/uploads/objects/${objectData.id}/${photo.filename}/admin`;
+        newPreviewUrls[photo.filename] = previewUrl;
       }
     }
-    
+
     setImageUrls(prev => {
       Object.values(prev).forEach(url => {
         if (url.startsWith('blob:')) {
           URL.revokeObjectURL(url);
         }
       });
-      return newImageUrls;
+      return newPreviewUrls;
+    });
+
+    const keepFilenames = new Set((objectData.photos || []).map((photo: any) => photo.filename));
+    setFullImageUrls(prev => {
+      const next: {[key: string]: string} = {};
+      Object.entries(prev).forEach(([filename, url]) => {
+        if (keepFilenames.has(filename)) {
+          next[filename] = url;
+        } else if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      return next;
     });
   };
 
   const loadPanoramasWithAuth = async (objectData: any) => {
     if (!objectData?.panoramas) {
-      setPanoramasReady(true);
-      return;
-    }
-
-    setPanoramasReady(false);
-    const newPanoramaUrls: { [key: string]: string } = {};
-    const missing = new Set<number>();
-
-    try {
-      for (const panorama of objectData.panoramas) {
-        if (!(panorama as any).mimeType?.startsWith('image/')) {
-          continue;
-        }
-
-        const adminDownloadUrl = `/api/uploads/objects/${objectData.id}/${panorama.filename}/admin`;
-
-        try {
-          const response = await fetch(adminDownloadUrl, {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${adminToken}`,
-            },
-            cache: 'no-store',
-          });
-
-          if (!response.ok) {
-            console.warn(`Панорама ${panorama.filename} недоступна (status ${response.status}).`);
-            missing.add(panorama.id);
-            continue;
-          }
-
-          const blob = await response.blob();
-          const objectUrl = URL.createObjectURL(blob);
-          newPanoramaUrls[panorama.filename] = objectUrl;
-        } catch (error) {
-          console.error(`Ошибка загрузки панорамы ${panorama.filename}:`, error);
-          missing.add(panorama.id);
-        }
-      }
-
+      setPanoramaThumbnailUrls({});
       setPanoramaUrls(prev => {
         Object.values(prev).forEach(url => {
           if (url.startsWith('blob:')) {
             URL.revokeObjectURL(url);
           }
         });
-        return newPanoramaUrls;
+        return {};
       });
-      setMissingPanoramaIds(missing);
-    } finally {
+      setMissingPanoramaIds(new Set());
       setPanoramasReady(true);
+      return;
     }
+
+    setPanoramasReady(false);
+    const newThumbnailUrls: { [key: string]: string } = {};
+    const missing = new Set<number>();
+
+    for (const panorama of objectData.panoramas) {
+      if (!(panorama as any).mimeType?.startsWith('image/')) {
+        continue;
+      }
+
+      const previewUrl = (panorama as any).thumbnailUrl || (panorama as any).url || `/api/uploads/objects/${objectData.id}/${panorama.filename}/admin`;
+      if (previewUrl) {
+        newThumbnailUrls[panorama.filename] = previewUrl;
+      } else {
+        missing.add(panorama.id);
+      }
+    }
+
+    setPanoramaThumbnailUrls(newThumbnailUrls);
+    setMissingPanoramaIds(missing);
+
+    const keepFilenames = new Set((objectData.panoramas || []).map((panorama: any) => panorama.filename));
+    setPanoramaUrls(prev => {
+      const next: { [key: string]: string } = {};
+      Object.entries(prev).forEach(([filename, url]) => {
+        if (keepFilenames.has(filename)) {
+          next[filename] = url;
+        } else if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      return next;
+    });
+
+    setPanoramasReady(true);
   };
+
+  const fetchPhotoOriginal = useCallback(async (photo: Photo) => {
+    if (!photo) return;
+    if (!(photo as any).mimeType?.startsWith('image/')) return;
+    if (!object?.id) return;
+    if (fullImageUrlsRef.current[photo.filename]) return;
+    if (loadingPhotoIdsRef.current.has(photo.id)) return;
+
+    loadingPhotoIdsRef.current.add(photo.id);
+    setLoadingPhotoIds(new Set(loadingPhotoIdsRef.current));
+
+    try {
+      const response = await fetch(`/api/uploads/objects/${object.id}/${photo.filename}/admin`, {
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        console.warn(`Не удалось загрузить оригинал фото ${photo.filename}:`, response.statusText);
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      setFullImageUrls(prev => {
+        const existing = prev[photo.filename];
+        if (existing && existing.startsWith('blob:')) {
+          URL.revokeObjectURL(existing);
+        }
+        return { ...prev, [photo.filename]: url };
+      });
+    } catch (error) {
+      console.error('Ошибка загрузки оригинала фото:', error);
+    } finally {
+      loadingPhotoIdsRef.current.delete(photo.id);
+      setLoadingPhotoIds(new Set(loadingPhotoIdsRef.current));
+    }
+  }, [adminToken, object?.id]);
+
+  const fetchPanoramaOriginal = useCallback(async (panorama: Panorama) => {
+    if (!panorama) return;
+    if (!(panorama as any).mimeType?.startsWith('image/')) return;
+    if (!object?.id) return;
+    if (panoramaUrlsRef.current[panorama.filename]) return;
+    if (loadingPanoramaIdsRef.current.has(panorama.id)) return;
+
+    loadingPanoramaIdsRef.current.add(panorama.id);
+    setLoadingPanoramaIds(new Set(loadingPanoramaIdsRef.current));
+
+    try {
+      const response = await fetch(`/api/uploads/objects/${object.id}/${panorama.filename}/admin`, {
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        console.warn(`Не удалось загрузить оригинал панорамы ${panorama.filename}:`, response.statusText);
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      setPanoramaUrls(prev => {
+        const existing = prev[panorama.filename];
+        if (existing && existing.startsWith('blob:')) {
+          URL.revokeObjectURL(existing);
+        }
+        return { ...prev, [panorama.filename]: url };
+      });
+    } catch (error) {
+      console.error('Ошибка загрузки оригинала панорамы:', error);
+    } finally {
+      loadingPanoramaIdsRef.current.delete(panorama.id);
+      setLoadingPanoramaIds(new Set(loadingPanoramaIdsRef.current));
+    }
+  }, [adminToken, object?.id]);
+
+  useEffect(() => {
+    if (selectedPhoto) {
+      fetchPhotoOriginal(selectedPhoto);
+    }
+  }, [selectedPhoto, fetchPhotoOriginal]);
+
+  useEffect(() => {
+    if (selectedPanorama) {
+      fetchPanoramaOriginal(selectedPanorama);
+    }
+  }, [selectedPanorama, fetchPanoramaOriginal]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !objectId) return;
@@ -1224,6 +1348,11 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
           URL.revokeObjectURL(url);
         }
       });
+      Object.values(fullImageUrlsRef.current).forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
       Object.values(panoramaUrlsRef.current).forEach(url => {
         if (url.startsWith('blob:')) {
           URL.revokeObjectURL(url);
@@ -1516,7 +1645,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                     }}>
                       {(photo as any).mimeType?.startsWith('image/') ? (
                         <img
-                          src={imageUrls[photo.filename] || `/api/uploads/objects/${object.id}/${photo.filename}/admin`}
+                          src={(photo as any).thumbnailUrl || imageUrls[photo.filename] || (photo as any).url || `/api/uploads/objects/${object.id}/${photo.filename}/admin`}
                           alt={photo.originalName}
                           style={{
                             width: "100%",
@@ -1806,7 +1935,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                     }}>
                       {(photo as any).mimeType?.startsWith('image/') ? (
                         <img
-                          src={imageUrls[photo.filename] || `/api/uploads/objects/${object.id}/${photo.filename}/admin`}
+                          src={(photo as any).thumbnailUrl || imageUrls[photo.filename] || (photo as any).url || `/api/uploads/objects/${object.id}/${photo.filename}/admin`}
                           alt={photo.originalName}
                           style={{
                             width: "100%",
@@ -1974,7 +2103,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                     }}>
                       {(panorama as any).mimeType?.startsWith('image/') ? (
                         <img
-                          src={panoramaUrls[panorama.filename] || panorama.url || `/api/uploads/objects/${object.id}/${panorama.filename}/admin`}
+                          src={panoramaThumbnailUrls[panorama.filename] || panorama.url || panoramaUrls[panorama.filename] || `/api/uploads/objects/${object.id}/${panorama.filename}/admin`}
                           alt={panorama.originalName}
                           style={{
                             width: "100%",
@@ -2590,7 +2719,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
               <ReactPhotoSphereViewer
                 key={selectedPanorama.id}
                 ref={panoramaViewerRef}
-                src={panoramaUrls[selectedPanorama.filename] || selectedPanorama.url || `/uploads/objects/${object?.id}/panoramas/${selectedPanorama.filename}`}
+                src={panoramaUrls[selectedPanorama.filename] || selectedPanorama.url || panoramaThumbnailUrls[selectedPanorama.filename] || `/uploads/objects/${object?.id}/panoramas/${selectedPanorama.filename}`}
                 height="100%"
                 width="100%"
                 littlePlanet={false}
@@ -2937,7 +3066,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
                 minHeight: "400px"
               }}>
                 <img
-                  src={imageUrls[selectedPhoto.filename] || `/api/uploads/objects/${object?.id}/${selectedPhoto.filename}/admin`}
+                  src={fullImageUrls[selectedPhoto.filename] || (selectedPhoto as any).url || imageUrls[selectedPhoto.filename] || `/api/uploads/objects/${object?.id}/${selectedPhoto.filename}/admin`}
                   alt={selectedPhoto.originalName}
                   style={{
                     maxWidth: "100%",
@@ -3275,3 +3404,5 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
     </div>
   );
 }
+
+
