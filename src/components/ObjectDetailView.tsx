@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useViewMode } from "./ui/ViewMode";
 import SecurePDFViewer from "./SecurePDFViewer";
+import CustomerPanoramasSection from "./CustomerPanoramasSection";
 
 interface Project {
   id: number;
@@ -45,6 +46,30 @@ interface Message {
   };
 }
 
+interface PanoramaComment {
+  id: number;
+  content: string;
+  createdAt: string;
+  yaw: number | null;
+  pitch: number | null;
+  isAdminComment: boolean;
+  user: {
+    name?: string | null;
+    email: string;
+  };
+}
+
+interface Panorama {
+  id: number;
+  filename: string;
+  originalName: string;
+  uploadedAt: string;
+  mimeType?: string | null;
+  url?: string;
+  unreadCommentsCount?: number;
+  comments?: PanoramaComment[];
+}
+
 interface ObjectDetail {
   id: number;
   title: string;
@@ -54,6 +79,7 @@ interface ObjectDetail {
   createdAt: string;
   projects: Project[];
   photos: Photo[];
+  panoramas: Panorama[];
   documents: Document[];
   messages: Message[];
 }
@@ -67,7 +93,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
   const [object, setObject] = useState<ObjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'projects' | 'photos' | 'documents' | 'messages'>('projects');
+  const [activeTab, setActiveTab] = useState<'projects' | 'photos' | 'panoramas' | 'documents' | 'messages'>('projects');
   const [selectedPDF, setSelectedPDF] = useState<{ id: number; name: string } | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [newMessage, setNewMessage] = useState('');
@@ -92,6 +118,23 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
       } else {
         setError(data.message || "Не удалось загрузить объект");
       }
+  const handlePanoramaCommentsRead = (panoramaId: number) => {
+    setObject((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        panoramas: prev.panoramas.map((panorama) =>
+          panorama.id === panoramaId
+            ? {
+                ...panorama,
+                unreadCommentsCount: 0,
+              }
+            : panorama
+        ),
+      };
+    });
+  };
+
     } catch (err) {
       console.error('Ошибка загрузки объекта:', err);
       setError("Ошибка сети при загрузке объекта");
@@ -406,6 +449,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
         {[
           { key: 'projects', label: 'Проекты', count: object.projects.reduce((total, project) => total + (project.documents?.length || 0), 0) },
           { key: 'photos', label: 'Фото', count: object.photos.length },
+          { key: 'panoramas', label: 'Панорамы', count: object.panoramas?.length || 0 },
           { key: 'documents', label: 'Документы', count: object.documents.length },
           { key: 'messages', label: 'Сообщения', count: object.messages.length }
         ].map((tab) => (
@@ -760,6 +804,15 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
           </div>
         )}
 
+        {activeTab === 'panoramas' && (
+          <CustomerPanoramasSection
+            objectId={object.id}
+            userEmail={userEmail}
+            panoramas={object.panoramas || []}
+            onCommentsRead={handlePanoramaCommentsRead}
+          />
+        )}
+
         {activeTab === 'documents' && (
           <div style={{
             display: "grid",
@@ -979,6 +1032,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
         {/* Сообщение если нет данных */}
         {(activeTab === 'projects' && object.projects.length === 0) ||
          (activeTab === 'photos' && object.photos.length === 0) ||
+         (activeTab === 'panoramas' && object.panoramas.length === 0) ||
          (activeTab === 'documents' && object.documents.length === 0) ||
          (activeTab === 'messages' && object.messages.length === 0) ? (
           <div style={{
