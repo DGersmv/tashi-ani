@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useViewMode } from "./ui/ViewMode";
 import SecurePDFViewer from "./SecurePDFViewer";
@@ -118,7 +118,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
       } else {
         setError(data.message || "Не удалось загрузить объект");
       }
-  const handlePanoramaCommentsRead = (panoramaId: number) => {
+  const handlePanoramaCommentsRead = useCallback((panoramaId: number) => {
     setObject((prev) => {
       if (!prev) return prev;
       return {
@@ -133,7 +133,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
         ),
       };
     });
-  };
+  }, []);
 
     } catch (err) {
       console.error('Ошибка загрузки объекта:', err);
