@@ -358,40 +358,40 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
           continue;
         }
 
-        const baseUrl = (panorama as any).url || (panorama as any).filePath || `/uploads/objects/${objectData.id}/panoramas/${panorama.filename}`;
+        const adminDownloadUrl = `/api/uploads/objects/${objectData.id}/${panorama.filename}/admin`;
 
-        const checkUrl = async (url: string) => {
-          try {
-            const response = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-            if (response.ok || response.status === 405) {
-              return true;
-            }
-            console.warn(`Панорама ${panorama.filename} недоступна (status ${response.status}). URL: ${url}`);
-            return false;
-          } catch (error) {
-            console.error(`Ошибка проверки панорамы ${panorama.filename} по адресу ${url}:`, error);
-            return false;
-          }
-        };
+        try {
+          const response = await fetch(adminDownloadUrl, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${adminToken}`,
+            },
+            cache: 'no-store',
+          });
 
-        let urlToUse = baseUrl;
-        const initialOk = await checkUrl(urlToUse);
-        if (!initialOk) {
-          const fallbackUrl = urlToUse.includes('?')
-            ? `${urlToUse}&cb=${Date.now()}`
-            : `${urlToUse}?cb=${Date.now()}`;
-          const fallbackOk = await checkUrl(fallbackUrl);
-          if (!fallbackOk) {
+          if (!response.ok) {
+            console.warn(`Панорама ${panorama.filename} недоступна (status ${response.status}).`);
             missing.add(panorama.id);
             continue;
           }
-          urlToUse = fallbackUrl;
-        }
 
-        newPanoramaUrls[panorama.filename] = urlToUse;
+          const blob = await response.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          newPanoramaUrls[panorama.filename] = objectUrl;
+        } catch (error) {
+          console.error(`Ошибка загрузки панорамы ${panorama.filename}:`, error);
+          missing.add(panorama.id);
+        }
       }
 
-      setPanoramaUrls(newPanoramaUrls);
+      setPanoramaUrls(prev => {
+        Object.values(prev).forEach(url => {
+          if (url.startsWith('blob:')) {
+            URL.revokeObjectURL(url);
+          }
+        });
+        return newPanoramaUrls;
+      });
       setMissingPanoramaIds(missing);
     } finally {
       setPanoramasReady(true);
@@ -1207,7 +1207,11 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
           URL.revokeObjectURL(url);
         }
       });
-      // Панорамные URL больше не создаются как blob, поэтому ничего не делаем
+      Object.values(panoramaUrls).forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
     };
   }, [imageUrls, panoramaUrls]);
 
