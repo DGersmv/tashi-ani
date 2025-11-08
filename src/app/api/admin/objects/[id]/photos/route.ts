@@ -6,6 +6,32 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { generateThumbnail } from '@/lib/imageProcessing';
 
+const resolveFilePath = (explicitPath: string | null | undefined, fallbackPath: string) => {
+  if (typeof explicitPath === 'string' && explicitPath.trim().length > 0) {
+    return explicitPath;
+  }
+  return fallbackPath;
+};
+
+const buildPhotoUrl = (objectId: number, photo: any) => {
+  const fallbackPath = `/uploads/objects/${objectId}/${photo.filename}`;
+  const baseUrl = resolveFilePath(photo?.filePath, fallbackPath);
+  const uploadedAt = photo?.uploadedAt ? new Date(photo.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
+
+const buildPhotoThumbnailUrl = (objectId: number, photo: any) => {
+  if (!photo?.thumbnailFilename && !photo?.thumbnailFilePath) {
+    return null;
+  }
+  const fallbackPath = `/uploads/objects/${objectId}/thumbnails/${photo.thumbnailFilename}`;
+  const baseUrl = resolveFilePath(photo?.thumbnailFilePath, fallbackPath);
+  const uploadedAt = photo?.uploadedAt ? new Date(photo.uploadedAt) : new Date();
+  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
+  return `${baseUrl}?v=${cacheBuster}`;
+};
+
 // POST - загрузить фото/видео для заказчика
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -44,32 +70,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Проверяем тип файла
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/avi', 'video/mov'];
-
-const resolveFilePath = (explicitPath: string | null | undefined, fallbackPath: string) => {
-  if (typeof explicitPath === 'string' && explicitPath.trim().length > 0) {
-    return explicitPath;
-  }
-  return fallbackPath;
-};
-
-const buildPhotoUrl = (objectId: number, photo: any) => {
-  const fallbackPath = `/uploads/objects/${objectId}/${photo.filename}`;
-  const baseUrl = resolveFilePath(photo?.filePath, fallbackPath);
-  const uploadedAt = photo?.uploadedAt ? new Date(photo.uploadedAt) : new Date();
-  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
-  return `${baseUrl}?v=${cacheBuster}`;
-};
-
-const buildPhotoThumbnailUrl = (objectId: number, photo: any) => {
-  if (!photo?.thumbnailFilename && !photo?.thumbnailFilePath) {
-    return null;
-  }
-  const fallbackPath = `/uploads/objects/${objectId}/thumbnails/${photo.thumbnailFilename}`;
-  const baseUrl = resolveFilePath(photo?.thumbnailFilePath, fallbackPath);
-  const uploadedAt = photo?.uploadedAt ? new Date(photo.uploadedAt) : new Date();
-  const cacheBuster = Number.isFinite(uploadedAt.getTime()) ? uploadedAt.getTime() : Date.now();
-  return `${baseUrl}?v=${cacheBuster}`;
-};
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json({ success: false, message: "Неподдерживаемый тип файла" }, { status: 400 });
     }
