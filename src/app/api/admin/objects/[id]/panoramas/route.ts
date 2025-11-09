@@ -4,7 +4,9 @@ import { verifyToken } from '@/lib/userManagement';
 import { mkdir, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import sharp from 'sharp';
 import { generateThumbnail } from '@/lib/imageProcessing';
+import { classifyPanoramaProjection } from '@/lib/panoramaUtils';
 
 const MAX_FILE_SIZE_MB = 50;
 const ALLOWED_MIME_TYPES = [
@@ -93,6 +95,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const filePath = join(uploadDir, fileName);
     const buffer = Buffer.from(await file.arrayBuffer());
+    let originalWidth: number | null = null;
+    let originalHeight: number | null = null;
+    let projectionType: 'EQUIRECTANGULAR' | 'CYLINDRICAL' | 'UNKNOWN' = 'UNKNOWN';
+
+    try {
+      const metadata = await sharp(buffer, { failOn: 'none' }).metadata();
+      originalWidth = metadata.width ?? null;
+      originalHeight = metadata.height ?? null;
+      projectionType = classifyPanoramaProjection(originalWidth, originalHeight);
+    } catch (metadataError) {
+      console.error('Не удалось прочитать метаданные панорамы:', metadataError);
+    }
+
     await writeFile(filePath, buffer);
 
     let thumbnailData: Record<string, any> = {};
@@ -135,6 +150,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       mimeType: file.type,
       isVisibleToCustomer,
       uploadedAt: new Date(),
+      originalWidth,
+      originalHeight,
+      projectionType,
       ...thumbnailData,
     };
 
@@ -152,6 +170,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         uploadedAt: panorama.uploadedAt.toISOString(),
         url,
         thumbnailUrl: thumbnailUrl ?? defaultThumbnailUrl,
+        originalWidth,
+        originalHeight,
+        projectionType,
       },
     });
   } catch (error) {

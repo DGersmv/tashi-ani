@@ -1,0 +1,22 @@
+warning: in the working copy of 'prisma/schema.prisma', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/api/admin/objects/[id]/panoramas/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/api/panorama-comments/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/api/user/objects/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/AdminObjectDetailView.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/CustomerPanoramasSection.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/ObjectDetailView.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/panoramaUtils.ts', LF will be replaced by CRLF the next time Git touches it
+ DATABASE_SETUP.md                           |   8 [32m++[m
+ EMAIL_SETUP.md                              |   8 [32m++[m
+ ENV_SETUP.md                                |   8 [32m++[m
+ LOCAL_SETUP.md                              |   8 [32m++[m
+ create-test-data-v2.js                      |   8 [32m++[m
+ prisma/dev.db                               | Bin [31m81920[m -> [32m86016[m bytes
+ prisma/schema.prisma                        |   4 [32m+[m[31m-[m
+ src/app/api/auth/master-login/route.ts      |   8 [32m++[m
+ src/app/api/panorama-comments/route.ts      |  17 [32m++[m[31m-[m
+ src/components/AdminObjectDetailView.tsx    | 131 [32m+++++++++++++[m[31m--------[m
+ src/components/CustomerPanoramasSection.tsx | 169 [32m++++++++++++++++++++[m[31m--------[m
+ src/components/ObjectDetailView.tsx         |   2 [32m+[m[31m-[m
+ src/lib/prisma.ts                           |   8 [32m++[m
+ 13 files changed, 275 insertions(+), 104 deletions(-)

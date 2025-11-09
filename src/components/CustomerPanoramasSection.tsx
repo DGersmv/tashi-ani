@@ -4,6 +4,7 @@ import React from "react";
 import dynamic from "next/dynamic";
 import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
 import "@photo-sphere-viewer/markers-plugin/index.css";
+import { classifyPanoramaProjection, getPanoramaViewerPanoData } from "@/lib/panoramaUtils";
 
 const ReactPhotoSphereViewer = dynamic<any>(
   () =>
@@ -35,6 +36,9 @@ interface Panorama {
   url?: string;
   unreadCommentsCount?: number;
   comments?: PanoramaComment[];
+  originalWidth?: number | null;
+  originalHeight?: number | null;
+  projectionType?: string | null;
 }
 
 interface CustomerPanoramasSectionProps {
@@ -74,6 +78,7 @@ export default function CustomerPanoramasSection({
   const [pendingPanoramaCoords, setPendingPanoramaCoords] = React.useState<{ yaw: number; pitch: number } | null>(null);
   const [selectedPanoramaCommentId, setSelectedPanoramaCommentId] = React.useState<number | null>(null);
   const panoramaViewerRef = React.useRef<any>(null);
+  const panoramaViewerLoaderCleanupRef = React.useRef<(() => void) | null>(null);
   const [markersPluginInstance, setMarkersPluginInstance] = React.useState<any>(null);
   const panoramaCommentsReadRef = React.useRef<Set<number>>(new Set());
 
@@ -96,6 +101,8 @@ export default function CustomerPanoramasSection({
           URL.revokeObjectURL(url);
         }
       });
+      panoramaViewerLoaderCleanupRef.current?.();
+      panoramaViewerLoaderCleanupRef.current = null;
     };
   }, []);
 
@@ -171,6 +178,46 @@ export default function CustomerPanoramasSection({
         }
         return { ...prev, [panorama.filename]: objectUrl };
       });
+
+      const needsAnalysis =
+        !panorama.originalWidth ||
+        !panorama.originalHeight ||
+        !panorama.projectionType ||
+        panorama.projectionType === "UNKNOWN";
+
+      if (needsAnalysis) {
+        const analysisImage = new Image();
+        analysisImage.onload = () => {
+          const width = analysisImage.naturalWidth;
+          const height = analysisImage.naturalHeight;
+          if (!width || !height) {
+            return;
+          }
+
+          const inferredProjection = classifyPanoramaProjection(width, height);
+
+          setSelectedPanorama((prev) => {
+            if (!prev || prev.id !== panorama.id) {
+              return prev;
+            }
+
+            const nextWidth = prev.originalWidth ?? width;
+            const nextHeight = prev.originalHeight ?? height;
+            const nextProjection =
+              prev.projectionType && prev.projectionType !== "UNKNOWN"
+                ? prev.projectionType
+                : inferredProjection;
+
+            return {
+              ...prev,
+              originalWidth: nextWidth,
+              originalHeight: nextHeight,
+              projectionType: nextProjection,
+            };
+          });
+        };
+        analysisImage.src = objectUrl;
+      }
     } catch (error) {
       console.error(`Ошибка загрузки панорамы ${panorama.filename}:`, error);
     } finally {
@@ -347,13 +394,70 @@ export default function CustomerPanoramasSection({
     }
   };
 
-  const handlePanoramaReady = React.useCallback((viewer: any) => {
-    panoramaViewerRef.current = viewer;
-    const plugin = viewer.getPlugin(MarkersPlugin);
-    if (plugin) {
-      setMarkersPluginInstance(plugin);
+  const hidePhotoSphereLoader = React.useCallback((viewer: any) => {
+    if (!viewer) return;
+
+    // Hide internal PSV loader overlay if the library keeps it visible after aborted loads
+    try {
+      const internalLoader = (viewer as any).loader;
+      if (internalLoader?.hide) {
+        internalLoader.hide();
+      }
+    } catch (error) {
+      console.warn("Не удалось скрыть встроенный загрузчик панорамы через API:", error);
+    }
+
+    try {
+      const loaderContainer: HTMLElement | null =
+        viewer.container?.querySelector?.(".psv-loader-container") ?? null;
+      if (loaderContainer) {
+        loaderContainer.classList.remove("psv-loader--undefined");
+        loaderContainer.style.display = "none";
+      }
+    } catch (error) {
+      console.warn("Не удалось скрыть встроенный загрузчик панорамы через DOM:", error);
     }
   }, []);
+
+  const handlePanoramaReady = React.useCallback(
+    (viewer: any) => {
+      panoramaViewerRef.current = viewer;
+
+      if (panoramaViewerLoaderCleanupRef.current) {
+        panoramaViewerLoaderCleanupRef.current();
+        panoramaViewerLoaderCleanupRef.current = null;
+      }
+
+      const hideLoaderHandler = () => hidePhotoSphereLoader(viewer);
+
+      const eventsToWatch = ["panorama-loaded", "panorama-load-progress", "ready"] as const;
+      eventsToWatch.forEach((eventName) => {
+        try {
+          viewer.addEventListener(eventName, hideLoaderHandler);
+        } catch (error) {
+          console.warn(`Не удалось подписаться на событие ${eventName}:`, error);
+        }
+      });
+
+      panoramaViewerLoaderCleanupRef.current = () => {
+        eventsToWatch.forEach((eventName) => {
+          try {
+            viewer.removeEventListener(eventName, hideLoaderHandler);
+          } catch {
+            // noop
+          }
+        });
+      };
+
+      hideLoaderHandler();
+
+      const plugin = viewer.getPlugin(MarkersPlugin);
+      if (plugin) {
+        setMarkersPluginInstance(plugin);
+      }
+    },
+    [hidePhotoSphereLoader]
+  );
 
   const handlePanoramaContextMenu = React.useCallback((event: React.MouseEvent) => {
     event.preventDefault();
@@ -362,6 +466,10 @@ export default function CustomerPanoramasSection({
   const handlePanoramaClick = React.useCallback(
     (event: any) => {
       if (!selectedPanorama) return;
+      const panoData = getPanoramaViewerPanoData(selectedPanorama as any);
+      if (panoData) {
+        return;
+      }
 
       const data = (event && (event.data || {})) || {};
       const originalEvent = data?.originalEvent || event?.originalEvent || event;
@@ -398,14 +506,28 @@ export default function CustomerPanoramasSection({
   };
 
   const sendPanoramaComment = async () => {
-    if (!newPanoramaComment.trim() || !selectedPanorama || !pendingPanoramaCoords) return;
+    const trimmed = newPanoramaComment.trim();
+    if (!trimmed || !selectedPanorama) return;
 
-    const yaw = Number(pendingPanoramaCoords.yaw);
-    const pitch = Number(pendingPanoramaCoords.pitch);
+    let yaw: number | undefined;
+    let pitch: number | undefined;
 
-    if (!Number.isFinite(yaw) || !Number.isFinite(pitch)) {
-      alert("Не удалось определить позицию на панораме. Выберите точку ещё раз.");
-      return;
+    if (coordinatesRequired) {
+      if (!pendingPanoramaCoords) {
+        alert("Сначала выберите точку на панораме.");
+        return;
+      }
+
+      const rawYaw = Number(pendingPanoramaCoords.yaw);
+      const rawPitch = Number(pendingPanoramaCoords.pitch);
+
+      if (!Number.isFinite(rawYaw) || !Number.isFinite(rawPitch)) {
+        alert("Не удалось определить позицию на панораме. Выберите точку ещё раз.");
+        return;
+      }
+
+      yaw = rawYaw;
+      pitch = rawPitch;
     }
 
     const userToken = localStorage.getItem("userToken");
@@ -416,25 +538,32 @@ export default function CustomerPanoramasSection({
 
     setSendingPanoramaComment(true);
     try {
+      const payload: Record<string, unknown> = {
+        panoramaId: selectedPanorama.id,
+        content: trimmed,
+      };
+
+      if (typeof yaw === "number" && typeof pitch === "number") {
+        payload.yaw = yaw;
+        payload.pitch = pitch;
+      }
+
       const response = await fetch("/api/panorama-comments", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${userToken}`,
         },
-        body: JSON.stringify({
-          panoramaId: selectedPanorama.id,
-          content: newPanoramaComment.trim(),
-          yaw,
-          pitch,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
       if (data.success) {
         setNewPanoramaComment("");
-        setPendingPanoramaCoords(null);
         setSelectedPanoramaCommentId(data.comment.id);
+        if (coordinatesRequired) {
+          setPendingPanoramaCoords(null);
+        }
         await fetchPanoramaComments(selectedPanorama.id);
       } else {
         console.error("Ошибка отправки комментария к панораме:", data.message);
@@ -445,6 +574,68 @@ export default function CustomerPanoramasSection({
       setSendingPanoramaComment(false);
     }
   };
+
+  const selectedPanoramaSrc = React.useMemo(() => {
+    if (!selectedPanorama) return null;
+    const primary =
+      panoramaOriginalUrls[selectedPanorama.filename] ||
+      selectedPanorama.url ||
+      panoramaThumbnailUrls[selectedPanorama.filename];
+    if (primary) {
+      return primary;
+    }
+    const queryEmail = encodeURIComponent(userEmail);
+    return `/api/uploads/objects/${objectId}/panoramas/${selectedPanorama.filename}?email=${queryEmail}`;
+  }, [selectedPanorama, panoramaOriginalUrls, panoramaThumbnailUrls, objectId, userEmail]);
+
+  const selectedPanoramaPanoData = React.useMemo(() => {
+    if (!selectedPanorama) {
+      return null;
+    }
+    return getPanoramaViewerPanoData(selectedPanorama as any);
+  }, [selectedPanorama]);
+
+  const annotationsEnabled = !selectedPanoramaPanoData;
+  const coordinatesRequired = annotationsEnabled;
+  const commentTextTrimmed = newPanoramaComment.trim();
+  const canSubmitComment =
+    !!commentTextTrimmed &&
+    !sendingPanoramaComment &&
+    (!coordinatesRequired || Boolean(pendingPanoramaCoords));
+
+  React.useEffect(() => {
+    if (!selectedPanoramaPanoData) {
+      return;
+    }
+
+    setPendingPanoramaCoords(null);
+    setSelectedPanoramaCommentId(null);
+  }, [selectedPanoramaPanoData]);
+
+  React.useEffect(() => {
+    const viewer = panoramaViewerRef.current;
+    if (!viewer || typeof viewer.setPanorama !== "function") {
+      return;
+    }
+    if (!selectedPanorama || !selectedPanoramaSrc || !selectedPanoramaPanoData) {
+      return;
+    }
+
+    let disposed = false;
+    const maybePromise = viewer.setPanorama(selectedPanoramaSrc, { panoData: selectedPanoramaPanoData });
+
+    if (maybePromise && typeof (maybePromise as Promise<unknown>).catch === "function") {
+      (maybePromise as Promise<unknown>).catch((error: unknown) => {
+        if (!disposed) {
+          console.error("Не удалось применить параметры панорамы:", error);
+        }
+      });
+    }
+
+    return () => {
+      disposed = true;
+    };
+  }, [selectedPanorama, selectedPanoramaSrc, selectedPanoramaPanoData]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -658,16 +849,18 @@ export default function CustomerPanoramasSection({
               >
                 {selectedPanorama.originalName}
               </h2>
-              <p
-                style={{
-                  color: "rgba(255,255,255,0.7)",
-                  fontFamily: "Arial, sans-serif",
-                  fontSize: "0.85rem",
-                  margin: "6px 0 0",
-                }}
-              >
-                Правая кнопка мыши — выбрать точку для комментария.
-              </p>
+            <p
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                fontFamily: "Arial, sans-serif",
+                fontSize: "0.85rem",
+                margin: "6px 0 0",
+              }}
+            >
+              {annotationsEnabled
+                ? "Правая кнопка мыши — выбрать точку для комментария."
+                : "Панорама отображается в цилиндрическом режиме — просмотр доступен, привязка точек недоступна."}
+            </p>
             </div>
 
             <button
@@ -679,6 +872,8 @@ export default function CustomerPanoramasSection({
                 setSelectedPanoramaCommentId(null);
                 setMarkersPluginInstance(null);
                 panoramaViewerRef.current = null;
+                panoramaViewerLoaderCleanupRef.current?.();
+                panoramaViewerLoaderCleanupRef.current = null;
               }}
               style={{
                 background: "none",
@@ -716,17 +911,13 @@ export default function CustomerPanoramasSection({
                 <ReactPhotoSphereViewer
                   key={selectedPanorama.id}
                   ref={panoramaViewerRef}
-                  src={
-                    panoramaOriginalUrls[selectedPanorama.filename] ||
-                    selectedPanorama.url ||
-                    panoramaThumbnailUrls[selectedPanorama.filename] ||
-                    `/api/uploads/objects/${objectId}/panoramas/${selectedPanorama.filename}?email=${encodeURIComponent(userEmail)}`
-                  }
+                  src={selectedPanoramaSrc ?? ""}
                   height="100%"
                   width="100%"
                   littlePlanet={false}
                   navbar={["zoom", "fullscreen"]}
                   plugins={panoramaViewerPlugins}
+                  lang={{ loading: "" }}
                   onReady={handlePanoramaReady}
                   onClick={handlePanoramaClick}
                 />
@@ -773,54 +964,69 @@ export default function CustomerPanoramasSection({
                   >
                     Комментарии ({panoramaComments.length})
                   </h3>
-                  {pendingPanoramaCoords ? (
-                    <div
-                      style={{
-                        fontSize: "0.8rem",
-                        color: "rgba(59,130,246,0.95)",
-                        background: "rgba(59,130,246,0.18)",
-                        padding: "8px",
-                        borderRadius: "8px",
-                        border: "1px solid rgba(59,130,246,0.35)",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      <span>
-                        Выбранная точка: {toDegrees(pendingPanoramaCoords.yaw)}° / {toDegrees(pendingPanoramaCoords.pitch)}°
-                      </span>
-                      <button
-                        onClick={() => {
-                          setPendingPanoramaCoords(null);
-                          setSelectedPanoramaCommentId(null);
-                        }}
+                  {annotationsEnabled ? (
+                    pendingPanoramaCoords ? (
+                      <div
                         style={{
-                          background: "rgba(239,68,68,0.18)",
-                          border: "1px solid rgba(239,68,68,0.35)",
-                          color: "rgba(239,68,68,0.9)",
-                          padding: "4px 8px",
-                          borderRadius: "6px",
-                          fontSize: "0.75rem",
-                          cursor: "pointer",
+                          fontSize: "0.8rem",
+                          color: "rgba(59,130,246,0.95)",
+                          background: "rgba(59,130,246,0.18)",
+                          padding: "8px",
+                          borderRadius: "8px",
+                          border: "1px solid rgba(59,130,246,0.35)",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: "8px",
                         }}
                       >
-                        Очистить
-                      </button>
-                    </div>
+                        <span>
+                          Выбранная точка: {toDegrees(pendingPanoramaCoords.yaw)}° / {toDegrees(pendingPanoramaCoords.pitch)}°
+                        </span>
+                        <button
+                          onClick={() => {
+                            setPendingPanoramaCoords(null);
+                            setSelectedPanoramaCommentId(null);
+                          }}
+                          style={{
+                            background: "rgba(239,68,68,0.18)",
+                            border: "1px solid rgba(239,68,68,0.35)",
+                            color: "rgba(239,68,68,0.9)",
+                            padding: "4px 8px",
+                            borderRadius: "6px",
+                            fontSize: "0.75rem",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Очистить
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          fontSize: "0.8rem",
+                          color: "rgba(255,255,255,0.65)",
+                          background: "rgba(255,255,255,0.05)",
+                          padding: "8px",
+                          borderRadius: "8px",
+                          border: "1px dashed rgba(255,255,255,0.2)",
+                        }}
+                      >
+                        Точка не выбрана
+                      </div>
+                    )
                   ) : (
                     <div
                       style={{
                         fontSize: "0.8rem",
-                        color: "rgba(255,255,255,0.65)",
-                        background: "rgba(255,255,255,0.05)",
+                        color: "rgba(255,255,255,0.78)",
+                        background: "rgba(59,130,246,0.12)",
                         padding: "8px",
                         borderRadius: "8px",
-                        border: "1px dashed rgba(255,255,255,0.2)",
+                        border: "1px solid rgba(59,130,246,0.35)",
                       }}
                     >
-                      Точка не выбрана
+                      Эта панорама в цилиндрическом формате: комментарий сохранится без привязки к точке.
                     </div>
                   )}
                 </div>
@@ -878,7 +1084,7 @@ export default function CustomerPanoramasSection({
                             {formatDate(comment.createdAt)}
                           </p>
                         </div>
-                        {Number.isFinite(comment.yaw) && Number.isFinite(comment.pitch) && (
+                        {annotationsEnabled && Number.isFinite(comment.yaw) && Number.isFinite(comment.pitch) && (
                           <button
                             onClick={() => {
                               setSelectedPanoramaCommentId(comment.id);
@@ -940,8 +1146,14 @@ export default function CustomerPanoramasSection({
                   <textarea
                     value={newPanoramaComment}
                     onChange={(e) => setNewPanoramaComment(e.target.value)}
-                    placeholder={pendingPanoramaCoords ? "Напишите комментарий…" : "Сначала выберите точку на панораме"}
-                    disabled={!pendingPanoramaCoords || sendingPanoramaComment}
+                    placeholder={
+                      annotationsEnabled
+                        ? pendingPanoramaCoords
+                          ? "Напишите комментарий…"
+                          : "Сначала выберите точку на панораме"
+                        : "Напишите комментарий… (будет без привязки к точке)"
+                    }
+                    disabled={(coordinatesRequired && !pendingPanoramaCoords) || sendingPanoramaComment}
                     style={{
                       width: "100%",
                       minHeight: "70px",
@@ -957,23 +1169,17 @@ export default function CustomerPanoramasSection({
                   />
                   <button
                     onClick={sendPanoramaComment}
-                    disabled={!newPanoramaComment.trim() || !pendingPanoramaCoords || sendingPanoramaComment}
+                    disabled={!canSubmitComment}
                     style={{
                       width: "100%",
-                      backgroundColor:
-                        !newPanoramaComment.trim() || !pendingPanoramaCoords || sendingPanoramaComment
-                          ? "rgba(107,114,128,0.45)"
-                          : "rgba(34,197,94,0.85)",
+                      backgroundColor: canSubmitComment ? "rgba(34,197,94,0.85)" : "rgba(107,114,128,0.45)",
                       border: "none",
                       color: "white",
                       padding: "10px",
                       borderRadius: "8px",
                       fontSize: "0.95rem",
                       fontFamily: "Arial, sans-serif",
-                      cursor:
-                        !newPanoramaComment.trim() || !pendingPanoramaCoords || sendingPanoramaComment
-                          ? "not-allowed"
-                          : "pointer",
+                    cursor: canSubmitComment ? "pointer" : "not-allowed",
                       transition: "all 0.3s ease",
                     }}
                   >

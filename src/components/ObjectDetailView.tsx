@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useViewMode } from "./ui/ViewMode";
 import SecurePDFViewer from "./SecurePDFViewer";

@@ -148,6 +148,9 @@ model Panorama {
   thumbnailWidth Int?
   thumbnailHeight Int?
   thumbnailMimeType String?
+  originalWidth Int?
+  originalHeight Int?
+  projectionType PanoramaProjection @default(EQUIRECTANGULAR)
 
   object Object @relation(fields: [objectId], references: [id], onDelete: Cascade)
   comments PanoramaComment[]
@@ -161,8 +164,8 @@ model PanoramaComment {
   panoramaId    Int
   userId        Int
   content       String
-  yaw           Float
-  pitch         Float
+  yaw           Float?
+  pitch         Float?
   isAdminComment Boolean @default(false)
   isReadByAdmin Boolean @default(false)
   isReadByCustomer Boolean @default(false)
@@ -269,6 +272,12 @@ enum StageStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
+}
+
+enum PanoramaProjection {
+  EQUIRECTANGULAR
+  CYLINDRICAL
+  UNKNOWN
 }
 
 enum DocumentType {

@@ -55,8 +55,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "ID панорамы и содержание комментария обязательны" }, { status: 400 });
     }
 
-    if (typeof yaw !== "number" || typeof pitch !== "number") {
-      return NextResponse.json({ success: false, message: "Координаты комментария обязательны" }, { status: 400 });
+    const yawIsNumber = typeof yaw === "number" && Number.isFinite(yaw);
+    const pitchIsNumber = typeof pitch === "number" && Number.isFinite(pitch);
+    const coordinatesProvided = yaw !== undefined || pitch !== undefined;
+
+    if (coordinatesProvided && (!yawIsNumber || !pitchIsNumber)) {
+      return NextResponse.json(
+        { success: false, message: "Координаты комментария, если переданы, должны быть числами" },
+        { status: 400 }
+      );
     }
 
     const panorama = await prisma.panorama.findUnique({
@@ -72,9 +79,9 @@ export async function POST(request: NextRequest) {
         panoramaId: parseInt(panoramaId, 10),
         userId: decodedToken.userId,
         content: content.trim(),
-        yaw,
-        pitch,
-        isAdminComment: decodedToken.role === "MASTER",
+        yaw: yawIsNumber ? yaw : null,
+        pitch: pitchIsNumber ? pitch : null,
+        isAdminComment: decodedToken.role === "MASTER" || decodedToken.role === "ADMIN",
       },
       include: {
         user: {
