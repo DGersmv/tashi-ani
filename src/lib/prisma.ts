@@ -1,20 +1,32 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+type GlobalPrisma = {
+  prisma: PrismaClient | undefined;
+};
+
+const globalForPrisma = globalThis as unknown as GlobalPrisma;
+
+function createPrismaClient() {
+  const client = new PrismaClient();
+
+  if (process.env.NODE_ENV === 'production') {
+    client.$connect().catch((error) => {
+      console.error('Не удалось подключиться к базе Prisma:', error);
+    });
+  }
+
+  return client;
 }
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient()
+const prismaClient =
+  process.env.NODE_ENV === 'production'
+    ? globalForPrisma.prisma ?? createPrismaClient()
+    : globalForPrisma.prisma ?? (globalForPrisma.prisma = createPrismaClient());
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+if (process.env.NODE_ENV === 'production' && !globalForPrisma.prisma) {
+  globalForPrisma.prisma = prismaClient;
+}
 
-
-
-
-
-
-
-
-
+export const prisma = prismaClient;
 
 

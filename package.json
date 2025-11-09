@@ -13,7 +13,8 @@
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop tashi-ani",
     "pm2:restart": "pm2 restart tashi-ani",
-    "pm2:logs": "pm2 logs tashi-ani"
+    "pm2:logs": "pm2 logs tashi-ani",
+    "deploy": "npm install && npm run build && pm2 restart ecosystem.config.js --env production"
   },
   "dependencies": {
     "@openglobus/og": "^0.26.6",

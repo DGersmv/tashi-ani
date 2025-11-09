@@ -1,4 +1,11 @@
-# Инструкции по деплою на reg.ru
+   e7a4653..b174c28  master -> master
+PS E:\tashi-ani> git add .
+PS E:\tashi-ani> git commit -m "Chaged prisma"
+On branch master
+Your branch is up to date with 'origin/master'.
+
+nothing to commit, working tree clean
+PS E:\tashi-ani> # Инструкции по деплою на reg.ru
 
 ## 1. Подготовка проекта
 
