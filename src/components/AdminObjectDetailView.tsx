@@ -289,9 +289,9 @@ useEffect(() => {
 
     const primary =
       panoramaUrls[selectedPanorama.filename] ||
-      (selectedPanorama as any).url ||
+      staticOriginalPath ||
       panoramaThumbnailUrls[selectedPanorama.filename] ||
-      staticOriginalPath;
+      (selectedPanorama as any).url;
 
     if (primary) {
       return primary;
