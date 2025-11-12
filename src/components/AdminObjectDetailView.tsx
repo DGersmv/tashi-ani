@@ -524,7 +524,7 @@ useEffect(() => {
     setLoadingPhotoIds(new Set(loadingPhotoIdsRef.current));
 
     try {
-      const response = await fetch(`/api/uploads/objects/${object.id}/${photo.filename}/admin`, {
+      let response = await fetch(`/api/uploads/objects/${object.id}/${photo.filename}/admin`, {
         headers: {
           Authorization: `Bearer ${adminToken}`,
         },
@@ -533,7 +533,14 @@ useEffect(() => {
 
       if (!response.ok) {
         console.warn(`Не удалось загрузить оригинал фото ${photo.filename}:`, response.statusText);
-        return;
+        const fallbackResponse = await fetch(`/uploads/objects/${object.id}/${photo.filename}`, {
+          cache: 'no-store',
+        });
+        if (!fallbackResponse.ok) {
+          console.warn(`Файл фото ${photo.filename} недоступен по статическому пути:`, fallbackResponse.statusText);
+          return;
+        }
+        response = fallbackResponse;
       }
 
       const blob = await response.blob();
@@ -565,7 +572,7 @@ useEffect(() => {
     setLoadingPanoramaIds(new Set(loadingPanoramaIdsRef.current));
 
     try {
-      const response = await fetch(`/api/uploads/objects/${object.id}/${panorama.filename}/admin`, {
+      let response = await fetch(`/api/uploads/objects/${object.id}/${panorama.filename}/admin`, {
         headers: {
           Authorization: `Bearer ${adminToken}`,
         },
@@ -574,7 +581,14 @@ useEffect(() => {
 
       if (!response.ok) {
         console.warn(`Не удалось загрузить оригинал панорамы ${panorama.filename}:`, response.statusText);
-        return;
+        const fallbackResponse = await fetch(`/uploads/objects/${object.id}/panoramas/${panorama.filename}`, {
+          cache: 'no-store',
+        });
+        if (!fallbackResponse.ok) {
+          console.warn(`Файл панорамы ${panorama.filename} недоступен по статическому пути:`, fallbackResponse.statusText);
+          return;
+        }
+        response = fallbackResponse;
       }
 
       const blob = await response.blob();
