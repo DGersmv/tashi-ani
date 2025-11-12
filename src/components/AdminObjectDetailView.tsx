@@ -284,10 +284,14 @@ useEffect(() => {
       return null;
     }
 
+    const staticOriginalPath =
+      object?.id ? `/uploads/objects/${object.id}/panoramas/${selectedPanorama.filename}` : null;
+
     const primary =
       panoramaUrls[selectedPanorama.filename] ||
       (selectedPanorama as any).url ||
-      panoramaThumbnailUrls[selectedPanorama.filename];
+      panoramaThumbnailUrls[selectedPanorama.filename] ||
+      staticOriginalPath;
 
     if (primary) {
       return primary;
@@ -486,7 +490,17 @@ useEffect(() => {
         continue;
       }
 
-      const previewUrl = (panorama as any).thumbnailUrl || (panorama as any).url || `/api/uploads/objects/${objectData.id}/${panorama.filename}/admin`;
+      const staticThumbnailPath =
+        panorama.thumbnailFilePath ||
+        (panorama.thumbnailFilename
+          ? `/uploads/objects/${objectData.id}/panoramas/thumbnails/${panorama.thumbnailFilename}`
+          : `/uploads/objects/${objectData.id}/panoramas/thumbnails/thumb-${panorama.filename}`);
+      const previewUrl =
+        (panorama as any).thumbnailUrl ||
+        staticThumbnailPath ||
+        (panorama as any).url ||
+        `/uploads/objects/${objectData.id}/panoramas/${panorama.filename}`;
+
       if (previewUrl) {
         newThumbnailUrls[panorama.filename] = previewUrl;
       } else {
