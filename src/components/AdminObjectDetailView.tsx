@@ -290,17 +290,7 @@ useEffect(() => {
       return null;
     }
 
-    const blobUrl = panoramaUrls[selectedPanorama.filename];
-    if (blobUrl) {
-      return blobUrl;
-    }
-
-    const directUrl = (selectedPanorama as any)?.url;
-    if (directUrl && typeof directUrl === 'string' && directUrl.trim().length > 0) {
-      return directUrl;
-    }
-
-    return null;
+    return panoramaUrls[selectedPanorama.filename] ?? null;
   }, [selectedPanorama, panoramaUrls]);
 
   const selectedPanoramaPanoData = useMemo(() => {
