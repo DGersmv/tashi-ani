@@ -120,7 +120,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           await mkdir(thumbnailDir, { recursive: true });
         }
 
-        const thumbnailFilename = `thumb-${fileName}`;
+        const baseThumbFilename = `thumb-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+        const thumbnailFilename = baseThumbFilename;
         const thumbnailPath = join(thumbnailDir, thumbnailFilename);
         const thumbnail = await generateThumbnail(buffer, { width: 768 });
 
