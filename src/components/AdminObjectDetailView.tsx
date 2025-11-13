@@ -128,6 +128,8 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   const loadingPhotoIdsRef = useRef<Set<number>>(new Set());
   const [loadingPanoramaIds, setLoadingPanoramaIds] = useState<Set<number>>(new Set());
   const loadingPanoramaIdsRef = useRef<Set<number>>(new Set());
+  const [panoramaFetchErrors, setPanoramaFetchErrors] = useState<Record<number, string>>({});
+  const panoramaFetchErrorsRef = useRef<Record<number, string>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteType, setDeleteType] = useState<'photo' | 'document' | 'message' | 'panorama' | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -177,6 +179,10 @@ useEffect(() => {
   useEffect(() => {
     panoramaUrlsRef.current = panoramaUrls;
   }, [panoramaUrls]);
+
+  useEffect(() => {
+    panoramaFetchErrorsRef.current = panoramaFetchErrors;
+  }, [panoramaFetchErrors]);
 
   const panoramaMarkers = useMemo(() => {
     const markers: any[] = [];
@@ -284,25 +290,18 @@ useEffect(() => {
       return null;
     }
 
-    const staticOriginalPath =
-      object?.id ? `/uploads/objects/${object.id}/panoramas/${selectedPanorama.filename}` : null;
-
-    const primary =
-      panoramaUrls[selectedPanorama.filename] ||
-      staticOriginalPath ||
-      panoramaThumbnailUrls[selectedPanorama.filename] ||
-      (selectedPanorama as any).url;
-
-    if (primary) {
-      return primary;
+    const blobUrl = panoramaUrls[selectedPanorama.filename];
+    if (blobUrl) {
+      return blobUrl;
     }
 
-    if (object?.id) {
-      return `/uploads/objects/${object.id}/panoramas/${selectedPanorama.filename}`;
+    const directUrl = (selectedPanorama as any)?.url;
+    if (directUrl && typeof directUrl === 'string' && directUrl.trim().length > 0) {
+      return directUrl;
     }
 
     return null;
-  }, [selectedPanorama, panoramaUrls, panoramaThumbnailUrls, object?.id]);
+  }, [selectedPanorama, panoramaUrls]);
 
   const selectedPanoramaPanoData = useMemo(() => {
     if (!selectedPanorama) {
@@ -312,6 +311,9 @@ useEffect(() => {
   }, [selectedPanorama]);
 
   const annotationsEnabled = !selectedPanoramaPanoData;
+
+  const selectedPanoramaError = selectedPanorama ? panoramaFetchErrors[selectedPanorama.id] : undefined;
+  const selectedPanoramaIsReady = Boolean(selectedPanoramaSrc);
 
   useEffect(() => {
     if (!selectedPanoramaPanoData) {
@@ -582,6 +584,13 @@ useEffect(() => {
     if (panoramaUrlsRef.current[panorama.filename]) return;
     if (loadingPanoramaIdsRef.current.has(panorama.id)) return;
 
+    setPanoramaFetchErrors((prev) => {
+      if (!(panorama.id in prev)) return prev;
+      const next = { ...prev };
+      delete next[panorama.id];
+      return next;
+    });
+
     loadingPanoramaIdsRef.current.add(panorama.id);
     setLoadingPanoramaIds(new Set(loadingPanoramaIdsRef.current));
 
@@ -600,6 +609,10 @@ useEffect(() => {
         });
         if (!fallbackResponse.ok) {
           console.warn(`Файл панорамы ${panorama.filename} недоступен по статическому пути:`, fallbackResponse.statusText);
+          setPanoramaFetchErrors((prev) => ({
+            ...prev,
+            [panorama.id]: 'Файл панорамы недоступен по API или статическому пути.',
+          }));
           return;
         }
         response = fallbackResponse;
@@ -614,6 +627,12 @@ useEffect(() => {
           URL.revokeObjectURL(existing);
         }
         return { ...prev, [panorama.filename]: url };
+      });
+      setPanoramaFetchErrors((prev) => {
+        if (!(panorama.id in prev)) return prev;
+        const next = { ...prev };
+        delete next[panorama.id];
+        return next;
       });
 
       const needsAnalysis =
@@ -657,6 +676,11 @@ useEffect(() => {
       }
     } catch (error) {
       console.error('Ошибка загрузки оригинала панорамы:', error);
+      const message = error instanceof Error ? error.message : 'Не удалось загрузить панораму.';
+      setPanoramaFetchErrors((prev) => ({
+        ...prev,
+        [panorama.id]: message,
+      }));
     } finally {
       loadingPanoramaIdsRef.current.delete(panorama.id);
       setLoadingPanoramaIds(new Set(loadingPanoramaIdsRef.current));
@@ -668,6 +692,11 @@ useEffect(() => {
       fetchPhotoOriginal(selectedPhoto);
     }
   }, [selectedPhoto, fetchPhotoOriginal]);
+
+  const retryPanoramaFetch = useCallback(() => {
+    if (!selectedPanorama) return;
+    fetchPanoramaOriginal(selectedPanorama);
+  }, [selectedPanorama, fetchPanoramaOriginal]);
 
   useEffect(() => {
     if (selectedPanorama) {
@@ -2875,20 +2904,101 @@ useEffect(() => {
               flex: 1,
               borderRadius: "12px",
               overflow: "hidden",
-              backgroundColor: "rgba(0,0,0,0.6)"
+              backgroundColor: "rgba(0,0,0,0.6)",
+              position: "relative"
             }} onContextMenu={handlePanoramaContextMenu}>
-              <ReactPhotoSphereViewer
-                key={selectedPanorama.id}
-                ref={panoramaViewerRef}
-                src={selectedPanoramaSrc ?? ""}
-                height="100%"
-                width="100%"
-                littlePlanet={false}
-                navbar={["zoom", "fullscreen"]}
-                plugins={panoramaViewerPlugins}
-                onReady={handlePanoramaReady}
-                onClick={handlePanoramaClick}
-              />
+              {selectedPanoramaIsReady ? (
+                <ReactPhotoSphereViewer
+                  key={selectedPanorama.id}
+                  ref={panoramaViewerRef}
+                  src={selectedPanoramaSrc!}
+                  height="100%"
+                  width="100%"
+                  littlePlanet={false}
+                  navbar={["zoom", "fullscreen"]}
+                  plugins={panoramaViewerPlugins}
+                  onReady={handlePanoramaReady}
+                  onClick={handlePanoramaClick}
+                />
+              ) : (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "12px",
+                    color: "white",
+                    fontFamily: "Arial, sans-serif",
+                    padding: "24px",
+                    textAlign: "center"
+                  }}
+                >
+                  {!selectedPanoramaError ? (
+                    <>
+                      <span style={{ fontSize: "1rem", opacity: 0.85 }}>Загружаем панораму…</span>
+                      <span style={{ fontSize: "0.85rem", opacity: 0.65 }}>
+                        Для больших файлов загрузка может занять до минуты.
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: "1rem", color: "rgba(239,68,68,0.9)" }}>
+                        Не удалось загрузить панораму
+                      </span>
+                      <span style={{ fontSize: "0.85rem", opacity: 0.75 }}>
+                        {selectedPanoramaError}
+                      </span>
+                      <button
+                        onClick={retryPanoramaFetch}
+                        style={{
+                          marginTop: "8px",
+                          padding: "8px 16px",
+                          borderRadius: "999px",
+                          border: "1px solid rgba(59,130,246,0.4)",
+                          backgroundColor: "rgba(59,130,246,0.18)",
+                          color: "rgba(255,255,255,0.9)",
+                          cursor: "pointer"
+                        }}
+                      >
+                        Повторить
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+              {loadingPanoramaIds.has(selectedPanorama.id) && !selectedPanoramaError && (
+                <div style={{
+                  position: "absolute",
+                  top: "16px",
+                  right: "16px",
+                  backgroundColor: "rgba(17,24,39,0.7)",
+                  color: "white",
+                  padding: "6px 12px",
+                  borderRadius: "999px",
+                  fontSize: "0.8rem",
+                  fontFamily: "Arial, sans-serif"
+                }}>
+                  Загрузка панорамы…
+                </div>
+              )}
+              {selectedPanoramaError && (
+                <div style={{
+                  position: "absolute",
+                  top: "16px",
+                  right: "16px",
+                  backgroundColor: "rgba(239,68,68,0.85)",
+                  color: "white",
+                  padding: "6px 12px",
+                  borderRadius: "999px",
+                  fontSize: "0.8rem",
+                  fontFamily: "Arial, sans-serif"
+                }}>
+                  Ошибка загрузки
+                </div>
+              )}
             </div>
 
             <div style={{

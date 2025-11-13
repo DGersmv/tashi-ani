@@ -70,6 +70,8 @@ export default function CustomerPanoramasSection({
   const panoramaOriginalUrlsRef = React.useRef<Record<string, string>>({});
   const [loadingPanoramaIds, setLoadingPanoramaIds] = React.useState<Set<number>>(new Set());
   const loadingPanoramaIdsRef = React.useRef<Set<number>>(new Set());
+  const [panoramaFetchErrors, setPanoramaFetchErrors] = React.useState<Record<number, string>>({});
+  const panoramaFetchErrorsRef = React.useRef<Record<number, string>>({});
   const [panoramasReady, setPanoramasReady] = React.useState(true);
   const [selectedPanorama, setSelectedPanorama] = React.useState<Panorama | null>(null);
   const [panoramaComments, setPanoramaComments] = React.useState<PanoramaComment[]>([]);
@@ -89,6 +91,10 @@ export default function CustomerPanoramasSection({
   React.useEffect(() => {
     loadingPanoramaIdsRef.current = loadingPanoramaIds;
   }, [loadingPanoramaIds]);
+
+  React.useEffect(() => {
+    panoramaFetchErrorsRef.current = panoramaFetchErrors;
+  }, [panoramaFetchErrors]);
 
   React.useEffect(() => {
     setPanoramasReady(true);
@@ -153,6 +159,13 @@ export default function CustomerPanoramasSection({
     if (panoramaOriginalUrlsRef.current[panorama.filename]) return;
     if (loadingPanoramaIdsRef.current.has(panorama.id)) return;
 
+    setPanoramaFetchErrors((prev) => {
+      if (!(panorama.id in prev)) return prev;
+      const next = { ...prev };
+      delete next[panorama.id];
+      return next;
+    });
+
     loadingPanoramaIdsRef.current.add(panorama.id);
     setLoadingPanoramaIds(new Set(loadingPanoramaIdsRef.current));
 
@@ -165,6 +178,13 @@ export default function CustomerPanoramasSection({
 
       if (!response.ok) {
         console.warn(`Панорама ${panorama.filename} недоступна (status ${response.status}).`);
+        const fallbackMessage = response.status === 404
+          ? "Файл панорамы не найден или доступ ограничен."
+          : `Не удалось загрузить панораму (статус ${response.status}).`;
+        setPanoramaFetchErrors((prev) => ({
+          ...prev,
+          [panorama.id]: fallbackMessage,
+        }));
         return;
       }
 
@@ -177,6 +197,12 @@ export default function CustomerPanoramasSection({
           URL.revokeObjectURL(existing);
         }
         return { ...prev, [panorama.filename]: objectUrl };
+      });
+      setPanoramaFetchErrors((prev) => {
+        if (!(panorama.id in prev)) return prev;
+        const next = { ...prev };
+        delete next[panorama.id];
+        return next;
       });
 
       const needsAnalysis =
@@ -220,11 +246,21 @@ export default function CustomerPanoramasSection({
       }
     } catch (error) {
       console.error(`Ошибка загрузки панорамы ${panorama.filename}:`, error);
+      const message = error instanceof Error ? error.message : "Не удалось загрузить панораму.";
+      setPanoramaFetchErrors((prev) => ({
+        ...prev,
+        [panorama.id]: message,
+      }));
     } finally {
       loadingPanoramaIdsRef.current.delete(panorama.id);
       setLoadingPanoramaIds(new Set(loadingPanoramaIdsRef.current));
     }
   }, [objectId, userEmail]);
+
+  const retryPanoramaFetch = React.useCallback(() => {
+    if (!selectedPanorama) return;
+    fetchPanoramaOriginal(selectedPanorama);
+  }, [selectedPanorama, fetchPanoramaOriginal]);
 
   React.useEffect(() => {
     if (selectedPanorama) {
@@ -577,16 +613,15 @@ export default function CustomerPanoramasSection({
 
   const selectedPanoramaSrc = React.useMemo(() => {
     if (!selectedPanorama) return null;
-    const primary =
-      panoramaOriginalUrls[selectedPanorama.filename] ||
-      selectedPanorama.url ||
-      panoramaThumbnailUrls[selectedPanorama.filename];
-    if (primary) {
-      return primary;
+    const blobUrl = panoramaOriginalUrls[selectedPanorama.filename];
+    if (blobUrl) {
+      return blobUrl;
     }
-    const queryEmail = encodeURIComponent(userEmail);
-    return `/api/uploads/objects/${objectId}/panoramas/${selectedPanorama.filename}?email=${queryEmail}`;
-  }, [selectedPanorama, panoramaOriginalUrls, panoramaThumbnailUrls, objectId, userEmail]);
+    if (selectedPanorama.url && selectedPanorama.url.trim().length > 0) {
+      return selectedPanorama.url;
+    }
+    return null;
+  }, [selectedPanorama, panoramaOriginalUrls]);
 
   const selectedPanoramaPanoData = React.useMemo(() => {
     if (!selectedPanorama) {
@@ -594,6 +629,9 @@ export default function CustomerPanoramasSection({
     }
     return getPanoramaViewerPanoData(selectedPanorama as any);
   }, [selectedPanorama]);
+
+  const selectedPanoramaError = selectedPanorama ? panoramaFetchErrors[selectedPanorama.id] : undefined;
+  const selectedPanoramaIsReady = Boolean(selectedPanoramaSrc);
 
   const annotationsEnabled = !selectedPanoramaPanoData;
   const coordinatesRequired = annotationsEnabled;
@@ -908,20 +946,70 @@ export default function CustomerPanoramasSection({
                 }}
                 onContextMenu={handlePanoramaContextMenu}
               >
-                <ReactPhotoSphereViewer
-                  key={selectedPanorama.id}
-                  ref={panoramaViewerRef}
-                  src={selectedPanoramaSrc ?? ""}
-                  height="100%"
-                  width="100%"
-                  littlePlanet={false}
-                  navbar={["zoom", "fullscreen"]}
-                  plugins={panoramaViewerPlugins}
-                  lang={{ loading: "" }}
-                  onReady={handlePanoramaReady}
-                  onClick={handlePanoramaClick}
-                />
-                {loadingPanoramaIds.has(selectedPanorama.id) && (
+                {selectedPanoramaIsReady ? (
+                  <ReactPhotoSphereViewer
+                    key={selectedPanorama.id}
+                    ref={panoramaViewerRef}
+                    src={selectedPanoramaSrc!}
+                    height="100%"
+                    width="100%"
+                    littlePlanet={false}
+                    navbar={["zoom", "fullscreen"]}
+                    plugins={panoramaViewerPlugins}
+                    lang={{ loading: "" }}
+                    onReady={handlePanoramaReady}
+                    onClick={handlePanoramaClick}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "12px",
+                      color: "white",
+                      fontFamily: "Arial, sans-serif",
+                      padding: "24px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {!selectedPanoramaError ? (
+                      <>
+                        <span style={{ fontSize: "1rem", opacity: 0.8 }}>Загружаем панораму…</span>
+                        <span style={{ fontSize: "0.85rem", opacity: 0.6 }}>
+                          Это может занять до минуты — дождитесь окончания загрузки.
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: "1rem", color: "rgba(239,68,68,0.9)" }}>
+                          Не удалось загрузить панораму
+                        </span>
+                        <span style={{ fontSize: "0.85rem", opacity: 0.75 }}>
+                          {selectedPanoramaError}
+                        </span>
+                        <button
+                          onClick={retryPanoramaFetch}
+                          style={{
+                            marginTop: "8px",
+                            padding: "8px 16px",
+                            borderRadius: "999px",
+                            border: "1px solid rgba(59,130,246,0.4)",
+                            backgroundColor: "rgba(59,130,246,0.15)",
+                            color: "rgba(255,255,255,0.9)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Повторить
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+                {loadingPanoramaIds.has(selectedPanorama.id) && !selectedPanoramaError && (
                   <div
                     style={{
                       position: "absolute",
@@ -936,6 +1024,23 @@ export default function CustomerPanoramasSection({
                     }}
                   >
                     Загрузка панорамы…
+                  </div>
+                )}
+                {selectedPanoramaError && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "16px",
+                      right: "16px",
+                      backgroundColor: "rgba(239,68,68,0.85)",
+                      color: "white",
+                      padding: "6px 12px",
+                      borderRadius: "999px",
+                      fontSize: "0.8rem",
+                      fontFamily: "Arial, sans-serif",
+                    }}
+                  >
+                    Ошибка загрузки
                   </div>
                 )}
               </div>
