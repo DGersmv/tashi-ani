@@ -595,7 +595,7 @@ useEffect(() => {
     setLoadingPanoramaIds(new Set(loadingPanoramaIdsRef.current));
 
     try {
-      let response = await fetch(`/api/uploads/objects/${object.id}/${panorama.filename}/admin`, {
+      let response = await fetch(`/api/uploads/objects/${object.id}/panoramas/${panorama.filename}`, {
         headers: {
           Authorization: `Bearer ${adminToken}`,
         },
