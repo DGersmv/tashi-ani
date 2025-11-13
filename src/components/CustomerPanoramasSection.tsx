@@ -274,7 +274,7 @@ export default function CustomerPanoramasSection({
       setNewPanoramaComment("");
       setPendingPanoramaCoords(null);
       setSelectedPanoramaCommentId(null);
-      panoramaCommentsReadRef.current.delete(selectedPanorama?.id || -1);
+      panoramaCommentsReadRef.current.delete(-1);
       return;
     }
 
@@ -947,19 +947,19 @@ export default function CustomerPanoramasSection({
                 onContextMenu={handlePanoramaContextMenu}
               >
                 {selectedPanoramaIsReady ? (
-                  <ReactPhotoSphereViewer
-                    key={selectedPanorama.id}
-                    ref={panoramaViewerRef}
+                <ReactPhotoSphereViewer
+                  key={selectedPanorama.id}
+                  ref={panoramaViewerRef}
                     src={selectedPanoramaSrc!}
-                    height="100%"
-                    width="100%"
-                    littlePlanet={false}
-                    navbar={["zoom", "fullscreen"]}
-                    plugins={panoramaViewerPlugins}
-                    lang={{ loading: "" }}
-                    onReady={handlePanoramaReady}
-                    onClick={handlePanoramaClick}
-                  />
+                  height="100%"
+                  width="100%"
+                  littlePlanet={false}
+                  navbar={["zoom", "fullscreen"]}
+                  plugins={panoramaViewerPlugins}
+                  lang={{ loading: "" }}
+                  onReady={handlePanoramaReady}
+                  onClick={handlePanoramaClick}
+                />
                 ) : (
                   <div
                     style={{

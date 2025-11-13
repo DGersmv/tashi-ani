@@ -7,6 +7,7 @@ import { join } from 'path';
 import sharp from 'sharp';
 import { generateThumbnail } from '@/lib/imageProcessing';
 import { classifyPanoramaProjection } from '@/lib/panoramaUtils';
+import { Prisma } from '@prisma/client';
 
 const MAX_FILE_SIZE_MB = 50;
 const ALLOWED_MIME_TYPES = [
@@ -86,7 +87,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const fileExtension = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExtension}`;
+    const fileNameBase = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const fileName = `${fileNameBase}.${fileExtension}`;
 
     const uploadDir = join(process.cwd(), 'public', 'uploads', 'objects', objectId.toString(), 'panoramas');
     if (!existsSync(uploadDir)) {
@@ -142,7 +144,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
     }
 
-    const panoramaData: Record<string, any> = {
+    const panoramaData: Prisma.PanoramaUncheckedCreateInput = {
       objectId,
       filename: fileName,
       originalName: file.name,
