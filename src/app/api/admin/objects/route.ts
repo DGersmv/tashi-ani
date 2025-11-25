@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { verifyToken } from '@/lib/userManagement';
 
 // Проверка авторизации админа
 async function authenticateAdmin(request: NextRequest) {
@@ -10,15 +10,13 @@ async function authenticateAdmin(request: NextRequest) {
   }
 
   const token = authHeader.substring(7);
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    if (decoded.email === process.env.MASTER_ADMIN_EMAIL) {
-      return decoded;
-    }
-    return null;
-  } catch {
+  const adminData = verifyToken(token);
+  
+  if (!adminData || (adminData.role !== 'ADMIN' && adminData.role !== 'MASTER')) {
     return null;
   }
+  
+  return adminData;
 }
 
 // GET - получить объекты заказчика
