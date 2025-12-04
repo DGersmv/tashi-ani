@@ -120,6 +120,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         panoramas: {
           orderBy: { uploadedAt: 'desc' }
         },
+        bimModels: {
+          include: {
+            uploadedByUser: {
+              select: {
+                id: true,
+                email: true,
+                name: true
+              }
+            }
+          },
+          orderBy: { uploadedAt: 'desc' }
+        },
         documents: true,
         messages: {
           include: {

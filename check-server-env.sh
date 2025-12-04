@@ -88,3 +88,6 @@ echo "   pm2 restart tashi-ani --update-env"
 echo "4. Проверьте логи:"
 echo "   pm2 logs tashi-ani --lines 50"
 
+
+
+

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useViewMode } from "./ui/ViewMode";
 import SecurePDFViewer from "./SecurePDFViewer";
 import CustomerPanoramasSection from "./CustomerPanoramasSection";
+import BimModelsList from "./BimModelsList";
 
 interface Project {
   id: number;
@@ -70,6 +71,19 @@ interface Panorama {
   comments?: PanoramaComment[];
 }
 
+interface BimModel {
+  id: number;
+  name: string;
+  originalFormat: string;
+  viewableFormat?: string | null;
+  uploadedAt: string;
+  uploadedByUser?: {
+    id: number;
+    email: string;
+    name?: string | null;
+  } | null;
+}
+
 interface ObjectDetail {
   id: number;
   title: string;
@@ -82,6 +96,7 @@ interface ObjectDetail {
   panoramas: Panorama[];
   documents: Document[];
   messages: Message[];
+  bimModels?: BimModel[];
 }
 
 interface ObjectDetailViewProps {
@@ -93,7 +108,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
   const [object, setObject] = useState<ObjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'projects' | 'photos' | 'panoramas' | 'documents' | 'messages'>('projects');
+  const [activeTab, setActiveTab] = useState<'projects' | 'photos' | 'panoramas' | 'documents' | 'messages' | 'models'>('projects');
   const [selectedPDF, setSelectedPDF] = useState<{ id: number; name: string } | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [newMessage, setNewMessage] = useState('');
@@ -551,6 +566,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
           { key: 'projects', label: 'Проекты', count: object.projects.reduce((total, project) => total + (project.documents?.length || 0), 0) },
           { key: 'photos', label: 'Фото', count: object.photos.length },
           { key: 'panoramas', label: 'Панорамы', count: object.panoramas?.length || 0 },
+          { key: 'models', label: '3D Модели', count: object.bimModels?.length || 0 },
           { key: 'documents', label: 'Документы', count: object.documents.length },
           { key: 'messages', label: 'Сообщения', count: object.messages.length }
         ].map((tab) => (
@@ -912,6 +928,22 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
             panoramas={object.panoramas || []}
             onCommentsRead={handlePanoramaCommentsRead}
           />
+        )}
+
+        {activeTab === 'models' && object && (
+          <div style={{
+            backgroundColor: "rgba(255, 255, 255, 0.05)",
+            borderRadius: "12px",
+            padding: "24px",
+            backdropFilter: "blur(10px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)"
+          }}>
+            <BimModelsList
+              objectId={object.id}
+              userEmail={userEmail}
+              canUpload={true}
+            />
+          </div>
         )}
 
         {activeTab === 'documents' && (

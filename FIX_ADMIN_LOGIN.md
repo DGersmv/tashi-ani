@@ -143,3 +143,6 @@ pm2 logs tashi-ani --lines 50
 - [ ] Приложение перезапущено (`pm2 restart tashi-ani --update-env`)
 - [ ] Вход работает на сайте
 
+
+
+

@@ -7,6 +7,7 @@ import CustomerPhotosPanel from "./CustomerPhotosPanel";
 import AllPhotosPanel from "./AllPhotosPanel";
 import DocumentsPanel from "./DocumentsPanel";
 import PanoramasPanel from "./PanoramasPanel";
+import BimModelsList from "./BimModelsList";
 import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
 import "@photo-sphere-viewer/markers-plugin/index.css";
 import { classifyPanoramaProjection, getPanoramaViewerPanoData } from "@/lib/panoramaUtils";
@@ -83,6 +84,25 @@ interface PaymentStatus {
   createdAt: string;
 }
 
+interface BimModel {
+  id: number;
+  name: string;
+  description?: string;
+  version?: string;
+  originalFilename: string;
+  originalFormat: string;
+  viewableFilename?: string;
+  viewableFormat?: string;
+  thumbnailFilename?: string;
+  isVisibleToCustomer: boolean;
+  uploadedAt: string;
+  uploadedByUser?: {
+    id: number;
+    email: string;
+    name?: string;
+  };
+}
+
 interface ObjectDetail {
   id: number;
   title: string;
@@ -95,6 +115,7 @@ interface ObjectDetail {
   panoramas: Panorama[];
   documents: Document[];
   messages: Message[];
+  bimModels?: BimModel[];
   user: {
     id: number;
     name?: string;
@@ -111,7 +132,7 @@ export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailV
   const [object, setObject] = useState<ObjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all-photos' | 'customer-photos' | 'panoramas' | 'projects' | 'payments' | 'messages' | 'documents'>('all-photos');
+  const [activeTab, setActiveTab] = useState<'all-photos' | 'customer-photos' | 'panoramas' | 'projects' | 'payments' | 'messages' | 'documents' | 'models'>('all-photos');
   const [customer, setCustomer] = useState<any>(null);
   const [updatingPhotos, setUpdatingPhotos] = useState<Set<number>>(new Set());
   const [newMessage, setNewMessage] = useState('');
@@ -1715,7 +1736,8 @@ useEffect(() => {
           { key: 'projects', label: 'Проекты', count: object.projects?.flatMap(project => project.documents || []).length || 0, icon: '' },
           { key: 'payments', label: 'Статусы оплаты', count: 0, icon: '' }, // Пока заглушка
           { key: 'messages', label: 'Сообщения', count: object.messages?.length || 0, icon: '' },
-          { key: 'documents', label: 'Документы', count: object.documents?.length || 0, icon: '' }
+          { key: 'documents', label: 'Документы', count: object.documents?.length || 0, icon: '' },
+          { key: 'models', label: '3D Модели', count: object?.bimModels?.length || 0, icon: '' }
         ].map((tab) => (
           <button
             key={tab.key}
@@ -2710,13 +2732,30 @@ useEffect(() => {
           />
         )}
 
+        {activeTab === 'models' && object && (
+          <div style={{
+            backgroundColor: "rgba(255, 255, 255, 0.05)",
+            borderRadius: "12px",
+            padding: "24px",
+            backdropFilter: "blur(10px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)"
+          }}>
+            <BimModelsList
+              objectId={object.id}
+              userEmail={customer?.email || object.user?.email || ''}
+              canUpload={true}
+            />
+          </div>
+        )}
+
         {/* Сообщение если нет данных */}
         {(activeTab === 'all-photos' && object.photos.length === 0) ||
          (activeTab === 'customer-photos' && object.photos.filter(p => p.isVisibleToCustomer).length === 0) ||
          (activeTab === 'panoramas' && object.panoramas.length === 0) ||
          (activeTab === 'projects' && object.projects.length === 0) ||
          (activeTab === 'messages' && object.messages.length === 0) ||
-         (activeTab === 'documents' && object.documents.length === 0) ? (
+         (activeTab === 'documents' && object.documents.length === 0) ||
+         (activeTab === 'models' && (!object.bimModels || object.bimModels.length === 0)) ? (
           <div style={{
             textAlign: "center",
             color: "rgba(255,255,255,0.6)",

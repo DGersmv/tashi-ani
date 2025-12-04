@@ -124,6 +124,20 @@ export async function GET(
           orderBy: {
             createdAt: 'desc'
           }
+        },
+        bimModels: {
+          include: {
+            uploadedByUser: {
+              select: {
+                id: true,
+                email: true,
+                name: true
+              }
+            }
+          },
+          orderBy: {
+            uploadedAt: 'desc'
+          }
         }
       }
     });
