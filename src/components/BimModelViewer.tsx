@@ -1113,6 +1113,7 @@ export default function BimModelViewer({
       });
 
       // === 5. Грузим IFC-файл ===
+      setLoadingProgress('Загрузка файла модели...');
       const fileResponse = await fetch(modelUrl, { headers });
 
       if (!fileResponse.ok) {
@@ -1121,6 +1122,7 @@ export default function BimModelViewer({
         );
       }
 
+      setLoadingProgress('Обработка данных...');
       const arrayBuffer = await fileResponse.arrayBuffer();
       const buffer = new Uint8Array(arrayBuffer);
 
@@ -1137,8 +1139,8 @@ export default function BimModelViewer({
       });
 
       try {
-      setLoadingProgress('Обработка модели IFC...');
-      await ifcLoader.load(buffer, false, model.name);
+        setLoadingProgress('Обработка модели IFC...');
+        await ifcLoader.load(buffer, false, model.name);
       } catch (loadError: any) {
         throw new Error(
           `Не удалось загрузить модель: ${loadError?.message || 'Неизвестная ошибка'}`
