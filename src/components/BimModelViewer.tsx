@@ -73,6 +73,7 @@ export default function BimModelViewer({
 }: BimModelViewerProps) {
   const isCustomer = userRole === 'USER'; // В tashi-ani роль пользователя - USER
   const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState('');
   const [error, setError] = useState('');
   const [viewerType, setViewerType] = useState<'ifc' | 'gltf' | 'none'>('none');
   const [containerReady, setContainerReady] = useState(false);
@@ -770,6 +771,7 @@ export default function BimModelViewer({
   const loadIFCViewer = async () => {
     try {
       setLoading(true);
+      setLoadingProgress('Инициализация просмотрщика...');
       setError('');
 
       const container = ifcContainerRef.current;
@@ -791,6 +793,7 @@ export default function BimModelViewer({
       const modelUrl = url;
 
       // Проверяем доступность файла
+      setLoadingProgress('Проверка файла...');
       const fileCheckResponse = await fetch(modelUrl, { method: 'HEAD', headers });
 
       if (!fileCheckResponse.ok) {
@@ -798,6 +801,8 @@ export default function BimModelViewer({
           `Файл недоступен для загрузки (${fileCheckResponse.status})`
         );
       }
+
+      setLoadingProgress('Загрузка библиотек...');
 
       // Готовим размеры контейнера (внешнего), host используем для рендера
       container.style.width = '100%';
@@ -822,10 +827,12 @@ export default function BimModelViewer({
       }
 
       // === 1. Создаем Components ===
+      setLoadingProgress('Создание компонентов...');
       const components = new OBC.Components();
       componentsRef.current = components;
 
       // === 2. World (scene/camera/renderer) через Worlds ===
+      setLoadingProgress('Настройка сцены...');
       const worlds = components.get(OBC.Worlds);
       const world = worlds.create<
         OBC.SimpleScene,
@@ -859,6 +866,7 @@ export default function BimModelViewer({
       components.get(OBC.Grids).create(world);
 
       // === 4. FragmentsManager + worker (только для геометрии, без IFC API) ===
+      setLoadingProgress('Загрузка обработчика геометрии...');
       const githubUrl =
         'https://thatopen.github.io/engine_fragment/resources/worker.mjs';
 
@@ -1129,7 +1137,8 @@ export default function BimModelViewer({
       });
 
       try {
-        await ifcLoader.load(buffer, false, model.name);
+      setLoadingProgress('Обработка модели IFC...');
+      await ifcLoader.load(buffer, false, model.name);
       } catch (loadError: any) {
         throw new Error(
           `Не удалось загрузить модель: ${loadError?.message || 'Неизвестная ошибка'}`
@@ -1180,6 +1189,7 @@ export default function BimModelViewer({
   const loadGLTFViewer = async () => {
     try {
       setLoading(true);
+      setLoadingProgress('Инициализация просмотрщика GLTF...');
       setError('');
 
       const host = gltfHostRef.current;
@@ -1202,6 +1212,7 @@ export default function BimModelViewer({
         host.innerHTML = '';
       }
 
+      setLoadingProgress('Загрузка модели GLTF...');
       const modelViewer = document.createElement('model-viewer') as any;
       modelViewer.src = modelUrl;
       modelViewer.alt = model.name;
@@ -2927,14 +2938,46 @@ export default function BimModelViewer({
                     right: 0,
                     bottom: 0,
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor: "rgba(30, 30, 30, 0.9)",
+                    backgroundColor: "rgba(30, 30, 30, 0.95)",
                     zIndex: 10,
                     borderRadius: "12px"
                   }}>
-                    <div style={{ textAlign: "center" }}>
-                      <p style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "1rem" }}>Загрузка модели...</p>
+                    <div style={{ textAlign: "center", maxWidth: "400px", padding: "20px" }}>
+                      <div style={{
+                        width: "50px",
+                        height: "50px",
+                        border: "4px solid rgba(255, 255, 255, 0.2)",
+                        borderTop: "4px solid rgba(211, 163, 115, 1)",
+                        borderRadius: "50%",
+                        animation: "spin 1s linear infinite",
+                        margin: "0 auto 20px"
+                      }} />
+                      <p style={{ 
+                        color: "rgba(255, 255, 255, 0.9)", 
+                        fontSize: "1.1rem",
+                        marginBottom: "8px",
+                        fontWeight: 500
+                      }}>
+                        Загрузка модели...
+                      </p>
+                      {loadingProgress && (
+                        <p style={{ 
+                          color: "rgba(255, 255, 255, 0.6)", 
+                          fontSize: "0.9rem",
+                          marginTop: "8px"
+                        }}>
+                          {loadingProgress}
+                        </p>
+                      )}
+                      <style>{`
+                        @keyframes spin {
+                          0% { transform: rotate(0deg); }
+                          100% { transform: rotate(360deg); }
+                        }
+                      `}</style>
                     </div>
                   </div>
                 )}
@@ -2968,14 +3011,46 @@ export default function BimModelViewer({
                 right: 0,
                 bottom: 0,
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: "rgba(30, 30, 30, 0.9)",
+                backgroundColor: "rgba(30, 30, 30, 0.95)",
                 zIndex: 10,
                 borderRadius: "12px"
               }}>
-                <div style={{ textAlign: "center" }}>
-                  <p style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "1rem" }}>Загрузка модели...</p>
+                <div style={{ textAlign: "center", maxWidth: "400px", padding: "20px" }}>
+                  <div style={{
+                    width: "50px",
+                    height: "50px",
+                    border: "4px solid rgba(255, 255, 255, 0.2)",
+                    borderTop: "4px solid rgba(211, 163, 115, 1)",
+                    borderRadius: "50%",
+                    animation: "spin 1s linear infinite",
+                    margin: "0 auto 20px"
+                  }} />
+                  <p style={{ 
+                    color: "rgba(255, 255, 255, 0.9)", 
+                    fontSize: "1.1rem",
+                    marginBottom: "8px",
+                    fontWeight: 500
+                  }}>
+                    Загрузка модели...
+                  </p>
+                  {loadingProgress && (
+                    <p style={{ 
+                      color: "rgba(255, 255, 255, 0.6)", 
+                      fontSize: "0.9rem",
+                      marginTop: "8px"
+                    }}>
+                      {loadingProgress}
+                    </p>
+                  )}
+                  <style>{`
+                    @keyframes spin {
+                      0% { transform: rotate(0deg); }
+                      100% { transform: rotate(360deg); }
+                    }
+                  `}</style>
                 </div>
               </div>
             )}
