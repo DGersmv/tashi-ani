@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+import { sanitizeFilename, validateFilePath, validateObjectId, isValidEmail, logSuspiciousActivity } from '@/lib/security';
 
 const prisma = new PrismaClient();
 
@@ -13,15 +14,25 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const email = searchParams.get('email');
     const resolvedParams = await params;
-    const objectId = parseInt(resolvedParams.id);
-    const filename = resolvedParams.filename;
-
-    if (!email) {
-      return NextResponse.json({ success: false, message: 'Email не предоставлен' }, { status: 400 });
+    
+    // Validate object ID
+    const objectId = validateObjectId(resolvedParams.id);
+    if (!objectId) {
+      logSuspiciousActivity('INVALID_OBJECT_ID', { id: resolvedParams.id }, request);
+      return NextResponse.json({ success: false, message: 'Неверный ID объекта' }, { status: 400 });
     }
 
-    if (isNaN(objectId)) {
-      return NextResponse.json({ success: false, message: 'Неверный ID объекта' }, { status: 400 });
+    // Validate and sanitize filename
+    const sanitizedFilename = sanitizeFilename(resolvedParams.filename);
+    if (!sanitizedFilename) {
+      logSuspiciousActivity('SUSPICIOUS_FILENAME', { filename: resolvedParams.filename }, request);
+      return NextResponse.json({ success: false, message: 'Неверное имя файла' }, { status: 400 });
+    }
+
+    // Validate email
+    if (!email || !isValidEmail(email)) {
+      logSuspiciousActivity('INVALID_EMAIL', { email }, request);
+      return NextResponse.json({ success: false, message: 'Email не предоставлен или неверен' }, { status: 400 });
     }
 
     // Проверяем, что пользователь существует и имеет доступ к объекту
@@ -47,7 +58,7 @@ export async function GET(
     const photo = await prisma.photo.findFirst({
       where: {
         objectId: objectId,
-        filename: filename,
+        filename: sanitizedFilename,
         isVisibleToCustomer: true
       }
     });
@@ -57,6 +68,13 @@ export async function GET(
         ? photo.filePath.replace(/^\/+/, '')
         : ['uploads', 'objects', objectId.toString(), photo.filename].join('/');
       const filePath = join(process.cwd(), 'public', relativePath);
+      
+      // Validate file path to prevent path traversal
+      const allowedBaseDir = join(process.cwd(), 'public', 'uploads', 'objects', objectId.toString());
+      if (!validateFilePath(filePath, allowedBaseDir)) {
+        logSuspiciousActivity('PATH_TRAVERSAL_ATTEMPT', { filePath, allowedBaseDir }, request);
+        return NextResponse.json({ success: false, message: 'Неверный путь к файлу' }, { status: 403 });
+      }
       
       try {
         const fileBuffer = await readFile(filePath);
@@ -78,7 +96,7 @@ export async function GET(
     const document = await prisma.document.findFirst({
       where: {
         objectId: objectId,
-        filename: filename
+        filename: sanitizedFilename
       }
     });
 
@@ -87,6 +105,13 @@ export async function GET(
         ? document.filePath.replace(/^\/+/, '')
         : ['uploads', 'objects', objectId.toString(), document.filename].join('/');
       const filePath = join(process.cwd(), 'public', relativePath);
+      
+      // Validate file path to prevent path traversal
+      const allowedBaseDir = join(process.cwd(), 'public', 'uploads', 'objects', objectId.toString());
+      if (!validateFilePath(filePath, allowedBaseDir)) {
+        logSuspiciousActivity('PATH_TRAVERSAL_ATTEMPT', { filePath, allowedBaseDir }, request);
+        return NextResponse.json({ success: false, message: 'Неверный путь к файлу' }, { status: 403 });
+      }
       
       try {
         const fileBuffer = await readFile(filePath);

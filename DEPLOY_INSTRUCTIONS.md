@@ -235,10 +235,46 @@ pm2 restart tashi-ani
 3. **Мониторинг**: Используйте PM2 для мониторинга приложения
 4. **Обновления**: Регулярно обновляйте зависимости
 
+## 11. Обновление с исправлениями безопасности
+
+### Быстрое обновление
+```bash
+cd /var/www/tashi-ani
+git pull origin master
+npm install
+npm run build
+pm2 restart tashi-ani
+```
+
+### Проверка безопасности после обновления
+```bash
+# Проверьте логи на подозрительную активность
+pm2 logs tashi-ani --lines 100 | grep -E "SECURITY ALERT"
+
+# Проверьте процессы на наличие подозрительных
+ps aux | grep -E "(boatnet|yamaha|broncano)"
+
+# Проверьте файловую систему
+find /var/www/tashi-ani -name "*.x86_64" -o -name "*boatnet*"
+
+# Проверьте сетевые соединения
+netstat -tulpn | grep -E "50\.6\.248\.160"
+```
+
+### Блокировка подозрительных IP
+```bash
+# Заблокировать IP через ufw
+sudo ufw deny from 50.6.248.160
+
+# Или через iptables
+sudo iptables -A INPUT -s 50.6.248.160 -j DROP
+```
+
 ## Поддержка
 
 При возникновении проблем:
 1. Проверьте логи: `pm2 logs tashi-ani`
 2. Проверьте статус: `pm2 status`
 3. Проверьте конфигурацию Nginx: `sudo nginx -t`
+4. Проверьте безопасность: см. раздел "Проверка безопасности"
 
