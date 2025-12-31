@@ -7,7 +7,7 @@ import CompanyDescription from "@/components/CompanyDescription";
 import GlassMapPanel from "@/components/GlassMapPanel";
 import PortfolioMultiPanels from "@/components/PhotoGlassGrid";
 import ServicesGrid from "@/components/ServicesGrid";
-import BackgroundSlideshow from "@/components/BackgroundSlideshow";
+import BackgroundSlideshow3D from "@/components/BackgroundSlideshow3D";
 import DashboardGrid from "@/components/DashboardGrid";
 import AdminDashboard from "@/components/AdminDashboard";
 import UserObjectsGrid from "@/components/UserObjectsGrid";
@@ -87,9 +87,9 @@ export default function Home() {
 
   return (
     <main className="relative main-content">
-      {/* Фон */}
+      {/* Фон с 3D lens effect */}
       <div className="fixed inset-0 -z-20">
-        <BackgroundSlideshow />
+        <BackgroundSlideshow3D enable3D={true} parallaxIntensity={0.8} />
       </div>
 
       {/* Header */}

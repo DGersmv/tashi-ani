@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/lib/userManagement";
 
+// Добавляем OPTIONS для CORS
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
@@ -9,7 +21,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         success: false, 
         message: "Email и пароль обязательны" 
-      }, { status: 400 });
+      }, { 
+        status: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        }
+      });
     }
 
     const result = await authenticateUser(email, password);
@@ -20,12 +39,25 @@ export async function POST(request: NextRequest) {
         message: "Успешная аутентификация",
         user: result.user,
         token: result.token
+      }, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        }
       });
     } else {
       return NextResponse.json({
         success: false,
         message: "Неверный email или пароль"
-      }, { status: 401 });
+      }, { 
+        status: 401,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        }
+      });
     }
 
   } catch (error) {
@@ -33,7 +65,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: false, 
       message: "Ошибка аутентификации" 
-    }, { status: 500 });
+    }, { 
+      status: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
   }
 }
 

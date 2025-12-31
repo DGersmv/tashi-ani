@@ -39,13 +39,41 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
     try {
       setMessage({ type: "info", text: "Входим в систему..." });
       
+      // Создаем AbortController для таймаута
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
+      
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
+
+      // Проверяем статус ответа
+      if (!response.ok) {
+        // Пытаемся получить сообщение об ошибке из ответа
+        let errorMessage = "Ошибка подключения к серверу";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // Если не удалось распарсить JSON, используем стандартное сообщение
+          if (response.status === 500) {
+            errorMessage = "Ошибка на сервере. Попробуйте позже.";
+          } else if (response.status === 401) {
+            errorMessage = "Неверный email или пароль";
+          } else if (response.status === 0 || response.status >= 500) {
+            errorMessage = "Сервер недоступен. Проверьте подключение к интернету.";
+          }
+        }
+        setMessage({ type: "error", text: errorMessage });
+        return;
+      }
 
       const result = await response.json();
       
@@ -72,7 +100,19 @@ export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPan
         setMessage({ type: "error", text: result.message || "Неверный email или пароль" });
       }
     } catch (error) {
-      setMessage({ type: "error", text: "Ошибка подключения. Проверьте интернет-соединение." });
+      // Обработка сетевых ошибок и других исключений
+      console.error("Ошибка при входе:", error);
+      let errorMessage = "Ошибка подключения. Проверьте интернет-соединение.";
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = "Не удалось подключиться к серверу. Проверьте, что сервер запущен.";
+      } else if (error instanceof Error && error.name === 'AbortError') {
+        errorMessage = "Превышено время ожидания ответа от сервера. Попробуйте позже.";
+      } else if (error instanceof Error) {
+        errorMessage = `Ошибка: ${error.message}`;
+      }
+      
+      setMessage({ type: "error", text: errorMessage });
     } finally {
       setIsSubmitting(false);
     }
