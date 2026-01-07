@@ -39,57 +39,144 @@ apt update && apt upgrade -y
 # reboot
 ```
 
-### Шаг 3: Настройка безопасности (ОБЯЗАТЕЛЬНО!)
+### Шаг 3: Настройка безопасности (КРИТИЧЕСКИ ВАЖНО!)
 
 ```bash
-# 1. Установите firewall и fail2ban
+# 1. СРАЗУ после первого входа обновите систему
+apt update && apt upgrade -y
+
+# 2. Установите firewall и fail2ban
 apt install -y ufw fail2ban
 
-# 2. Настройте firewall
+# 3. Настройте firewall (ЗАКРОЙТЕ ВСЁ КРОМЕ НУЖНОГО!)
 ufw default deny incoming
 ufw default allow outgoing
-ufw allow ssh      # SSH порт
+ufw allow ssh      # SSH порт (пока оставляем)
 ufw allow 80/tcp   # HTTP
 ufw allow 443/tcp  # HTTPS
 ufw --force enable
 ufw status
 
-# 3. Настройте fail2ban (защита от брутфорса)
-systemctl enable fail2ban
-systemctl start fail2ban
+# 4. Измените порт SSH (ОБЯЗАТЕЛЬНО! Используйте случайный порт, например 23456)
+nano /etc/ssh/sshd_config
 
-# Создайте конфигурацию fail2ban
+# Найдите и измените:
+# Port 22  →  Port 23456 (или другой случайный порт)
+# #PermitRootLogin yes  →  PermitRootLogin prohibit-password
+# PasswordAuthentication yes  →  PasswordAuthentication no (ПОСЛЕ настройки SSH ключей!)
+# PubkeyAuthentication yes  →  убедитесь что это раскомментировано
+
+# Сохраните: Ctrl+O, Enter, Ctrl+X
+systemctl restart sshd
+
+# 5. Обновите firewall для нового порта SSH
+ufw allow 23456/tcp
+ufw delete allow ssh
+ufw status
+
+# 6. НАСТРОЙТЕ SSH КЛЮЧИ (ОБЯЗАТЕЛЬНО! Без этого будет небезопасно!)
+# На вашей локальной машине (Windows):
+# ssh-keygen -t ed25519 -C "your_email@example.com"
+# скопируйте ~/.ssh/id_ed25519.pub
+
+# На сервере создайте директорию и файл:
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+nano ~/.ssh/authorized_keys
+# Вставьте ваш публичный ключ (одна строка)
+chmod 600 ~/.ssh/authorized_keys
+
+# Теперь попробуйте подключиться с ключом:
+# ssh -p 23456 -i ~/.ssh/id_ed25519 root@ВАШ_IP
+
+# После успешного подключения с ключом отключите пароли:
+nano /etc/ssh/sshd_config
+# PasswordAuthentication no
+systemctl restart sshd
+
+# 7. Настройте fail2ban (АГРЕССИВНЫЕ НАСТРОЙКИ!)
 cat > /etc/fail2ban/jail.local << 'EOF'
 [DEFAULT]
-bantime = 3600
-findtime = 600
-maxretry = 5
+bantime = 86400
+findtime = 300
+maxretry = 3
+destemail = root@localhost
+sendername = Fail2Ban
+action = %(action_)s
 
 [sshd]
 enabled = true
-port = ssh
+port = 23456
+filter = sshd
 logpath = %(sshd_log)s
 backend = %(sshd_backend)s
+maxretry = 3
+bantime = 86400
+findtime = 300
 EOF
 
 systemctl restart fail2ban
 fail2ban-client status sshd
 
-# 4. Измените порт SSH (рекомендуется)
-nano /etc/ssh/sshd_config
-# Найдите строку: #Port 22
-# Измените на: Port 2222 (или любой другой порт)
-# Сохраните: Ctrl+O, Enter, Ctrl+X
+# 8. ОГРАНИЧЬТЕ ПОДКЛЮЧЕНИЯ К SSH (только с вашего IP)
+# Узнайте свой IP: https://whatismyipaddress.com
+# Замените YOUR_IP на ваш IP адрес:
+ufw delete allow 23456/tcp
+ufw allow from YOUR_IP to any port 23456 proto tcp
 
-systemctl restart sshd
+# 9. Настройте автоматическую очистку журналов (чтобы не засоряли диск)
+cat > /etc/systemd/journald.conf << 'EOF'
+[Journal]
+SystemMaxUse=100M
+SystemKeepFree=500M
+MaxRetentionSec=7day
+EOF
 
-# 5. Обновите firewall для нового порта SSH
-ufw allow 2222/tcp
-ufw delete allow ssh
+systemctl restart systemd-journald
+
+# 10. Настройте мониторинг подозрительных процессов
+cat > /root/check-security.sh << 'EOF'
+#!/bin/bash
+LOG_FILE="/var/log/security-check.log"
+
+# Проверяем подозрительные процессы
+SUSPICIOUS=$(ps aux | grep -E "(miner|crypto|xmrig|stratum|monero|bitcoin)" | grep -v grep)
+if [ -n "$SUSPICIOUS" ]; then
+    echo "[$(date)] ВНИМАНИЕ: Обнаружены подозрительные процессы:" >> "$LOG_FILE"
+    echo "$SUSPICIOUS" >> "$LOG_FILE"
+    # Можно добавить отправку email или другие действия
+fi
+
+# Проверяем необычно высокую нагрузку CPU
+HIGH_CPU=$(ps aux --sort=-%cpu | head -n 5 | awk 'NR>1 && $3>50 {print $0}')
+if [ -n "$HIGH_CPU" ]; then
+    echo "[$(date)] ВНИМАНИЕ: Высокая нагрузка CPU:" >> "$LOG_FILE"
+    echo "$HIGH_CPU" >> "$LOG_FILE"
+fi
+
+# Проверяем автозапуск
+UNKNOWN_CRON=$(crontab -l 2>/dev/null | grep -v "^#" | grep -v "^$")
+if [ -n "$UNKNOWN_CRON" ]; then
+    echo "[$(date)] Проверьте cron задачи:" >> "$LOG_FILE"
+    echo "$UNKNOWN_CRON" >> "$LOG_FILE"
+fi
+EOF
+
+chmod +x /root/check-security.sh
+
+# Добавьте в cron (проверка каждые 10 минут)
+(crontab -l 2>/dev/null; echo "*/10 * * * * /root/check-security.sh") | crontab -
+
+# 11. Проверьте что всё работает
+echo "=== Проверка безопасности ==="
+echo "Firewall:"
 ufw status
-
-# 6. Теперь подключайтесь через новый порт:
-# ssh -p 2222 root@ВАШ_IP
+echo ""
+echo "Fail2ban:"
+fail2ban-client status sshd
+echo ""
+echo "SSH конфигурация:"
+grep -E "^(Port|PasswordAuthentication|PubkeyAuthentication)" /etc/ssh/sshd_config
 ```
 
 ### Шаг 4: Установка Node.js (минимальная версия)
