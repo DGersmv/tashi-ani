@@ -55,50 +55,114 @@ export async function createUser(email: string, password: string, name?: string,
 
 // Аутентификация пользователя по email и паролю
 export async function authenticateUser(email: string, password: string): Promise<{ success: boolean; user?: UserData; token?: string }> {
-  const user = await prisma.user.findUnique({
-    where: { email }
-  })
+  try {
+    const user = await prisma.$transaction(
+      async (tx) => {
+        return await tx.user.findUnique({
+          where: { email }
+        })
+      },
+      {
+        maxWait: 5000, // Максимум ожидания 5 секунд
+        timeout: 10000, // Таймаут транзакции 10 секунд
+      }
+    )
   
-  if (!user) {
+    if (!user) {
+      return { success: false }
+    }
+    
+    // Проверяем пароль
+    const isPasswordValid = await bcrypt.compare(password, user.password)
+    
+    if (!isPasswordValid) {
+      return { success: false }
+    }
+    
+    // Проверяем статус пользователя
+    if (user.status !== 'ACTIVE') {
+      return { success: false }
+    }
+    
+    // Обновить время последнего входа в той же транзакции
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { lastLogin: new Date() }
+        })
+      },
+      {
+        maxWait: 5000,
+        timeout: 10000,
+      }
+    )
+  
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    )
+    
+    return {
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name || undefined,
+        role: user.role,
+        status: user.status,
+        createdAt: user.createdAt,
+        lastLogin: user.lastLogin || undefined
+      },
+      token
+    }
+  } catch (error: any) {
+    console.error('[AUTH ERROR] authenticateUser failed:', error);
+    // Если это ошибка блокировки базы SQLite, пробуем снова
+    if (error?.code === 'SQLITE_BUSY' || error?.message?.includes('database is locked') || error?.message?.includes('SQLITE_BUSY')) {
+      console.error('[AUTH ERROR] Database is locked, retrying once...');
+      // Простая повторная попытка через небольшую задержку
+      await new Promise(resolve => setTimeout(resolve, 200));
+      try {
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (user) {
+          const isPasswordValid = await bcrypt.compare(password, user.password);
+          if (isPasswordValid && user.status === 'ACTIVE') {
+            try {
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { lastLogin: new Date() }
+              });
+            } catch (updateError) {
+              // Игнорируем ошибку обновления lastLogin если база заблокирована
+              console.warn('[AUTH ERROR] Could not update lastLogin:', updateError);
+            }
+            const token = jwt.sign(
+              { userId: user.id, email: user.email, role: user.role },
+              JWT_SECRET,
+              { expiresIn: '7d' }
+            );
+            return {
+              success: true,
+              user: {
+                id: user.id,
+                email: user.email,
+                name: user.name || undefined,
+                role: user.role,
+                status: user.status,
+                createdAt: user.createdAt,
+                lastLogin: user.lastLogin || undefined
+              },
+              token
+            };
+          }
+        }
+      } catch (retryError) {
+        console.error('[AUTH ERROR] Retry failed:', retryError);
+      }
+    }
     return { success: false }
-  }
-  
-  // Проверяем пароль
-  const isPasswordValid = await bcrypt.compare(password, user.password)
-  
-  if (!isPasswordValid) {
-    return { success: false }
-  }
-  
-  // Проверяем статус пользователя
-  if (user.status !== 'ACTIVE') {
-    return { success: false }
-  }
-  
-  // Обновить время последнего входа
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { lastLogin: new Date() }
-  })
-  
-  const token = jwt.sign(
-    { userId: user.id, email: user.email, role: user.role },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  )
-  
-  return {
-    success: true,
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name || undefined,
-      role: user.role,
-      status: user.status,
-      createdAt: user.createdAt,
-      lastLogin: user.lastLogin || undefined
-    },
-    token
   }
 }
 
