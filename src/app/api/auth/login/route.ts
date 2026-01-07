@@ -15,13 +15,7 @@ export async function OPTIONS() {
 
 export async function POST(request: NextRequest) {
   try {
-    // Логируем начало запроса для диагностики
-    console.log("[AUTH LOGIN] POST request received");
-    
-    const body = await request.json();
-    const { email, password } = body;
-    
-    console.log("[AUTH LOGIN] Email:", email ? "provided" : "missing");
+    const { email, password } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json({ 
