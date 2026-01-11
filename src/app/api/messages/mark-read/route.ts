@@ -1,5 +1,12 @@
+export const dynamic = "force-static";
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+
+// Для статического экспорта (не используется, т.к. API работает через PHP)
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function PATCH(request: NextRequest) {
   try {

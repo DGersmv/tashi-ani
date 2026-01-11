@@ -1,3 +1,5 @@
+export const dynamic = "force-static";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/userManagement';
@@ -5,6 +7,11 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { generateThumbnail } from '@/lib/imageProcessing';
+
+// Для статического экспорта (не используется, т.к. API работает через PHP)
+export async function generateStaticParams() {
+  return [];
+}
 
 const resolveFilePath = (explicitPath: string | null | undefined, fallbackPath: string) => {
   if (typeof explicitPath === 'string' && explicitPath.trim().length > 0) {
@@ -280,6 +287,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       if (existsSync(thumbnailPath)) {
         await import('fs/promises').then(fs => fs.unlink(thumbnailPath));
       }
+
     }
 
     // Удаляем запись из базы данных

@@ -5,6 +5,11 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
+// Для статического экспорта (не используется, т.к. API работает через PHP)
+export async function generateStaticParams() {
+  return [];
+}
+
 export async function GET() {
   try {
     const dir = path.join(process.cwd(), "public", "portfolio");

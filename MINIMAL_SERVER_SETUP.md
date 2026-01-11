@@ -252,7 +252,10 @@ cd tashi-ani
 nano .env.local
 
 # Вставьте следующее (ЗАМЕНИТЕ на свои значения):
-DATABASE_URL="file:./prisma/prod.db"
+# PostgreSQL от VK Cloud Managed Database
+DATABASE_URL="postgresql://user:password@c-xxxxx.rw.mdb.yandexcloud.net:6432/tashi_ani_prod?sslmode=require"
+# Получите строку подключения в панели VK Cloud после создания PostgreSQL инстанса
+# См. подробную инструкцию: VK_CLOUD_DATABASE_MIGRATION.md
 JWT_SECRET="ЗАМЕНИТЕ_НА_СЛУЧАЙНУЮ_СТРОКУ_МИНИМУМ_32_СИМВОЛА_abcdefghijklmnopqrstuvwxyz1234567890"
 MASTER_ADMIN_EMAIL="admin@227.info"
 MASTER_ADMIN_PASSWORD="ВАШ_ПАРОЛЬ_АДМИНА"

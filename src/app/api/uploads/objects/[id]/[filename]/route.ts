@@ -1,8 +1,15 @@
+export const dynamic = "force-static";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { sanitizeFilename, validateFilePath, validateObjectId, isValidEmail, logSuspiciousActivity } from '@/lib/security';
+
+// Для статического экспорта (не используется, т.к. API работает через PHP)
+export async function generateStaticParams() {
+  return [];
+}
 
 const prisma = new PrismaClient();
 

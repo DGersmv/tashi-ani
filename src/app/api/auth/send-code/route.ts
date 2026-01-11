@@ -1,7 +1,14 @@
+export const dynamic = "force-static";
+
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
 import { isMasterAdmin, userExists } from "@/lib/userManagement";
+
+// Для статического экспорта (не используется, т.к. API работает через PHP)
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function POST(request: NextRequest) {
   // Генерируем 6-значный код в самом начале

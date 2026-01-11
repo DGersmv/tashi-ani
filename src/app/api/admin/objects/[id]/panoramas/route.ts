@@ -1,3 +1,5 @@
+export const dynamic = "force-static";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/userManagement';
@@ -8,6 +10,11 @@ import sharp from 'sharp';
 import { generateThumbnail } from '@/lib/imageProcessing';
 import { classifyPanoramaProjection } from '@/lib/panoramaUtils';
 import { Prisma } from '@prisma/client';
+
+// Для статического экспорта (не используется, т.к. API работает через PHP)
+export async function generateStaticParams() {
+  return [];
+}
 
 const MAX_FILE_SIZE_MB = 50;
 const ALLOWED_MIME_TYPES = [

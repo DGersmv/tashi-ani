@@ -1,5 +1,12 @@
+export const dynamic = "force-static";
+
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/lib/userManagement";
+
+// Для статического экспорта (не используется, т.к. API работает через PHP)
+export async function generateStaticParams() {
+  return [];
+}
 
 // Добавляем OPTIONS для CORS
 export async function OPTIONS() {

@@ -11,7 +11,10 @@
 npm install
 
 # Создайте файл .env.local
-DATABASE_URL="file:./prisma/dev.db"
+# Для локальной разработки можно использовать SQLite или PostgreSQL
+DATABASE_URL="postgresql://user:password@localhost:5432/tashi_ani_dev"
+# Или для быстрого старта с SQLite (только для разработки):
+# DATABASE_URL="file:./prisma/dev.db"
 JWT_SECRET="your-secret-key-min-32-chars"
 MASTER_ADMIN_EMAIL="admin@example.com"
 MASTER_ADMIN_PASSWORD="your-password"

@@ -1,0 +1,25 @@
+# Включить PHP
+AddHandler application/x-httpd-php .php
+
+# Включить mod_rewrite
+RewriteEngine On
+RewriteBase /
+
+# API routes - перенаправление на PHP файлы
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/(.*)$ api/$1.php [L,QSA]
+
+# Если запрашивается файл .php напрямую - отдаём его
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteCond %{REQUEST_URI} .php$
+RewriteRule ^(.*)$ - [L]
+
+# Для статических файлов (из Next.js экспорта)
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^(.*)$ - [L]
+
+# SPA routing - все остальные запросы на index.html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ /index.html [L]

@@ -204,7 +204,11 @@ sudo chown -R ubuntu:ubuntu /var/www/tashi-ani
 nano .env.local
 
 # Вставьте следующее (ЗАМЕНИТЕ на свои значения):
-DATABASE_URL="file:./prisma/prod.db"
+# PostgreSQL от VK Cloud Managed Database
+DATABASE_URL="postgresql://user:password@c-xxxxx.rw.mdb.yandexcloud.net:6432/tashi_ani_prod?sslmode=require"
+# Получите строку подключения в панели VK Cloud после создания PostgreSQL инстанса
+# См. подробную инструкцию: VK_CLOUD_DATABASE_MIGRATION.md
+
 JWT_SECRET="ЗАМЕНИТЕ_НА_СЛУЧАЙНУЮ_СТРОКУ_МИНИМУМ_32_СИМВОЛА"
 MASTER_ADMIN_EMAIL="admin@227.info"
 MASTER_ADMIN_PASSWORD="ВАШ_ПАРОЛЬ_АДМИНА"
@@ -218,21 +222,24 @@ NODE_ENV="production"
 # 5. Установите зависимости
 npm install
 
-# 6. Создайте базу данных
+# 6. Установите PostgreSQL клиент (для подключения к базе)
+sudo apt install -y postgresql-client
+
+# 7. Создайте базу данных (примените миграции Prisma)
 npx prisma generate
 npx prisma migrate deploy
 
-# 7. Создайте админа
+# 8. Создайте админа
 node create-admin-user.js
 
-# 8. Соберите проект
+# 9. Соберите проект
 NODE_OPTIONS="--max-old-space-size=512" npm run build
 
-# 9. Запустите через PM2
+# 10. Запустите через PM2
 pm2 start ecosystem.config.js
 pm2 save
 
-# 10. Проверьте статус
+# 11. Проверьте статус
 pm2 status
 pm2 logs tashi-ani --lines 20
 ```
@@ -285,12 +292,45 @@ df -h
 ssh -i C:\Users\DGer\.ssh\vk_cloud_ed25519 -p 23456 ubuntu@87.239.108.115
 ```
 
+## 🗄️ База данных: PostgreSQL
+
+**ВАЖНО:** Проект теперь использует PostgreSQL вместо SQLite!
+
+### 💰 Два варианта:
+
+#### ⚠️ Вариант А: Managed PostgreSQL (дорого!)
+- **Стоимость:** ~5000₽/месяц даже за минимальную конфигурацию
+- См. [VK_CLOUD_DATABASE_MIGRATION.md](./VK_CLOUD_DATABASE_MIGRATION.md)
+
+#### ✅ Вариант Б: PostgreSQL на сервере (рекомендуется!)
+- **Стоимость:** 0₽ дополнительно (используете ресурсы сервера)
+- **Экономия:** ~5000₽/месяц! 💰
+- См. [VK_CLOUD_POSTGRESQL_ALTERNATIVE.md](./VK_CLOUD_POSTGRESQL_ALTERNATIVE.md)
+
+### Быстрая установка на сервер:
+
+```bash
+# Установите PostgreSQL
+sudo apt install -y postgresql postgresql-contrib
+
+# Создайте базу данных и пользователя
+sudo -u postgres psql -c "CREATE DATABASE tashi_ani_prod;"
+sudo -u postgres psql -c "CREATE USER tashi_ani_user WITH PASSWORD 'ВАШ_ПАРОЛЬ';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE tashi_ani_prod TO tashi_ani_user;"
+
+# Обновите .env.local
+# DATABASE_URL="postgresql://tashi_ani_user:ПАРОЛЬ@localhost:5432/tashi_ani_prod"
+```
+
+**Подробная инструкция:** [VK_CLOUD_POSTGRESQL_ALTERNATIVE.md](./VK_CLOUD_POSTGRESQL_ALTERNATIVE.md)
+
 ## 📝 Важные отличия от reg.ru
 
 1. **Пользователь:** `ubuntu` вместо `root`
 2. **Права:** Используйте `sudo` для административных команд
 3. **PM2:** Запускайте от пользователя `ubuntu`, не root
 4. **Права на файлы:** Убедитесь что файлы проекта принадлежат `ubuntu:ubuntu`
+5. **База данных:** PostgreSQL от VK Cloud (не SQLite!)
 
 ## 🆘 Если что-то не работает
 

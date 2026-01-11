@@ -10,11 +10,16 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node prisma/seed.js",
+    "db:migrate-data": "node scripts/migrate-sqlite-to-postgres.js",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop tashi-ani",
     "pm2:restart": "pm2 restart tashi-ani",
     "pm2:logs": "pm2 logs tashi-ani",
-    "deploy": "npm install && npm run build && pm2 restart ecosystem.config.js --env production"
+    "build:dist": "node scripts/build-without-api.js && node scripts/create-dist.js",
+    "deploy": "npm install && npm run build && pm2 restart ecosystem.config.js --env production",
+    "php:check": "node scripts/check-php-syntax.js",
+    "php:dev": "node scripts/start-php-server.js",
+    "php:test": "node scripts/test-php-api.js"
   },
   "dependencies": {
     "@openglobus/og": "^0.26.6",
@@ -39,6 +44,7 @@
     "react-photo-sphere-viewer": "^6.2.3",
     "react-swipeable": "^7.0.2",
     "sharp": "^0.33.5",
+    "sqlite3": "^5.1.7",
     "tailwindcss": "^3.4.17",
     "three": "^0.181.0",
     "web-ifc": "^0.0.74"

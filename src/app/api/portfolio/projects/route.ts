@@ -4,6 +4,11 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
+// Для статического экспорта (не используется, т.к. API работает через PHP)
+export async function generateStaticParams() {
+  return [];
+}
+
 const mediaRe = /\.(png|jpe?g|webp|gif|avif|mp4|webm|mov)$/i;
 const isVideo = (f: string) => /\.(mp4|webm|mov)$/i.test(f);
 

@@ -2,9 +2,23 @@ const path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export', // Статический экспорт для PHP хостинга
   reactStrictMode: false,
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  
+  // Исключить API routes из сборки (используем PHP API)
+  // При статическом экспорте API routes должны быть исключены
+  // Используем webpack для игнорирования API routes
+  webpack: (config, { isServer }) => {
+    // Исключаем API routes из клиентской сборки
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+      };
+    }
+    return config;
+  },
 
   images: {
     domains: ['tile.openstreetmap.org'],
