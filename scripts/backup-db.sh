@@ -35,3 +35,5 @@ echo "$(date '+%Y-%m-%d %H:%M:%S'): Backup created: ${BACKUP_FILE} (${SIZE})" >>
 
 echo "Backup completed successfully: ${BACKUP_FILE} (${SIZE})"
 
+
+
