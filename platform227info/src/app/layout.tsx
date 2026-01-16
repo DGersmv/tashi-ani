@@ -13,14 +13,15 @@ const montserrat = Montserrat_Alternates({
 });
 
 export const metadata = {
-  title: "tashi-ani.ru",
-  description: "Ландшафтная архитектура, портфолио и проекты",
+  title: "country-house.227.info",
+  description: "Строительство модульных домов",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru" className={montserrat.variable}>
       <head>
+        <link rel="icon" href="/logo.jpg" />
         {/* Предзагрузка первого фона как плейсхолдера, чтобы не было «чёрного кадра» */}
         <link rel="preload" as="image" href="/portfolio/01.jpg" />
       </head>
