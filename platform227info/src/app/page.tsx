@@ -12,7 +12,7 @@ import AdminObjectsManager from "@/components/AdminObjectsManager";
 import AdminObjectDetailView from "@/components/AdminObjectDetailView";
 import CustomerPhotoViewer from "@/components/CustomerPhotoViewer";
 import NotificationToast from "@/components/NotificationToast";
-import LoginPanel from "@/components/LoginPanel";
+import GlassMapPanel from "@/components/GlassMapPanel";
 
 export default function Home() {
   const { mode, setMode } = useViewMode();
@@ -47,6 +47,11 @@ export default function Home() {
     }
   }, [isClient, mode, setMode]);
 
+  useEffect(() => {
+    if (!isClient || !isAuthenticated) return;
+    loadUnreadNotifications();
+  }, [isClient, isAuthenticated]);
+
   const loadUnreadNotifications = async () => {
     const userEmail = localStorage.getItem("userEmail");
     const adminToken = localStorage.getItem("adminToken");
@@ -70,25 +75,6 @@ export default function Home() {
     }
   };
 
-  const handleLoginSuccess = (email: string, isAdminUser?: boolean) => {
-    setIsAuthenticated(true);
-    setIsAdmin(!!isAdminUser);
-
-    localStorage.setItem("userEmail", email);
-    localStorage.setItem("isLoggedIn", "true");
-
-    if (isAdminUser) {
-      localStorage.setItem("isAdmin", "true");
-      setMode("admin-dashboard");
-    } else {
-      localStorage.removeItem("isAdmin");
-      setMode("objects");
-    }
-
-    loadUnreadNotifications();
-    window.dispatchEvent(new Event("auth-changed"));
-  };
-
   const handleAdminLogout = () => {
     localStorage.removeItem("adminToken");
     localStorage.removeItem("isAdmin");
@@ -110,19 +96,66 @@ export default function Home() {
       <AnimatePresence initial={false} mode="wait">
         {!isAuthenticated ? (
           <motion.div
-            key="login"
+            key="home-intro"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35 }}
           >
-            <LoginPanel
-              isOpen
-              onClose={() => {}}
-              onLoginSuccess={handleLoginSuccess}
-              showCloseButton={false}
-              allowBackdropClose={false}
-            />
+            <section className="page-wrap">
+              <div className="home-intro-layout">
+                <div className="home-intro-text">
+                  <h2>Кабинет заказчика</h2>
+                  <p>
+                    В кабинете заказчика можно смотреть объекты и фото, получать файлы
+                    и документы, а также оставлять комментарии и сообщения.
+                  </p>
+                  <p>
+                    Для входа нажмите кнопку «Вход» в верхнем меню.
+                  </p>
+                </div>
+                <div className="home-intro-map">
+                  <GlassMapPanel />
+                </div>
+              </div>
+            </section>
+            <style jsx>{`
+              .home-intro-layout {
+                display: grid;
+                gap: 18px;
+                align-items: start;
+              }
+
+              .home-intro-text {
+                max-width: 720px;
+                color: #f6f8fa;
+              }
+
+              .home-intro-text h2 {
+                margin: 0 0 12px;
+              }
+
+              .home-intro-text p {
+                margin: 0 0 12px;
+                opacity: 0.9;
+              }
+
+              .home-intro-text p:last-child {
+                margin-bottom: 0;
+                opacity: 0.75;
+              }
+
+              .home-intro-map {
+                width: 100%;
+              }
+
+              @media (min-width: 1024px) {
+                .home-intro-layout {
+                  grid-template-columns: minmax(0, 1fr) minmax(0, 30vw);
+                  gap: 24px;
+                }
+              }
+            `}</style>
           </motion.div>
         ) : mode === "admin-dashboard" && isAdmin ? (
           <motion.div
