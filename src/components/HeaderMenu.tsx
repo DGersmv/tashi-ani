@@ -3,6 +3,9 @@ import React, { useEffect, useState } from "react";
 import { useViewMode } from "@/components/ui/ViewMode";
 import LoginPanel from "@/components/LoginPanel";
 
+const PHONE = "+7 921 952-61-17";
+const WHATSAPP_URL = `https://wa.me/79219526117`;
+
 interface HeaderMenuProps {
   isLoggedIn?: boolean;
   isAdmin?: boolean;
@@ -15,44 +18,8 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(propIsLoggedIn || false);
   const [userEmail, setUserEmail] = useState("");
-  const [userName, setUserName] = useState("");
   const [isAdmin, setIsAdmin] = useState(propIsAdmin || false);
   const { setMode, mode } = useViewMode();
-
-  const loadUserProfile = async (email: string) => {
-    try {
-      const response = await fetch(`/api/user/profile?email=${encodeURIComponent(email)}`);
-      const result = await response.json();
-      if (result.success && result.user?.name) {
-        setUserName(result.user.name);
-      }
-    } catch (error) {
-      console.error("Ошибка загрузки профиля:", error);
-    }
-  };
-
-  const syncAuthFromStorage = () => {
-    const savedEmail = localStorage.getItem('userEmail');
-    const savedLoginStatus = localStorage.getItem('isLoggedIn');
-    const adminToken = localStorage.getItem('adminToken');
-    const adminFlag = localStorage.getItem('isAdmin');
-
-    if (savedEmail && savedLoginStatus === 'true') {
-      setIsLoggedIn(true);
-      setUserEmail(savedEmail);
-      loadUserProfile(savedEmail);
-    } else {
-      setIsLoggedIn(false);
-      setUserEmail("");
-      setUserName("");
-    }
-
-    if (adminToken || adminFlag === 'true') {
-      setIsAdmin(true);
-    } else {
-      setIsAdmin(false);
-    }
-  };
 
   useEffect(() => {
     const on = () => setIsWide(window.innerWidth > 1200);
@@ -73,14 +40,20 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
 
   // Проверяем статус входа при загрузке
   useEffect(() => {
-    syncAuthFromStorage();
-    const onAuthChanged = () => syncAuthFromStorage();
-    window.addEventListener("storage", onAuthChanged);
-    window.addEventListener("auth-changed", onAuthChanged);
-    return () => {
-      window.removeEventListener("storage", onAuthChanged);
-      window.removeEventListener("auth-changed", onAuthChanged);
-    };
+    const savedEmail = localStorage.getItem('userEmail');
+    const savedLoginStatus = localStorage.getItem('isLoggedIn');
+    const adminToken = localStorage.getItem('adminToken');
+    
+    if (savedEmail && savedLoginStatus === 'true') {
+      setIsLoggedIn(true);
+      setUserEmail(savedEmail);
+    }
+    
+    if (adminToken) {
+      setIsAdmin(true);
+      setIsLoggedIn(true);
+      setUserEmail('2277277@bk.ru');
+    }
   }, []);
 
   useEffect(() => {
@@ -90,7 +63,6 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
 
   const handleLoginSuccess = (email: string, isAdmin?: boolean) => {
     setUserEmail(email);
-    setUserName("");
     setIsLoggedIn(true);
     
     if (isAdmin) {
@@ -98,7 +70,7 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
       setMode("admin-dashboard");
     } else {
       setIsAdmin(false);
-      setMode("objects");
+      setMode("dashboard");
     }
     
     // Сохраняем данные в localStorage для персистентности
@@ -113,15 +85,11 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
     if (onAuthUpdate) {
       onAuthUpdate();
     }
-
-    loadUserProfile(email);
-    window.dispatchEvent(new Event("auth-changed"));
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserEmail("");
-    setUserName("");
     setIsAdmin(false);
     setMode("home");
 
@@ -130,7 +98,6 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('isAdmin');
     localStorage.removeItem('adminToken');
-    window.dispatchEvent(new Event("auth-changed"));
   };
 
   const bar: React.CSSProperties = {
@@ -177,7 +144,6 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
     minWidth: 0, // Позволяет тексту обрезаться
   };
 
-  const displayName = userName || userEmail || (isAdmin ? "Админ" : "Пользователь");
 
   return (
     <div style={bar}>
@@ -188,49 +154,93 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
             display: "flex",
             alignItems: "center",
             width: "100%",
-            gap: isWide ? 14 : 6,
+            gap: isWide ? 14 : 6, // Уменьшили gap для мобильных
             flexWrap: isWide ? "nowrap" : "wrap",
-            justifyContent: "center",
+            justifyContent: isWide ? "space-between" : "center",
             overflow: "hidden",
-            minWidth: 0,
+            minWidth: 0, // Позволяет элементам сжиматься
           }}
         >
+          <a
+            href={WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="menu-link"
+            style={linkFont}
+          >
+            {PHONE}
+          </a>
 
-          {!isLoggedIn ? (
-            <button
-              type="button"
-              className="menu-link"
-              onClick={() => setIsLoginOpen(true)}
-              style={linkFont}
-            >
-              Вход
-            </button>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={`menu-link ${mode === "admin-dashboard" || mode === "objects" ? 'active' : ''}`}
-                onClick={() => setMode(isAdmin ? "admin-dashboard" : "objects")}
-                style={{
-                  ...linkFont,
-                  color: mode === "admin-dashboard" || mode === "objects" ? "rgba(211, 163, 115, 1)" : "rgba(211, 163, 115, 0.9)",
-                }}
-              >
-                {displayName}
-              </button>
-              <button
-                type="button"
-                className="menu-link"
-                onClick={handleLogout}
-                style={{
-                  ...linkFont,
-                  color: "rgba(239, 68, 68, 0.9)"
-                }}
-              >
-                Выйти
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            className={`menu-link ${mode === "home" ? 'active' : ''}`}
+            onClick={() => setMode("home")}
+            style={linkFont}
+          >
+            Главная
+          </button>
+
+          <button
+            type="button"
+            className={`menu-link ${mode === "services" ? 'active' : ''}`}
+            onClick={() => setMode("services")}
+            style={linkFont}
+          >
+            Услуги
+          </button>
+
+          <button
+            type="button"
+            className={`menu-link ${mode === "portfolio" ? 'active' : ''}`}
+            onClick={() => setMode("portfolio")}
+            style={linkFont}
+          >
+            Портфолио
+          </button>
+
+          <a className="menu-link" href="#" style={linkFont}>
+            Отзывы
+          </a>
+
+          <a className="menu-link" href="#" style={linkFont}>
+            Контакты
+          </a>
+
+              {!isLoggedIn ? (
+                <button
+                  type="button"
+                  className="menu-link"
+                  onClick={() => setIsLoginOpen(true)}
+                  style={linkFont}
+                >
+                  Вход
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className={`menu-link ${mode === "dashboard" || mode === "admin-dashboard" ? 'active' : ''}`}
+                    onClick={() => setMode(isAdmin ? "admin-dashboard" : "dashboard")}
+                    style={{ 
+                      ...linkFont, 
+                      color: mode === "dashboard" || mode === "admin-dashboard" ? "rgba(211, 163, 115, 1)" : "rgba(211, 163, 115, 0.9)",
+                    }}
+                  >
+                    {isAdmin ? "Админ" : "Кабинет"}
+                  </button>
+                  <button
+                    type="button"
+                    className="menu-link"
+                    onClick={handleLogout}
+                    style={{ 
+                      ...linkFont, 
+                      color: "rgba(239, 68, 68, 0.9)"
+                    }}
+                  >
+                    Выйти
+                  </button>
+                </>
+              )}
         </div>
       </nav>
 

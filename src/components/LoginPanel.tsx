@@ -7,17 +7,9 @@ interface LoginPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onLoginSuccess: (email: string, isAdmin?: boolean) => void;
-  showCloseButton?: boolean;
-  allowBackdropClose?: boolean;
 }
 
-export default function LoginPanel({
-  isOpen,
-  onClose,
-  onLoginSuccess,
-  showCloseButton = true,
-  allowBackdropClose = true
-}: LoginPanelProps) {
+export default function LoginPanel({ isOpen, onClose, onLoginSuccess }: LoginPanelProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -87,7 +79,6 @@ export default function LoginPanel({
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (!allowBackdropClose) return;
     if (e.target === e.currentTarget) {
       onClose();
     }
@@ -163,41 +154,39 @@ export default function LoginPanel({
               }}
             >
               {/* Кнопка закрытия */}
-              {showCloseButton && (
-                <button
-                  onClick={onClose}
-                  style={{
-                    position: "absolute",
-                    top: 16,
-                    right: 16,
-                    width: 32,
-                    height: 32,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "rgba(255,255,255,0.7)",
-                    backgroundColor: "transparent",
-                    border: "none",
-                    borderRadius: "50%",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                    zIndex: 10
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "white";
-                    e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "rgba(255,255,255,0.7)";
-                    e.currentTarget.style.backgroundColor = "transparent";
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              )}
+              <button
+                onClick={onClose}
+                style={{
+                  position: "absolute",
+                  top: 16,
+                  right: 16,
+                  width: 32,
+                  height: 32,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "rgba(255,255,255,0.7)",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  borderRadius: "50%",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  zIndex: 10
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "white";
+                  e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "rgba(255,255,255,0.7)";
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
 
               {/* Содержимое панели */}
               <div

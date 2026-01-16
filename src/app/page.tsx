@@ -3,6 +3,10 @@
 import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useViewMode } from "@/components/ui/ViewMode";
+import CompanyDescription from "@/components/CompanyDescription";
+import GlassMapPanel from "@/components/GlassMapPanel";
+import PortfolioMultiPanels from "@/components/PhotoGlassGrid";
+import ServicesGrid from "@/components/ServicesGrid";
 import BackgroundSlideshow from "@/components/BackgroundSlideshow";
 import DashboardGrid from "@/components/DashboardGrid";
 import AdminDashboard from "@/components/AdminDashboard";
@@ -11,11 +15,11 @@ import ObjectDetailView from "@/components/ObjectDetailView";
 import AdminObjectsManager from "@/components/AdminObjectsManager";
 import AdminObjectDetailView from "@/components/AdminObjectDetailView";
 import CustomerPhotoViewer from "@/components/CustomerPhotoViewer";
+import Header from "@/components/Header";
 import NotificationToast from "@/components/NotificationToast";
-import LoginPanel from "@/components/LoginPanel";
 
 export default function Home() {
-  const { mode, setMode } = useViewMode();
+  const { mode } = useViewMode();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -29,35 +33,31 @@ export default function Home() {
 
   useEffect(() => {
     if (!isClient) return;
+    
+    const checkAuth = () => {
+      const userEmail = localStorage.getItem('userEmail');
+      const isLoggedIn = localStorage.getItem('isLoggedIn');
+      const userToken = localStorage.getItem('userToken');
+      const adminToken = localStorage.getItem('adminToken');
+      const isAdminStatus = localStorage.getItem('isAdmin');
+      
+      setIsAuthenticated(!!(userEmail && (isLoggedIn === 'true' || userToken)));
+      setIsAdmin(!!(adminToken || isAdminStatus === 'true'));
+    };
 
-    const userEmail = localStorage.getItem("userEmail");
-    const isLoggedIn = localStorage.getItem("isLoggedIn");
-    const userToken = localStorage.getItem("userToken");
-    const adminToken = localStorage.getItem("adminToken");
-    const isAdminStatus = localStorage.getItem("isAdmin");
+    checkAuth();
+  }, [isClient]);
 
-    const authenticated = !!(userEmail && (isLoggedIn === "true" || userToken));
-    const admin = !!(adminToken || isAdminStatus === "true");
-
-    setIsAuthenticated(authenticated);
-    setIsAdmin(admin);
-
-    if (authenticated && mode === "home") {
-      setMode(admin ? "admin-dashboard" : "objects");
-    }
-  }, [isClient, mode, setMode]);
-
+  // Функция для загрузки непрочитанных уведомлений
   const loadUnreadNotifications = async () => {
-    const userEmail = localStorage.getItem("userEmail");
-    const adminToken = localStorage.getItem("adminToken");
-    const isAdminUser = !!(adminToken || localStorage.getItem("isAdmin") === "true");
+    const userEmail = localStorage.getItem('userEmail');
+    const adminToken = localStorage.getItem('adminToken');
+    const isAdminUser = !!(adminToken || localStorage.getItem('isAdmin') === 'true');
 
     if (!userEmail) return;
 
     try {
-      const response = await fetch(
-        `/api/notifications/unread?email=${encodeURIComponent(userEmail)}&isAdmin=${isAdminUser}`
-      );
+      const response = await fetch(`/api/notifications/unread?email=${encodeURIComponent(userEmail)}&isAdmin=${isAdminUser}`);
       const data = await response.json();
 
       if (data.success && data.total > 0) {
@@ -70,61 +70,47 @@ export default function Home() {
     }
   };
 
-  const handleLoginSuccess = (email: string, isAdminUser?: boolean) => {
-    setIsAuthenticated(true);
-    setIsAdmin(!!isAdminUser);
-
-    localStorage.setItem("userEmail", email);
-    localStorage.setItem("isLoggedIn", "true");
-
-    if (isAdminUser) {
-      localStorage.setItem("isAdmin", "true");
-      setMode("admin-dashboard");
-    } else {
-      localStorage.removeItem("isAdmin");
-      setMode("objects");
-    }
-
+  // Функция для обновления состояния после входа
+  const handleAuthUpdate = () => {
+    const userEmail = localStorage.getItem('userEmail');
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const userToken = localStorage.getItem('userToken');
+    const adminToken = localStorage.getItem('adminToken');
+    const isAdminStatus = localStorage.getItem('isAdmin');
+    
+    setIsAuthenticated(!!(userEmail && (isLoggedIn === 'true' || userToken)));
+    setIsAdmin(!!(adminToken || isAdminStatus === 'true'));
+    
+    // Загружаем уведомления после входа
     loadUnreadNotifications();
-    window.dispatchEvent(new Event("auth-changed"));
-  };
-
-  const handleAdminLogout = () => {
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("isAdmin");
-    localStorage.removeItem("isLoggedIn");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userToken");
-    setIsAuthenticated(false);
-    setIsAdmin(false);
-    setMode("home");
-    window.dispatchEvent(new Event("auth-changed"));
   };
 
   return (
     <main className="relative main-content">
+      {/* Фон */}
       <div className="fixed inset-0 -z-20">
         <BackgroundSlideshow />
       </div>
 
+      {/* Header */}
+      <Header 
+        isLoggedIn={isAuthenticated}
+        isAdmin={isAdmin}
+        onAuthUpdate={handleAuthUpdate}
+      />
+
+      {/* Затемняющий слой для режима портфолио */}
+      <motion.div
+        aria-hidden
+        className="fixed inset-0 -z-10 pointer-events-none"
+        initial={false}
+        animate={{ opacity: mode === "portfolio" ? 1 : 0 }}
+        transition={{ duration: 0.45 }}
+        style={{ backgroundColor: "rgba(10,10,10,1)" }}
+      />
+
       <AnimatePresence initial={false} mode="wait">
-        {!isAuthenticated ? (
-          <motion.div
-            key="login"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.35 }}
-          >
-            <LoginPanel
-              isOpen
-              onClose={() => {}}
-              onLoginSuccess={handleLoginSuccess}
-              showCloseButton={false}
-              allowBackdropClose={false}
-            />
-          </motion.div>
-        ) : mode === "admin-dashboard" && isAdmin ? (
+        {mode === "admin-dashboard" && isAdmin ? (
           <motion.div
             key="admin-dashboard"
             initial={{ opacity: 0, y: 8 }}
@@ -132,12 +118,16 @@ export default function Home() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35 }}
           >
-            <AdminDashboard
-              userEmail={localStorage.getItem("userEmail") || "admin"}
-              onLogout={handleAdminLogout}
+            <AdminDashboard 
+              userEmail="2277277@bk.ru" 
+              onLogout={() => {
+                localStorage.removeItem('adminToken');
+                localStorage.removeItem('isAdmin');
+                window.location.reload();
+              }}
             />
           </motion.div>
-        ) : mode === "dashboard" ? (
+        ) : mode === "dashboard" && isAuthenticated ? (
           <motion.div
             key="dashboard"
             initial={{ opacity: 0, y: 8 }}
@@ -147,7 +137,7 @@ export default function Home() {
           >
             <DashboardGrid />
           </motion.div>
-        ) : mode === "objects" ? (
+        ) : mode === "objects" && isAuthenticated ? (
           <motion.div
             key="objects"
             initial={{ opacity: 0, y: 8 }}
@@ -155,9 +145,9 @@ export default function Home() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35 }}
           >
-            <UserObjectsGrid userEmail={localStorage.getItem("userEmail") || ""} />
+            <UserObjectsGrid userEmail={localStorage.getItem('userEmail') || ''} />
           </motion.div>
-        ) : mode === "object-detail" ? (
+        ) : mode === "object-detail" && isAuthenticated ? (
           <motion.div
             key="object-detail"
             initial={{ opacity: 0, y: 8 }}
@@ -165,7 +155,7 @@ export default function Home() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35 }}
           >
-            <ObjectDetailView userEmail={localStorage.getItem("userEmail") || ""} />
+            <ObjectDetailView userEmail={localStorage.getItem('userEmail') || ''} />
           </motion.div>
         ) : mode === "admin-objects" && isAdmin ? (
           <motion.div
@@ -175,7 +165,7 @@ export default function Home() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35 }}
           >
-            <AdminObjectsManager adminToken={localStorage.getItem("adminToken") || ""} />
+            <AdminObjectsManager adminToken={localStorage.getItem('adminToken') || ''} />
           </motion.div>
         ) : mode === "admin-object-detail" && isAdmin ? (
           <motion.div
@@ -185,9 +175,55 @@ export default function Home() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35 }}
           >
-            <AdminObjectDetailView adminToken={localStorage.getItem("adminToken") || ""} />
+            <AdminObjectDetailView adminToken={typeof window !== 'undefined' ? localStorage.getItem('adminToken') || '' : ''} />
           </motion.div>
-        ) : mode === "photo-viewer" ? (
+        ) : mode === "home" ? (
+          <motion.div
+            key="home"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.35 }}
+          >
+            {/* Один общий контейнер */}
+            <div className="page-wrap">
+              <div
+                className="
+                  w-full
+                  grid grid-cols-1 lg:grid-cols-2
+                  gap-8 lg:gap-14
+                  px-4 md:px-6
+                  items-start
+                "
+              >
+                {/* Левая колонка: текст */}
+                <div className="w-full flex justify-start">
+                  <div className="max-w-[720px] text-left">
+                    <CompanyDescription />
+                  </div>
+                </div>
+
+                {/* Правая колонка: карта */}
+                <div className="w-full flex justify-center">
+                  <GlassMapPanel />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ) : mode === "portfolio" ? (
+          <motion.div
+             key="portfolio"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.35 }}
+          
+          >
+          <div className="page-wrap">
+            <PortfolioMultiPanels />
+          </div>
+          </motion.div>
+        ) : mode === "photo-viewer" && isAuthenticated ? (
           <motion.div
             key="photo-viewer"
             initial={{ opacity: 0, y: 8 }}
@@ -195,21 +231,24 @@ export default function Home() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35 }}
           >
-            <CustomerPhotoViewer userEmail={localStorage.getItem("userEmail") || ""} />
+            <CustomerPhotoViewer userEmail={localStorage.getItem('userEmail') || ''} />
           </motion.div>
         ) : (
           <motion.div
-            key="fallback"
-            initial={{ opacity: 0, y: 8 }}
+            key="services"
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.35 }}
           >
-            <DashboardGrid />
+            <div className="page-wrap">
+              <ServicesGrid />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Toast уведомлений */}
       {showNotificationToast && (
         <NotificationToast
           unreadMessages={unreadMessages}

@@ -75,7 +75,7 @@ export default function Header({ isLoggedIn, isAdmin, onAuthUpdate }: HeaderProp
         }}
       >
         <Image
-          src="/logo_new.png"
+          src="/logo.jpg"
           alt="TASHI ANI STUDIO"
           width={logoSize * 0.9}
           height={logoSize * 0.9}
