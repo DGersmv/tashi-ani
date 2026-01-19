@@ -6,6 +6,7 @@ import { useViewMode } from "./ui/ViewMode";
 
 interface Photo {
   id: number;
+  objectId?: number;
   filename: string;
   originalName: string;
   filePath: string;
@@ -39,6 +40,8 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
   const [newComment, setNewComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [objectId, setObjectId] = useState<number | null>(null);
+  const [photoPreviewErrors, setPhotoPreviewErrors] = useState<Record<number, string>>({});
 
   // Получаем отфильтрованные фото для навигации
   const filteredPhotos = React.useMemo(() => {
@@ -65,14 +68,27 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
           return;
         }
 
-        const response = await fetch(`/api/user/objects/${objectId}/photos?email=${encodeURIComponent(userEmail)}`);
+        const resolvedObjectId = parseInt(objectId, 10);
+        if (Number.isNaN(resolvedObjectId)) {
+          setError("Неверный ID объекта.");
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch(`/api/user/objects/${resolvedObjectId}/photos?email=${encodeURIComponent(userEmail)}`);
         if (!response.ok) {
           throw new Error(`Ошибка HTTP: ${response.status}`);
         }
         
         const data = await response.json();
         if (data.success) {
-          setPhotos(data.photos);
+          const normalizedPhotos = (data.photos || []).map((photo: Photo) => ({
+            ...photo,
+            objectId: photo.objectId ?? resolvedObjectId
+          }));
+          setObjectId(resolvedObjectId);
+          setPhotos(normalizedPhotos);
+          setPhotoPreviewErrors({});
         } else {
           setError(data.message || "Не удалось загрузить фото.");
         }
@@ -336,7 +352,7 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
                 backgroundColor: "rgba(255,255,255,0.1)"
               }}>
                 <img
-                  src={`/api/uploads/objects/${photo.objectId}/${photo.filename}?email=${encodeURIComponent(userEmail)}`}
+                  src={`/api/uploads/objects/${photo.objectId ?? objectId}/${photo.filename}?email=${encodeURIComponent(userEmail)}`}
                   alt={photo.originalName}
                   style={{
                     width: "100%",
@@ -344,8 +360,15 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
                     objectFit: "cover"
                   }}
                   onError={(e) => {
+                    setPhotoPreviewErrors((prev) => ({
+                      ...prev,
+                      [photo.id]: "Не удалось загрузить превью"
+                    }));
                     e.currentTarget.style.display = "none";
-                    e.currentTarget.nextElementSibling.style.display = "flex";
+                    const placeholder = e.currentTarget.nextElementSibling as HTMLElement | null;
+                    if (placeholder) {
+                      placeholder.style.display = "flex";
+                    }
                   }}
                 />
                 <div style={{
@@ -356,9 +379,36 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
                   justifyContent: "center",
                   backgroundColor: "rgba(255,255,255,0.1)",
                   color: "rgba(255,255,255,0.7)",
-                  fontFamily: "Arial, sans-serif"
+                  fontFamily: "Arial, sans-serif",
+                  fontSize: "0.8rem",
+                  textAlign: "center",
+                  flexDirection: "column",
+                  gap: "6px",
+                  padding: "8px"
                 }}>
-                  📷 Фото
+                  <span>📷 Фото</span>
+                  {photoPreviewErrors[photo.id] && (
+                    <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.8)" }}>
+                      {photoPreviewErrors[photo.id]}
+                    </span>
+                  )}
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      window.open(`/api/uploads/objects/${photo.objectId ?? objectId}/${photo.filename}?email=${encodeURIComponent(userEmail)}`, "_blank");
+                    }}
+                    style={{
+                      backgroundColor: "rgba(59, 130, 246, 0.8)",
+                      border: "none",
+                      color: "white",
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                      fontSize: "0.7rem",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Открыть файл
+                  </button>
                 </div>
               </div>
               
@@ -499,7 +549,7 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
               justifyContent: "center"
             }}>
               <img
-                src={`/api/uploads/objects/${selectedPhoto.objectId}/${selectedPhoto.filename}?email=${encodeURIComponent(userEmail)}`}
+                src={`/api/uploads/objects/${selectedPhoto.objectId ?? objectId}/${selectedPhoto.filename}?email=${encodeURIComponent(userEmail)}`}
                 alt={selectedPhoto.originalName}
                 style={{
                   maxWidth: "100%",

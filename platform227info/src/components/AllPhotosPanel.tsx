@@ -27,6 +27,7 @@ export default function AllPhotosPanel({ objectId, adminToken, onPhotosUpdate }:
     // Загружаем все файлы по очереди
     let successCount = 0;
     let errorCount = 0;
+    const errors: string[] = [];
     
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -43,21 +44,40 @@ export default function AllPhotosPanel({ objectId, adminToken, onPhotosUpdate }:
         });
 
         if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
+          const data = await response.json().catch(() => null);
+          if (data?.success) {
             successCount++;
           } else {
             errorCount++;
-            console.error('Ошибка загрузки файла:', data.message);
+            const message = data?.message || "Неизвестная ошибка";
+            errors.push(`${file.name}: ${message}`);
+            console.error('Ошибка загрузки файла:', message);
           }
         } else {
           errorCount++;
-          const errorData = await response.json();
-          console.error('Ошибка сервера:', errorData.message || `Статус: ${response.status}`);
+          let message = `Статус: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            if (errorData?.message) {
+              message = errorData.message;
+            }
+          } catch (parseError) {
+            try {
+              const errorText = await response.text();
+              if (errorText) {
+                message = errorText;
+              }
+            } catch (textError) {
+              // ignore
+            }
+          }
+          errors.push(`${file.name}: ${message}`);
+          console.error('Ошибка сервера:', message);
         }
       } catch (err) {
         errorCount++;
         console.error('Ошибка сети при загрузке файла:', err);
+        errors.push(`${file.name}: Ошибка сети`);
       }
       
       // Обновляем прогресс
@@ -72,7 +92,8 @@ export default function AllPhotosPanel({ objectId, adminToken, onPhotosUpdate }:
       alert(`Загружено: ${successCount}, ошибок: ${errorCount}`);
       onPhotosUpdate();
     } else {
-      setError(`Ошибка загрузки всех файлов (${errorCount})`);
+      const details = errors.length > 0 ? ` ${errors[0]}` : "";
+      setError(`Ошибка загрузки всех файлов (${errorCount}).${details}`);
     }
     
     setUploading(false);

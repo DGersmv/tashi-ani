@@ -119,6 +119,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [photoOriginalUrls, setPhotoOriginalUrls] = useState<{ [key: string]: string }>({});
   const photoOriginalUrlsRef = useRef<{ [key: string]: string }>({});
+  const [photoPreviewErrors, setPhotoPreviewErrors] = useState<Record<number, string>>({});
   const [photoLoadingIds, setPhotoLoadingIds] = useState<Set<number>>(new Set());
   const photoLoadingIdsRef = useRef<Set<number>>(new Set());
 
@@ -214,6 +215,10 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
       });
       return next;
     });
+  }, [object?.photos]);
+
+  useEffect(() => {
+    setPhotoPreviewErrors({});
   }, [object?.photos]);
 
   const photoThumbnailUrls = useMemo(() => {
@@ -850,8 +855,21 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                       objectFit: "cover"
                     }}
                     onError={(e) => {
+                      const fallbackSrc = `/api/uploads/objects/${object.id}/${photo.filename}?email=${encodeURIComponent(userEmail)}`;
+                      if (e.currentTarget.dataset.fallbackApplied !== "true" && e.currentTarget.src !== fallbackSrc) {
+                        e.currentTarget.dataset.fallbackApplied = "true";
+                        e.currentTarget.src = fallbackSrc;
+                        return;
+                      }
+                      setPhotoPreviewErrors((prev) => ({
+                        ...prev,
+                        [photo.id]: "Не удалось загрузить превью"
+                      }));
                       e.currentTarget.style.display = "none";
-                      e.currentTarget.nextElementSibling.style.display = "flex";
+                      const placeholder = e.currentTarget.nextElementSibling as HTMLElement | null;
+                      if (placeholder) {
+                        placeholder.style.display = "flex";
+                      }
                     }}
                   />
                   <div style={{
@@ -862,9 +880,35 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                     justifyContent: "center",
                     backgroundColor: "rgba(255,255,255,0.1)",
                     color: "rgba(255,255,255,0.7)",
-                    fontSize: "2rem"
+                    fontSize: "0.9rem",
+                    padding: "8px",
+                    textAlign: "center",
+                    flexDirection: "column",
+                    gap: "6px"
                   }}>
-                    📷
+                    <span>📷</span>
+                    {photoPreviewErrors[photo.id] && (
+                      <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.8)" }}>
+                        {photoPreviewErrors[photo.id]}
+                      </span>
+                    )}
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        window.open(`/api/uploads/objects/${object.id}/${photo.filename}?email=${encodeURIComponent(userEmail)}`, "_blank");
+                      }}
+                      style={{
+                        backgroundColor: "rgba(59, 130, 246, 0.8)",
+                        border: "none",
+                        color: "white",
+                        padding: "4px 8px",
+                        borderRadius: "6px",
+                        fontSize: "0.7rem",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Открыть файл
+                    </button>
                   </div>
 
                   {/* Бейдж с новыми комментариями */}
@@ -1277,6 +1321,18 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                     maxHeight: "100%",
                     objectFit: "contain",
                     borderRadius: "8px"
+                  }}
+                  onError={(e) => {
+                    const fallbackSrc = `/api/uploads/objects/${object.id}/${selectedPhoto.filename}?email=${encodeURIComponent(userEmail)}`;
+                    if (e.currentTarget.dataset.fallbackApplied !== "true" && e.currentTarget.src !== fallbackSrc) {
+                      e.currentTarget.dataset.fallbackApplied = "true";
+                      e.currentTarget.src = fallbackSrc;
+                      return;
+                    }
+                    setPhotoPreviewErrors((prev) => ({
+                      ...prev,
+                      [selectedPhoto.id]: "Не удалось загрузить фото"
+                    }));
                   }}
                 />
                 {photoLoadingIds.has(selectedPhoto.id) && (

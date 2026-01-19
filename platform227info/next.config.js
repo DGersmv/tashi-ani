@@ -5,10 +5,29 @@ const nextConfig = {
   reactStrictMode: false,
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-
+  
+  // Оптимизации для ускорения сборки
+  swcMinify: true,
+  compress: true,
+  poweredByHeader: false,
+  
+  // Отключаем генерацию source maps в production для ускорения
+  productionBrowserSourceMaps: false,
+  
+  // Standalone output - быстрее и стабильнее
+  output: 'standalone',
+  
+  // Отключаем оптимизацию шрифтов (может вызывать зависания)
+  optimizeFonts: false,
+  
+  // Упрощаем оптимизацию изображений
   images: {
     domains: ['tile.openstreetmap.org'],
+    unoptimized: false,
+    minimumCacheTTL: 60,
   },
+  
+
 
   webpack: (config, { isServer }) => {
     // Настройка для pdfjs-dist
@@ -36,6 +55,13 @@ const nextConfig = {
         ],
       },
     ];
+  },
+
+  // Увеличиваем лимит размера тела запроса для загрузки файлов
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '100mb',
+    },
   },
 };
 

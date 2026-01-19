@@ -1,19 +1,21 @@
 {
-  "name": "tashi-ani",
+  "name": "country-house",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NODE_OPTIONS='--max-old-space-size=2048' next build",
+    "build:fast": "NODE_OPTIONS='--max-old-space-size=2048' SKIP_ENV_VALIDATION=true NEXT_TELEMETRY_DISABLED=1 next build",
+    "build:minimal": "NODE_OPTIONS='--max-old-space-size=2048' SKIP_ENV_VALIDATION=true NEXT_TELEMETRY_DISABLED=1 next build --no-lint",
     "start": "next start -H 127.0.0.1 -p 3000",
     "export": "next export",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node prisma/seed.js",
     "pm2:start": "pm2 start ecosystem.config.js",
-    "pm2:stop": "pm2 stop tashi-ani",
-    "pm2:restart": "pm2 restart tashi-ani",
-    "pm2:logs": "pm2 logs tashi-ani",
+    "pm2:stop": "pm2 stop country-house",
+    "pm2:restart": "pm2 restart country-house",
+    "pm2:logs": "pm2 logs country-house",
     "deploy": "npm install && npm run build && pm2 restart ecosystem.config.js --env production"
   },
   "dependencies": {
