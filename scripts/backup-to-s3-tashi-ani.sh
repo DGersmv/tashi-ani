@@ -6,7 +6,7 @@ set -e
 
 # === НАСТРОЙКИ ===
 PROJECT_NAME="tashi-ani"
-DB_PATH="/var/www/tashi-ani/prisma/dev.db"
+DB_PATH="/var/www/tashi-ani/prisma/prod.db"
 LOCAL_BACKUP_DIR="/var/backups/tashi-ani"
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="db-${DATE}.sqlite"
