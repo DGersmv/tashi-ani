@@ -11,7 +11,7 @@ function createPrismaClient() {
 
   if (process.env.NODE_ENV === 'production') {
     client.$connect().catch((error) => {
-      console.error('Не удалось подключиться к базе Prisma:', error);
+      // Минимальное логирование
     });
   }
 

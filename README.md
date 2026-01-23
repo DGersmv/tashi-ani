@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tashi Ani - Система управления проектами
 
-## Getting Started
+Система управления проектами для архитекторов и дизайнеров.
 
-First, run the development server:
+## Быстрый старт
+
+### Локальная разработка
 
 ```bash
+# Установите зависимости
+npm install
+
+# Создайте файл .env.local
+DATABASE_URL="file:./prisma/dev.db"
+JWT_SECRET="your-secret-key-min-32-chars"
+MASTER_ADMIN_EMAIL="admin@example.com"
+MASTER_ADMIN_PASSWORD="your-password"
+
+# Создайте базу данных
+npx prisma generate
+npx prisma migrate dev
+
+# Создайте админа
+node create-admin-user.js
+
+# Запустите dev сервер
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Деплой на сервер
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+См. инструкцию: [MINIMAL_SERVER_SETUP.md](./MINIMAL_SERVER_SETUP.md)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Структура проекта
 
-## Learn More
+- `src/app` - Next.js App Router страницы и API routes
+- `src/components` - React компоненты
+- `src/lib` - Утилиты и библиотеки
+- `prisma` - Схема базы данных и миграции
 
-To learn more about Next.js, take a look at the following resources:
+## Скрипты
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run dev` - Запуск dev сервера
+- `npm run build` - Сборка для production
+- `npm run start` - Запуск production сервера
+- `npm run db:migrate` - Применить миграции БД
+- `node create-admin-user.js` - Создать/обновить админа

@@ -314,6 +314,28 @@ img { display: block; }
   will-change: opacity;
 }
 
+/* ===== 3D PARALLAX LENS EFFECT ===== */
+:root {
+  --move-x: 0deg;
+  --move-y: 0deg;
+  --parallax-transition: 1.5s cubic-bezier(.05, .5, 0, 1);
+}
+
+.parallax-3d-container {
+  perspective: 1000px;
+  overflow: hidden;
+}
+
+.parallax-3d-wrapper {
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.parallax-layer {
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
 /* Если есть стеклянная полоса/панель — чуть облегчаем фильтр и подсказываем композитору */
 .menu-strip {
   will-change: transform, opacity, filter;
