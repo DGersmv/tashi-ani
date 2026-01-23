@@ -336,19 +336,43 @@ pm2 logs country-house --lines 50
 # Устанавливаем Nginx
 apt install -y nginx
 
-# Создаем конфигурацию для сайта
+# Копируем оптимизированную конфигурацию из проекта
+cp /var/www/tashi-ani/nginx-tashi-ani.conf /etc/nginx/sites-available/tashi-ani
+
+# Или создаем вручную
 nano /etc/nginx/sites-available/tashi-ani
 ```
 
-Добавьте следующую конфигурацию (замените `yourdomain.ru` на ваш домен):
+**Важно**: Используйте оптимизированную конфигурацию для поддержки больших файлов (панорамы, 3D модели до 500MB) и длительных загрузок.
+
+Если создаете вручную, добавьте следующую конфигурацию:
 
 ```nginx
 server {
     listen 80;
-    server_name yourdomain.ru www.yourdomain.ru;
+    server_name _;
 
-    # Увеличиваем размер загружаемых файлов
-    client_max_body_size 100M;
+    # Увеличиваем размер загружаемых файлов до 500MB
+    client_max_body_size 500M;
+    client_body_buffer_size 128k;
+    client_body_timeout 300s;
+    client_header_timeout 300s;
+    keepalive_timeout 300s;
+    send_timeout 300s;
+    
+    # Увеличиваем размер буферов для прокси
+    proxy_buffer_size 128k;
+    proxy_buffers 4 256k;
+    proxy_busy_buffers_size 256k;
+    
+    # Таймауты для прокси (важно для больших файлов)
+    proxy_connect_timeout 600s;
+    proxy_send_timeout 600s;
+    proxy_read_timeout 600s;
+    
+    # Отключаем буферизацию для потоковой передачи
+    proxy_buffering off;
+    proxy_request_buffering off;
 
     location / {
         proxy_pass http://localhost:3000;
@@ -361,13 +385,28 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
         
-        # Таймауты для больших файлов
-        proxy_connect_timeout 600;
-        proxy_send_timeout 600;
-        proxy_read_timeout 600;
+        proxy_connect_timeout 600s;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
     }
 
-    # Статические файлы (опционально, для оптимизации)
+    # Оптимизация для API запросов с большими файлами
+    location /api/upload {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        proxy_connect_timeout 900s;
+        proxy_send_timeout 900s;
+        proxy_read_timeout 900s;
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+
+    # Статические файлы
     location /_next/static {
         proxy_pass http://localhost:3000;
         proxy_cache_valid 200 60m;
