@@ -6,12 +6,12 @@ set -e
 
 # === НАСТРОЙКИ ===
 PROJECT_NAME="tashi-ani"
-DB_PATH="/var/www/tashi-ani/prisma/dev.db"
+DB_PATH="/var/www/tashi-ani/prisma/prod.db"
 LOCAL_BACKUP_DIR="/var/backups/tashi-ani"
 
 # S3 настройки (Reg.ru)
 S3_ENDPOINT="https://s3.regru.cloud"
-S3_BUCKET="copybases"
+S3_BUCKET="tashi-ani-base"
 S3_PREFIX="${PROJECT_NAME}/"
 
 # Загружаем переменные окружения для S3 ключей
@@ -24,7 +24,8 @@ list_backups() {
     echo "=== Доступные бэкапы в S3 ==="
     aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}" \
         --endpoint-url "${S3_ENDPOINT}" \
-        --region ru-1 | sort -r | head -20
+        --region ru-1 \
+        --no-verify-ssl | sort -r | head -20
     echo ""
     echo "Для восстановления укажите имя файла:"
     echo "  $0 db-20251219_120000.sqlite"
@@ -42,7 +43,8 @@ restore_backup() {
     echo "Скачиваю из S3..."
     aws s3 cp "s3://${S3_BUCKET}/${S3_PREFIX}${BACKUP_NAME}" "${TEMP_FILE}" \
         --endpoint-url "${S3_ENDPOINT}" \
-        --region ru-1
+        --region ru-1 \
+        --no-verify-ssl
     
     if [ ! -f "${TEMP_FILE}" ]; then
         echo "ОШИБКА: Не удалось скачать бэкап!"

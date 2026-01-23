@@ -73,10 +73,11 @@ if [ "${S3_ENABLED}" = true ]; then
         fi
     fi
     
-    # Загружаем в S3
+    # Загружаем в S3 (--no-verify-ssl для Reg.ru S3)
     aws s3 cp "${LOCAL_BACKUP}" "s3://${S3_BUCKET}/${S3_PREFIX}${BACKUP_FILE}" \
         --endpoint-url "${S3_ENDPOINT}" \
-        --region ru-1
+        --region ru-1 \
+        --no-verify-ssl
     
     if [ $? -eq 0 ]; then
         echo "✓ Успешно загружено в S3!"
@@ -85,13 +86,15 @@ if [ "${S3_ENABLED}" = true ]; then
         echo "Проверяю старые бэкапы в S3..."
         aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}" \
             --endpoint-url "${S3_ENDPOINT}" \
-            --region ru-1 | sort -r | tail -n +31 | while read -r line; do
+            --region ru-1 \
+            --no-verify-ssl | sort -r | tail -n +31 | while read -r line; do
             file=$(echo "$line" | awk '{print $4}')
             if [ -n "$file" ]; then
                 echo "Удаляю старый бэкап: $file"
                 aws s3 rm "s3://${S3_BUCKET}/${S3_PREFIX}${file}" \
                     --endpoint-url "${S3_ENDPOINT}" \
-                    --region ru-1
+                    --region ru-1 \
+                    --no-verify-ssl
             fi
         done
     else
