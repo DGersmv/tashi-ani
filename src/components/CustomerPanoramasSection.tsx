@@ -72,6 +72,7 @@ export default function CustomerPanoramasSection({
   const loadingPanoramaIdsRef = React.useRef<Set<number>>(new Set());
   const [panoramaFetchErrors, setPanoramaFetchErrors] = React.useState<Record<number, string>>({});
   const panoramaFetchErrorsRef = React.useRef<Record<number, string>>({});
+  const [panoramaPreviewErrors, setPanoramaPreviewErrors] = React.useState<Record<number, string>>({});
   const [panoramasReady, setPanoramasReady] = React.useState(true);
   const [selectedPanorama, setSelectedPanorama] = React.useState<Panorama | null>(null);
   const [panoramaComments, setPanoramaComments] = React.useState<PanoramaComment[]>([]);
@@ -98,6 +99,7 @@ export default function CustomerPanoramasSection({
 
   React.useEffect(() => {
     setPanoramasReady(true);
+    setPanoramaPreviewErrors({});
   }, [panoramas]);
 
   React.useEffect(() => {
@@ -126,17 +128,9 @@ export default function CustomerPanoramasSection({
     return map;
   }, [panoramas]);
 
-  const missingPanoramaIds = React.useMemo(() => {
-    const missing = new Set<number>();
-    (panoramas || []).forEach((panorama) => {
-      if ((panorama.mimeType || '').startsWith('image/')) {
-        if (!(panorama as any).thumbnailUrl && !panorama.url) {
-          missing.add(panorama.id);
-        }
-      }
-    });
-    return missing;
-  }, [panoramas]);
+  const panoramaErrorIds = React.useMemo(() => {
+    return new Set(Object.keys(panoramaFetchErrors).map((id) => Number(id)));
+  }, [panoramaFetchErrors]);
 
   React.useEffect(() => {
     const keep = new Set((panoramas || []).map((panorama) => panorama.filename));
@@ -171,21 +165,27 @@ export default function CustomerPanoramasSection({
 
     try {
       const requestUrl = `/api/uploads/objects/${objectId}/panoramas/${panorama.filename}?email=${encodeURIComponent(userEmail)}`;
-      const response = await fetch(requestUrl, {
+      const staticUrl = `/uploads/objects/${objectId}/panoramas/${panorama.filename}`;
+      let response = await fetch(requestUrl, {
         method: "GET",
         cache: "no-store",
       });
 
       if (!response.ok) {
-        console.warn(`Панорама ${panorama.filename} недоступна (status ${response.status}).`);
-        const fallbackMessage = response.status === 404
-          ? "Файл панорамы не найден или доступ ограничен."
-          : `Не удалось загрузить панораму (статус ${response.status}).`;
-        setPanoramaFetchErrors((prev) => ({
-          ...prev,
-          [panorama.id]: fallbackMessage,
-        }));
-        return;
+        // Fallback to static path when API access fails (e.g. large files or auth edge cases)
+        const fallbackResponse = await fetch(staticUrl, { method: "GET", cache: "no-store" });
+        if (!fallbackResponse.ok) {
+          console.warn(`Панорама ${panorama.filename} недоступна (status ${response.status}).`);
+          const fallbackMessage = response.status === 404
+            ? "Файл панорамы не найден или доступ ограничен."
+            : `Не удалось загрузить панораму (статус ${response.status}).`;
+          setPanoramaFetchErrors((prev) => ({
+            ...prev,
+            [panorama.id]: fallbackMessage,
+          }));
+          return;
+        }
+        response = fallbackResponse;
       }
 
       const blob = await response.blob();
@@ -611,16 +611,12 @@ export default function CustomerPanoramasSection({
     }
   };
 
+  // IMPORTANT: For customers, use ONLY blob URL!
+  // Direct paths like /uploads/... and panorama.url require API authorization
   const selectedPanoramaSrc = React.useMemo(() => {
     if (!selectedPanorama) return null;
-    const blobUrl = panoramaOriginalUrls[selectedPanorama.filename];
-    if (blobUrl) {
-      return blobUrl;
-    }
-    if (selectedPanorama.url && selectedPanorama.url.trim().length > 0) {
-      return selectedPanorama.url;
-    }
-    return null;
+    // Return only blob URL - it's created after authorized API fetch
+    return panoramaOriginalUrls[selectedPanorama.filename] || null;
   }, [selectedPanorama, panoramaOriginalUrls]);
 
   const selectedPanoramaPanoData = React.useMemo(() => {
@@ -631,7 +627,8 @@ export default function CustomerPanoramasSection({
   }, [selectedPanorama]);
 
   const selectedPanoramaError = selectedPanorama ? panoramaFetchErrors[selectedPanorama.id] : undefined;
-  const selectedPanoramaIsReady = Boolean(selectedPanoramaSrc);
+  // Viewer is ready ONLY when blob URL exists (starts with blob:)
+  const selectedPanoramaIsReady = Boolean(selectedPanoramaSrc) && selectedPanoramaSrc.startsWith('blob:');
 
   const annotationsEnabled = !selectedPanoramaPanoData;
   const coordinatesRequired = annotationsEnabled;
@@ -649,6 +646,12 @@ export default function CustomerPanoramasSection({
     setPendingPanoramaCoords(null);
     setSelectedPanoramaCommentId(null);
   }, [selectedPanoramaPanoData]);
+
+  // Simple key based only on panorama ID - no panoData dependency to avoid reload loops
+  const viewerKey = React.useMemo(() => {
+    if (!selectedPanorama) return 'none';
+    return `panorama-${selectedPanorama.id}`;
+  }, [selectedPanorama?.id]);
 
   React.useEffect(() => {
     const viewer = panoramaViewerRef.current;
@@ -719,11 +722,9 @@ export default function CustomerPanoramasSection({
                 flexDirection: "column",
                 gap: "12px",
                 position: "relative",
-                cursor: missingPanoramaIds.has(panorama.id) ? "not-allowed" : "pointer",
-                opacity: missingPanoramaIds.has(panorama.id) ? 0.6 : 1,
+                cursor: "pointer",
               }}
               onClick={() => {
-                if (missingPanoramaIds.has(panorama.id)) return;
                 setSelectedPanorama(panorama);
                 setPendingPanoramaCoords(null);
                 setSelectedPanoramaCommentId(null);
@@ -739,9 +740,9 @@ export default function CustomerPanoramasSection({
                   position: "relative",
                 }}
               >
-                {panoramaThumbnailUrls[panorama.filename] ? (
+                {panoramaThumbnailUrls[panorama.filename] || panorama.url ? (
                   <img
-                    src={panoramaThumbnailUrls[panorama.filename]}
+                    src={panoramaThumbnailUrls[panorama.filename] || panorama.url || `/api/uploads/objects/${objectId}/panoramas/${panorama.filename}?email=${encodeURIComponent(userEmail)}`}
                     alt={panorama.originalName}
                     style={{
                       width: "100%",
@@ -749,6 +750,24 @@ export default function CustomerPanoramasSection({
                       objectFit: "cover",
                       filter: "blur(0.5px)",
                       transform: "scale(1.05)",
+                    }}
+                    onError={(event) => {
+                      const target = event.currentTarget;
+                      const fallbackSrc = `/api/uploads/objects/${objectId}/panoramas/${panorama.filename}?email=${encodeURIComponent(userEmail)}`;
+                      if (target.dataset.fallbackApplied !== "true" && target.src !== fallbackSrc) {
+                        target.dataset.fallbackApplied = "true";
+                        target.src = fallbackSrc;
+                        return;
+                      }
+                      setPanoramaPreviewErrors((prev) => ({
+                        ...prev,
+                        [panorama.id]: "Не удалось загрузить превью"
+                      }));
+                      target.style.display = "none";
+                      const placeholder = target.nextElementSibling as HTMLElement | null;
+                      if (placeholder) {
+                        placeholder.style.display = "flex";
+                      }
                     }}
                   />
                 ) : (
@@ -760,10 +779,36 @@ export default function CustomerPanoramasSection({
                       alignItems: "center",
                       justifyContent: "center",
                       color: "rgba(255,255,255,0.7)",
-                      fontSize: "2rem",
+                      fontSize: "0.9rem",
+                      padding: "8px",
+                      textAlign: "center",
+                      flexDirection: "column",
+                      gap: "6px",
                     }}
                   >
-                    🌀
+                    <span>🌀</span>
+                    {panoramaPreviewErrors[panorama.id] && (
+                      <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.8)" }}>
+                        {panoramaPreviewErrors[panorama.id]}
+                      </span>
+                    )}
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        window.open(`/api/uploads/objects/${objectId}/panoramas/${panorama.filename}?email=${encodeURIComponent(userEmail)}`, "_blank");
+                      }}
+                      style={{
+                        backgroundColor: "rgba(59, 130, 246, 0.8)",
+                        border: "none",
+                        color: "white",
+                        padding: "4px 8px",
+                        borderRadius: "6px",
+                        fontSize: "0.7rem",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Открыть файл
+                    </button>
                   </div>
                 )}
 
@@ -806,7 +851,7 @@ export default function CustomerPanoramasSection({
                   </div>
                 )}
 
-                {missingPanoramaIds.has(panorama.id) && (
+                {panoramaErrorIds.has(panorama.id) && (
                   <div
                     style={{
                       position: "absolute",
@@ -948,9 +993,9 @@ export default function CustomerPanoramasSection({
               >
                 {selectedPanoramaIsReady ? (
                 <ReactPhotoSphereViewer
-                  key={selectedPanorama.id}
+                  key={viewerKey}
                   ref={panoramaViewerRef}
-                    src={selectedPanoramaSrc!}
+                  src={selectedPanoramaSrc!}
                   height="100%"
                   width="100%"
                   littlePlanet={false}
@@ -959,6 +1004,8 @@ export default function CustomerPanoramasSection({
                   lang={{ loading: "" }}
                   onReady={handlePanoramaReady}
                   onClick={handlePanoramaClick}
+                  loadingTxt=""
+                  {...(selectedPanoramaPanoData ? { panoData: selectedPanoramaPanoData } : {})}
                 />
                 ) : (
                   <div

@@ -5,9 +5,19 @@ const nextConfig = {
   reactStrictMode: false,
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-
+  
+  // Оптимизации для production
+  compress: true,
+  poweredByHeader: false,
+  
+  // Отключаем генерацию source maps в production для ускорения
+  productionBrowserSourceMaps: false,
+  
+  // Упрощаем оптимизацию изображений
   images: {
     domains: ['tile.openstreetmap.org'],
+    unoptimized: false,
+    minimumCacheTTL: 60,
   },
 
   webpack: (config, { isServer }) => {
@@ -36,6 +46,13 @@ const nextConfig = {
         ],
       },
     ];
+  },
+
+  // Увеличиваем лимит размера тела запроса для загрузки файлов
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '100mb',
+    },
   },
 };
 
