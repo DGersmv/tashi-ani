@@ -1,103 +1,106 @@
 #!/bin/bash
-# Скрипт восстановления базы данных из S3 (Reg.ru)
-# Проект: tashi-ani
+# Восстановление проекта tashi-ani из S3 бэкапов
 
 set -e
 
 # === НАСТРОЙКИ ===
 PROJECT_NAME="tashi-ani"
-DB_PATH="/var/www/tashi-ani/prisma/prod.db"
+PROJECT_DIR="/var/www/tashi-ani"
+DB_PATH="${PROJECT_DIR}/prisma/dev.db"
+UPLOADS_DIR="${PROJECT_DIR}/public/uploads"
 LOCAL_BACKUP_DIR="/var/backups/tashi-ani"
 
-# S3 настройки (Reg.ru)
+# S3 настройки
 S3_ENDPOINT="https://s3.regru.cloud"
 S3_BUCKET="tashi-ani-base"
-S3_PREFIX="${PROJECT_NAME}/"
+S3_PREFIX="tashi-ani/backups/"
+S3_REGION="ru-1"
 
-# Загружаем переменные окружения для S3 ключей
-if [ -f "/var/www/tashi-ani/.env.local" ]; then
-    export $(grep -E '^(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY)' /var/www/tashi-ani/.env.local | xargs)
+# Цвета
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[✓]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[!]${NC} $1"; }
+log_error() { echo -e "${RED}[✗]${NC} $1"; }
+
+# === ЗАГРУЗКА ПЕРЕМЕННЫХ ОКРУЖЕНИЯ ===
+if [ -f "${PROJECT_DIR}/.env.local" ]; then
+    export $(grep -E '^(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY)' "${PROJECT_DIR}/.env.local" | xargs)
 fi
 
-# === ФУНКЦИИ ===
-list_backups() {
-    echo "=== Доступные бэкапы в S3 ==="
-    aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}" \
+echo ""
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║       ВОССТАНОВЛЕНИЕ ПРОЕКТА ${PROJECT_NAME}                    ║"
+echo "╚════════════════════════════════════════════════════════════╝"
+echo ""
+
+# === СПИСОК ДОСТУПНЫХ БЭКАПОВ ===
+log_info "Доступные бэкапы в S3:"
+echo ""
+
+aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}" \
+    --endpoint-url "${S3_ENDPOINT}" \
+    --region "${S3_REGION}" | \
+    sort -r | head -20
+
+echo ""
+read -p "Введите имя файла БД для восстановления (db-YYYYMMDD_HHMMSS.sqlite): " DB_FILE
+read -p "Введите имя файла uploads для восстановления (uploads-YYYYMMDD_HHMMSS.tar.gz) или Enter для пропуска: " UPLOADS_FILE
+
+# === ВОССТАНОВЛЕНИЕ БД ===
+log_info "Скачивание БД из S3..."
+mkdir -p "${LOCAL_BACKUP_DIR}"
+
+aws s3 cp "s3://${S3_BUCKET}/${S3_PREFIX}${DB_FILE}" "${LOCAL_BACKUP_DIR}/${DB_FILE}" \
+    --endpoint-url "${S3_ENDPOINT}" \
+    --region "${S3_REGION}"
+
+log_success "БД скачана"
+
+# Создаем бэкап текущей БД
+if [ -f "${DB_PATH}" ]; then
+    log_warning "Создание бэкапа тек��щей БД..."
+    cp "${DB_PATH}" "${DB_PATH}.backup-$(date +%Y%m%d_%H%M%S)"
+fi
+
+# Восстанавливаем БД
+cp "${LOCAL_BACKUP_DIR}/${DB_FILE}" "${DB_PATH}"
+log_success "БД восстановлена: ${DB_PATH}"
+
+# === ВОССТАНОВЛЕНИЕ UPLOADS ===
+if [ -n "${UPLOADS_FILE}" ]; then
+    log_info "Скачивание uploads из S3..."
+    
+    aws s3 cp "s3://${S3_BUCKET}/${S3_PREFIX}${UPLOADS_FILE}" "${LOCAL_BACKUP_DIR}/${UPLOADS_FILE}" \
         --endpoint-url "${S3_ENDPOINT}" \
-        --region ru-1 \
-        --no-verify-ssl | sort -r | head -20
-    echo ""
-    echo "Для восстановления укажите имя файла:"
-    echo "  $0 db-20251219_120000.sqlite"
-}
-
-restore_backup() {
-    BACKUP_NAME=$1
+        --region "${S3_REGION}"
     
-    echo "=== Восстановление базы данных ==="
-    echo "Файл: ${BACKUP_NAME}"
-    echo ""
+    log_success "Архив uploads скачан"
     
-    # Скачиваем бэкап
-    TEMP_FILE="/tmp/${BACKUP_NAME}"
-    echo "Скачиваю из S3..."
-    aws s3 cp "s3://${S3_BUCKET}/${S3_PREFIX}${BACKUP_NAME}" "${TEMP_FILE}" \
-        --endpoint-url "${S3_ENDPOINT}" \
-        --region ru-1 \
-        --no-verify-ssl
-    
-    if [ ! -f "${TEMP_FILE}" ]; then
-        echo "ОШИБКА: Не удалось скачать бэкап!"
-        exit 1
+    # Создаем бэкап текущей папки
+    if [ -d "${UPLOADS_DIR}" ]; then
+        log_warning "Создание бэкапа текущей папки uploads..."
+        mv "${UPLOADS_DIR}" "${UPLOADS_DIR}.backup-$(date +%Y%m%d_%H%M%S)"
     fi
     
-    # Проверяем целостность
-    echo "Проверяю целостность базы..."
-    sqlite3 "${TEMP_FILE}" "PRAGMA integrity_check;" > /dev/null
+    # Распаковываем
+    log_info "Распаковка uploads..."
+    tar -xzf "${LOCAL_BACKUP_DIR}/${UPLOADS_FILE}" -C "${PROJECT_DIR}/public"
     
-    # Создаем резервную копию текущей БД
-    if [ -f "${DB_PATH}" ]; then
-        CURRENT_BACKUP="${DB_PATH}.before-restore.$(date +%Y%m%d_%H%M%S)"
-        echo "Создаю резервную копию текущей БД: ${CURRENT_BACKUP}"
-        cp "${DB_PATH}" "${CURRENT_BACKUP}"
-    fi
-    
-    # Останавливаем приложение
-    echo "Останавливаю приложение..."
-    pm2 stop tashi-ani 2>/dev/null || true
-    
-    # Восстанавливаем
-    echo "Восстанавливаю базу данных..."
-    cp "${TEMP_FILE}" "${DB_PATH}"
-    
-    # Запускаем приложение
-    echo "Запускаю приложение..."
-    pm2 start tashi-ani 2>/dev/null || true
-    
-    # Очистка
-    rm -f "${TEMP_FILE}"
-    
-    echo ""
-    echo "=== Восстановление завершено ==="
-    echo "База данных восстановлена из: ${BACKUP_NAME}"
-}
-
-# === MAIN ===
-if [ -z "${AWS_ACCESS_KEY_ID}" ] || [ -z "${AWS_SECRET_ACCESS_KEY}" ]; then
-    echo "ОШИБКА: S3 ключи не настроены!"
-    echo "Добавьте в .env.local:"
-    echo "  AWS_ACCESS_KEY_ID=ваш_access_key"
-    echo "  AWS_SECRET_ACCESS_KEY=ваш_secret_key"
-    exit 1
+    log_success "Папка uploads восстановлена: ${UPLOADS_DIR}"
 fi
 
-if [ -z "$1" ]; then
-    list_backups
-else
-    read -p "Вы уверены, что хотите восстановить базу из $1? (yes/no): " confirm
-    if [ "$confirm" = "yes" ]; then
-        restore_backup "$1"
-    else
-        echo "Отменено."
-    fi
-fi
+echo ""
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║         ВОССТАНОВЛЕНИЕ ЗАВЕРШЕНО УСПЕШНО!                  ║"
+echo "╚════════════════════════════════════════════════════════════╝"
+echo ""
+log_info "Не забудьте перезапустить приложение:"
+echo "  cd ${PROJECT_DIR}"
+echo "  pm2 restart tashi-ani"
+echo ""
