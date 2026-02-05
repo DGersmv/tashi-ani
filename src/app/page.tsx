@@ -87,9 +87,9 @@ export default function Home() {
 
   return (
     <main className="relative main-content">
-      {/* Фон с 3D lens effect */}
+      {/* Фон — только слайдшоу фото, без 3D */}
       <div className="fixed inset-0 -z-20">
-        <BackgroundSlideshow3D enable3D={true} parallaxIntensity={0.8} />
+        <BackgroundSlideshow3D enable3D={false} />
       </div>
 
       {/* Header */}
