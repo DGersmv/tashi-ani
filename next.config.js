@@ -3,7 +3,6 @@ const path = require('path');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-  eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   
   // Оптимизации для production
@@ -53,11 +52,6 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '500mb', // Увеличено для больших панорам и 3D моделей
     },
-  },
-  
-  // Настройки для больших файлов
-  serverRuntimeConfig: {
-    maxFileSize: 500 * 1024 * 1024, // 500MB
   },
 };
 
