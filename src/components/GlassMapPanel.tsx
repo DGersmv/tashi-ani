@@ -3,13 +3,31 @@ import React from "react";
 import { motion } from "framer-motion";
 import OpenGlobusViewer from "./OpenGlobusViewer";
 import { useViewMode } from "@/components/ui/ViewMode";
+import { useLoginFlow } from "@/components/ui/LoginFlowContext";
 
-export default function GlassMapPanel() {
+export default function GlassMapPanel({ enteredHome = false, forceHidden = false }: { enteredHome?: boolean; forceHidden?: boolean }) {
   const { setMode } = useViewMode();
+  const { loginRequested } = useLoginFlow();
   const pad = 5;
+  const isHiding = loginRequested || forceHidden;
+  const isRevealing = !loginRequested && !forceHidden;
 
   return (
     <div className="mapWrapper">
+      {/* Та же анимация, что при закрытии панели входа: появление справа; при входе — улетание вправо */}
+      <motion.div
+        initial={enteredHome ? { x: "120%", opacity: 0 } : false}
+        animate={{
+          x: isHiding ? "120%" : 0,
+          opacity: isHiding ? 0 : 1,
+        }}
+        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+        style={{
+          width: "100%",
+          height: "100%",
+          willChange: isHiding || isRevealing ? "transform, opacity" : "auto",
+        }}
+      >
       {/* Анимация появления без вертикального сдвига */}
       <motion.div
         className="gpu"                              // ← промоут в композитный слой
@@ -20,7 +38,8 @@ export default function GlassMapPanel() {
           position: "relative",
           width: "100%",
           height: "100%",
-          borderRadius: "inherit",
+          // Скругление самой «стеклянной» панели карты
+          borderRadius: 12,
           overflow: "hidden",
           pointerEvents: "auto",
           willChange: "opacity, transform",         // ← подсказка композитору
@@ -54,7 +73,8 @@ export default function GlassMapPanel() {
               position: "relative",
               width: "100%",
               height: "100%",
-              borderRadius: "inherit",
+              // Внутренняя область карты повторяет тот же радиус
+              borderRadius: 12,
               overflow: "hidden",
               opacity: 0.7,
             }}
@@ -65,24 +85,27 @@ export default function GlassMapPanel() {
           </motion.div>
         </motion.div>
       </motion.div>
+      </motion.div>
 
       <style jsx>{`
         .mapWrapper {
-          width: 96vw;
-          aspect-ratio: 21 / 12;
-          border-radius: 1.7rem;
+          /* Вписываемся в контейнер — не вылезаем за экран, левая часть не срезается */
+          width: 100%;
+          max-width: 100%;
+          aspect-ratio: 21 / 10;
+          border-radius: 12px;
           margin: 0 auto;
+          min-width: 0;
         }
         @media (min-width: 1024px) {
           .mapWrapper {
-            position: fixed;             /* фиксируем */
-            top: var(--hero-top);        /* тот же уровень, что и текст */
-            right: 3%;                   /* прижимаем вправо */
-            width: 30vw;
-            aspect-ratio: 21 / 9;
-            border-radius: 2.2rem;
-            margin: 0;                   /* убираем auto-margin */
-            z-index: 120;                /* поверх фона, но ниже меню */
+            width: 100%;
+            max-width: 100%;
+            aspect-ratio: 21 / 10;
+            border-radius: 12px;
+            margin: 0;
+            z-index: 10;
+            min-width: 0;
           }
         }
       `}</style>

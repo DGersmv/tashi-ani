@@ -18,20 +18,20 @@ body {
   font-family: 'ChinaCyr', Arial, Helvetica, sans-serif;
 }
 
-/* Отступы для контента под фиксированным header */
+/* Отступы для контента под фиксированным header — с запасом, чтобы текст не заползал на меню при сужении */
 .main-content {
-  padding-top: 120px; /* Увеличили отступ для desktop */
+  padding-top: 140px;
 }
 
 @media (max-width: 1200px) {
   .main-content {
-    padding-top: 110px; /* Увеличили отступ для tablet */
+    padding-top: 150px;
   }
 }
 
 @media (max-width: 650px) {
   .main-content {
-    padding-top: 140px; /* Увеличили отступ для mobile */
+    padding-top: 200px;
   }
 }
 

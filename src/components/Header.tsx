@@ -8,9 +8,10 @@ interface HeaderProps {
   isLoggedIn?: boolean;
   isAdmin?: boolean;
   onAuthUpdate?: () => void;
+  onBeforeNavigateToHome?: () => void;
 }
 
-export default function Header({ isLoggedIn, isAdmin, onAuthUpdate }: HeaderProps) {
+export default function Header({ isLoggedIn, isAdmin, onAuthUpdate, onBeforeNavigateToHome }: HeaderProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
 
@@ -40,16 +41,16 @@ export default function Header({ isLoggedIn, isAdmin, onAuthUpdate }: HeaderProp
         right: 0,
         zIndex: 9999,
         backgroundColor: "transparent",
-        padding: isMobile ? "8px 16px" : "16px 24px",
-        display: isMobile ? "flex" : "flex",
+        padding: isMobile ? "8px 16px" : "16px var(--content-gutter, 24px)",
+        display: "flex",
         flexDirection: isMobile ? "column" : "row",
         alignItems: isMobile ? "center" : "center",
-        justifyContent: isMobile ? "center" : "space-between",
+        justifyContent: isMobile ? "center" : "flex-start",
         minHeight: isMobile ? "120px" : isTablet ? "90px" : "100px",
-        gap: isMobile ? "8px" : "0",
+        gap: isMobile ? "8px" : "24px",
       }}
     >
-      {/* Логотип */}
+      {/* Логотип — слева, по одной вертикали с контентом страницы */}
       <div
         style={{
           display: "flex",
@@ -88,20 +89,24 @@ export default function Header({ isLoggedIn, isAdmin, onAuthUpdate }: HeaderProp
         />
       </div>
 
-      {/* Меню */}
+      {/* Меню — в потоке хедера, не вылезает за экран и не наезжает на логотип */}
       <div
         style={{
           display: "flex",
           justifyContent: isMobile ? "center" : "flex-end",
           alignItems: "center",
-          width: isMobile ? "100%" : "auto",
-          minWidth: 0, // Позволяет сжиматься
+          width: isMobile ? "100%" : "100%",
+          flex: isMobile ? undefined : 1,
+          minWidth: 0,
+          overflow: "hidden",
         }}
       >
         <HeaderMenu 
           isLoggedIn={isLoggedIn}
           isAdmin={isAdmin}
           onAuthUpdate={onAuthUpdate}
+          isMobile={isMobile}
+          isTablet={isTablet}
         />
       </div>
     </header>

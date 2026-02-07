@@ -2,6 +2,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import { Montserrat_Alternates } from "next/font/google";
 import { ViewModeProvider } from "@/components/ui/ViewMode";
+import { LoginFlowProvider } from "@/components/ui/LoginFlowContext";
 import ModeSync from "@/components/ui/ModeSync";           // ← синхронизация режима по URL
 import HtmlModeClass from "@/components/ui/HtmlModeClass"; // ← класс на <html> для глобальных стилей
 
@@ -36,17 +37,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         }}
       >
         <ViewModeProvider>
-          {/* синхронизация режима по маршруту + глобальный data-атрибут на <html> */}
-          <ModeSync />
-          <HtmlModeClass />
+          <LoginFlowProvider>
+            {/* синхронизация режима по маршруту + глобальный data-атрибут на <html> */}
+            <ModeSync />
+            <HtmlModeClass />
 
-          {/* Header */}
-          <Header />
+            {/* Header */}
+            <Header />
 
-          {/* контент страниц */}
-          <div className="main-content">
-            {children}
-          </div>
+            {/* контент страниц */}
+            <div className="main-content">
+              {children}
+            </div>
+          </LoginFlowProvider>
         </ViewModeProvider>
       </body>
     </html>

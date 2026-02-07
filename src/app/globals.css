@@ -32,52 +32,70 @@ html, body { overflow-x: hidden; }
 *, *::before, *::after { box-sizing: border-box; }
 
 /* =================== ПЕРЕМЕННЫЕ ОТСТУПОВ =================== */
-/* для мобильных → планшетов */
 :root {
-  --hero-top: 16px;                 /* меню статичное — почти без зазора */
-  --left-gutter: clamp(16px, 6vw, 24px);
+  --hero-top: 16px;
+  --content-gutter: clamp(20px, 5vw, 48px);  /* одинаковый отступ слева и справа */
+  --content-max: 1400px;                    /* макс. ширина контентной зоны */
 }
 
-
-/* ≥650px (планшет портрет) */
 @media (min-width: 650px) {
   :root {
-    --hero-top: 96px;               /* отступ под меню и логотип */
-    --left-gutter: clamp(48px, 10vw, 120px);
+    --hero-top: 96px;
+    --content-gutter: clamp(32px, 6vw, 80px);
   }
 }
 
-/* ≥1024px (десктоп базовый) — основной сценарий */
 @media (min-width: 1024px) {
   :root {
-    --hero-top: 130px;              /* уровень верха текста И карты */
-    --left-gutter: clamp(120px, 12vw, 220px);
+    --hero-top: 130px;
+    --content-gutter: clamp(48px, 7vw, 120px);
   }
 }
 
-/* ≥1440px (широкие) */
 @media (min-width: 1440px) {
   :root {
     --hero-top: 180px;
-    --left-gutter: clamp(100px, 10vw, 100px);
   }
 }
 
-/* ≥1920px (очень широкие) */
 @media (min-width: 1920px) {
   :root {
     --hero-top: 180px;
-    --left-gutter: clamp(160px, 8.5vw, 260px);
+    --content-gutter: clamp(80px, 8vw, 160px);
   }
 }
 
 
 /* =================== ОБЁРТКА КОНТЕНТА =================== */
+/* Симметричная сетка: одинаковые отступы по бокам */
 .page-wrap {
-  padding-top: var(--hero-top);        /* смещаем контент вниз под фикс-меню */
-  padding-left: var(--left-gutter);    /* большой левый отступ от логотипа */
-  padding-right: clamp(16px, 4vw, 48px); /* адаптивный правый отступ */
-  margin: 0;                           /* убираем авто-центрирование */
+  padding-top: var(--hero-top);
+  padding-left: var(--content-gutter);
+  padding-right: var(--content-gutter);
+  margin: 0 auto;
+  max-width: var(--content-max);
+  box-sizing: border-box;
+}
+
+/* Главная: контент от левого края (текст = по левому margin), без центрирования */
+.page-wrap--home {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Сетка главной: три части по ширине — 2/3 текст, gap, 1/3 карта */
+.home-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  width: 100%;
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .home-grid {
+    grid-template-columns: 2fr 1fr;
+  }
 }
 
 /* =================== КНОПКА МЕНЮ =================== */
@@ -175,11 +193,9 @@ html, body { overflow-x: hidden; }
 }
 
 /* =================== МЕНЮ-ПАНЕЛЬ =================== */
+/* Панель в потоке хедера — не position:fixed, чтобы не наезжать на логотип и не вылезать за экран */
 .menu-strip {
-  position: fixed;           /* фикс сверху — вне потока */
-  top: 18px;
-  left: var(--left-gutter);  /* отступ от логотипа */
-  right: 24px;
+  position: relative;
   display: flex;
   align-items: center;
   height: 60px;
@@ -193,14 +209,16 @@ html, body { overflow-x: hidden; }
   pointer-events: none;
   transform: scaleX(0.96) translateX(14px);
   transition: all .35s cubic-bezier(.62,.12,.45,1.18);
-  z-index: 260;              /* выше контента, ниже логотипа */
+  z-index: 260;
+  min-width: 0;
+  max-width: 100%;
 }
 .menu-strip.open {
   opacity: 1;
   pointer-events: all;
   transform: scaleX(1) translateX(0);
 }
-.menu-links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.menu-links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; min-width: 0; }
 /* Единый стиль для ссылок и кнопок меню */
 .menu-link {
   color: #fff;
@@ -228,9 +246,8 @@ html, body { overflow-x: hidden; }
   .menu-strip, .menu-strip.open {
     position: static;
     width: 100%;
-    max-width: 90vw;
+    max-width: 100%;
     margin: 0 auto;
-    left: auto; right: auto; top: auto;
     height: auto;
     padding: 6px 8px;
     border-radius: 12px;

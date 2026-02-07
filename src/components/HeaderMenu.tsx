@@ -1,7 +1,9 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useViewMode } from "@/components/ui/ViewMode";
+import { useLoginFlow } from "@/components/ui/LoginFlowContext";
 import LoginPanel from "@/components/LoginPanel";
+import ContactsPanel from "@/components/ContactsPanel";
 
 const PHONE = "+7 921 952-61-17";
 const WHATSAPP_URL = `https://wa.me/79219526117`;
@@ -10,19 +12,35 @@ interface HeaderMenuProps {
   isLoggedIn?: boolean;
   isAdmin?: boolean;
   onAuthUpdate?: () => void;
+  onBeforeNavigateToHome?: () => void;
+  isMobile?: boolean;
+  isTablet?: boolean;
 }
 
-export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIsAdmin, onAuthUpdate }: HeaderMenuProps = {}) {
+export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIsAdmin, onAuthUpdate, onBeforeNavigateToHome, isMobile: propIsMobile, isTablet: propIsTablet }: HeaderMenuProps = {}) {
   const [open, setOpen] = useState(false);
   const [isWide, setIsWide] = useState(false);
+  const [isMobileLocal, setIsMobileLocal] = useState(typeof window !== "undefined" ? window.innerWidth <= 650 : false);
+  const [isTabletLocal, setIsTabletLocal] = useState(typeof window !== "undefined" ? window.innerWidth > 650 && window.innerWidth <= 1200 : false);
+  const isMobile = propIsMobile ?? isMobileLocal;
+  const isTablet = propIsTablet ?? isTabletLocal;
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isContactsOpen, setIsContactsOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(propIsLoggedIn || false);
   const [userEmail, setUserEmail] = useState("");
   const [isAdmin, setIsAdmin] = useState(propIsAdmin || false);
   const { setMode, mode } = useViewMode();
+  const { setLoginRequested } = useLoginFlow();
+  const loginOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contactsOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const on = () => setIsWide(window.innerWidth > 1200);
+    const on = () => {
+      const w = window.innerWidth;
+      setIsWide(w > 1200);
+      setIsMobileLocal(w <= 650);
+      setIsTabletLocal(w > 650 && w <= 1200);
+    };
     on();
     window.addEventListener("resize", on);
     return () => window.removeEventListener("resize", on);
@@ -59,6 +77,13 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
   useEffect(() => {
     const t = setTimeout(() => setOpen(true), 60);
     return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (loginOpenTimerRef.current) clearTimeout(loginOpenTimerRef.current);
+      if (contactsOpenTimerRef.current) clearTimeout(contactsOpenTimerRef.current);
+    };
   }, []);
 
   const handleLoginSuccess = (email: string, isAdmin?: boolean) => {
@@ -104,35 +129,49 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
     position: "relative",
     marginTop: 12,
     width: "100%",
-    paddingRight: isWide ? 32 : 0,
+    paddingRight: isWide ? 0 : 0,
     zIndex: 200,
   };
 
-  // ↑↑ ничего кроме размеров panel не трогаем
-  const panel: React.CSSProperties = isWide
+  // Панель всегда в пределах экрана: не 96vw, не наезжает на логотип
+  const panel: React.CSSProperties = isMobile
     ? {
-        // расширили панель на десктопе
-        width: "min(58vw, calc(100vw - 64px))",
-        maxWidth: "980px",
-        minWidth: "320px",
+        width: "100%",
+        maxWidth: "100%",
+        margin: "10px 0 0",
+        borderRadius: 12,
+        backdropFilter: "blur(18px)",
+        background: "linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.12))",
+        border: "2px solid rgba(90, 107, 151, 0.6)",
+        boxShadow: "0 8px 24px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.22)",
+        padding: "8px 12px",
+        overflow: "hidden",
+      }
+    : isWide
+    ? {
+        width: "fit-content",
+        maxWidth: "100%",
         marginLeft: "auto",
+        marginRight: 0,
         borderRadius: 9999,
         backdropFilter: "blur(18px)",
         background: "linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.12))",
         border: "2px solid rgba(211, 163, 115, 0.6)",
         boxShadow: "0 8px 24px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.22)",
-        padding: "12px 22px", // немного больше внутренний отступ
+        padding: "12px 22px",
         overflow: "hidden",
       }
     : {
-        width: "96vw",
-        margin: "10px auto 0",
-        borderRadius: 16, // Меньше радиус для мобильных
+        width: "fit-content",
+        maxWidth: "100%",
+        marginLeft: "auto",
+        marginRight: 0,
+        borderRadius: 16,
         backdropFilter: "blur(18px)",
         background: "linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.12))",
         border: "2px solid rgba(90, 107, 151, 0.6)",
         boxShadow: "0 8px 24px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.22)",
-        padding: "8px 12px", // Меньше padding для мобильных
+        padding: "10px 16px",
         overflow: "hidden",
       };
 
@@ -153,23 +192,29 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
           style={{
             display: "flex",
             alignItems: "center",
-            width: "100%",
-            gap: isWide ? 14 : 6, // Уменьшили gap для мобильных
+            width: isWide ? "100%" : "100%",
+            gap: isWide ? 18 : 6,
             flexWrap: isWide ? "nowrap" : "wrap",
-            justifyContent: isWide ? "space-between" : "center",
+            justifyContent: isWide ? "center" : "center",
             overflow: "hidden",
-            minWidth: 0, // Позволяет элементам сжиматься
+            minWidth: 0,
           }}
         >
-          <a
-            href={WHATSAPP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
             className="menu-link"
             style={linkFont}
+            onClick={() => {
+              setLoginRequested(true);
+              if (contactsOpenTimerRef.current) clearTimeout(contactsOpenTimerRef.current);
+              contactsOpenTimerRef.current = setTimeout(() => {
+                contactsOpenTimerRef.current = null;
+                setIsContactsOpen(true);
+              }, 520);
+            }}
           >
             {PHONE}
-          </a>
+          </button>
 
           <button
             type="button"
@@ -198,19 +243,18 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
             Портфолио
           </button>
 
-          <a className="menu-link" href="#" style={linkFont}>
-            Отзывы
-          </a>
-
-          <a className="menu-link" href="#" style={linkFont}>
-            Контакты
-          </a>
-
               {!isLoggedIn ? (
                 <button
                   type="button"
                   className="menu-link"
-                  onClick={() => setIsLoginOpen(true)}
+                  onClick={() => {
+                    setLoginRequested(true);
+                    if (loginOpenTimerRef.current) clearTimeout(loginOpenTimerRef.current);
+                    loginOpenTimerRef.current = setTimeout(() => {
+                      loginOpenTimerRef.current = null;
+                      setIsLoginOpen(true);
+                    }, 520);
+                  }}
                   style={linkFont}
                 >
                   Вход
@@ -247,8 +291,20 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
       {/* Панель входа */}
       <LoginPanel 
         isOpen={isLoginOpen} 
-        onClose={() => setIsLoginOpen(false)}
+        onClose={() => {
+          setIsLoginOpen(false);
+          setLoginRequested(false);
+        }}
         onLoginSuccess={handleLoginSuccess}
+      />
+
+      {/* Панель контактов (телефон → Telegram, email) — то же поведение, что и панель входа */}
+      <ContactsPanel
+        isOpen={isContactsOpen}
+        onClose={() => {
+          setIsContactsOpen(false);
+          setLoginRequested(false);
+        }}
       />
 
     </div>

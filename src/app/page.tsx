@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useViewMode } from "@/components/ui/ViewMode";
 import CompanyDescription from "@/components/CompanyDescription";
@@ -20,6 +20,14 @@ import NotificationToast from "@/components/NotificationToast";
 
 export default function Home() {
   const { mode } = useViewMode();
+  const prevModeRef = useRef<string | undefined>(undefined);
+  // Та же анимация, что при закрытии панели входа: текст построчно + панель карты
+  const isEnteringHome =
+    mode === "home" && prevModeRef.current !== undefined && prevModeRef.current !== "home";
+  useEffect(() => {
+    prevModeRef.current = mode;
+  }, [mode]);
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -177,52 +185,89 @@ export default function Home() {
           >
             <AdminObjectDetailView adminToken={typeof window !== 'undefined' ? localStorage.getItem('adminToken') || '' : ''} />
           </motion.div>
-        ) : mode === "home" ? (
-          <motion.div
-            key="home"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.35 }}
-          >
-            {/* Один общий контейнер */}
-            <div className="page-wrap">
-              <div
-                className="
-                  w-full
-                  grid grid-cols-1 lg:grid-cols-2
-                  gap-8 lg:gap-14
-                  px-4 md:px-6
-                  items-start
-                "
-              >
-                {/* Левая колонка: текст */}
-                <div className="w-full flex justify-start">
-                  <div className="max-w-[720px] text-left">
-                    <CompanyDescription />
+        ) : mode === "home" || mode === "portfolio" || mode === "services" ? (
+          <div key="main-with-home" style={{ position: "relative" }}>
+            {/* Главная (текст + карта) всегда в DOM при home/portfolio/services — карта не перезагружается */}
+            {/* Слой главной всегда в потоке (задаёт высоту), при Услуги/Портфолио просто скрыт */}
+            <motion.div
+              initial={false}
+              animate={{
+                opacity: mode === "home" ? 1 : 0,
+                visibility: mode === "home" ? "visible" : "hidden",
+                pointerEvents: mode === "home" ? "auto" : "none",
+              }}
+              transition={{ duration: 0.35 }}
+              style={{
+                position: "relative",
+                left: 0,
+                right: 0,
+                top: 0,
+                zIndex: 1,
+              }}
+            >
+              <div className="page-wrap page-wrap--home">
+                <div className="home-grid" style={{ overflow: "hidden", minWidth: 0 }}>
+                  <div
+                    className="w-full flex justify-start min-w-0"
+                    style={{ alignSelf: "start", paddingLeft: 0, marginLeft: 0 }}
+                  >
+                    <div className="max-w-[720px] min-w-0 w-full text-left" style={{ marginLeft: 0, paddingLeft: 0 }}>
+                      <CompanyDescription enteredHome={isEnteringHome} forceHidden={mode !== "home"} />
+                    </div>
+                  </div>
+                  <div className="w-full flex justify-end min-w-0" style={{ alignSelf: "start" }}>
+                    <GlassMapPanel enteredHome={isEnteringHome} forceHidden={mode !== "home"} />
                   </div>
                 </div>
-
-                {/* Правая колонка: карта */}
-                <div className="w-full flex justify-center">
-                  <GlassMapPanel />
-                </div>
               </div>
-            </div>
-          </motion.div>
-        ) : mode === "portfolio" ? (
-          <motion.div
-             key="portfolio"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.35 }}
-          
-          >
-          <div className="page-wrap">
-            <PortfolioMultiPanels />
+            </motion.div>
+
+            {/* Услуги/Портфолио — поверх главной, без участия в потоке, чтобы при переходе на Главную не улетали вниз */}
+            <AnimatePresence initial={false} mode="wait">
+              {mode === "portfolio" && (
+                <motion.div
+                  key="portfolio"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.35 }}
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    zIndex: 2,
+                  }}
+                >
+                  <div className="page-wrap">
+                    <PortfolioMultiPanels />
+                  </div>
+                </motion.div>
+              )}
+              {mode === "services" && (
+                <motion.div
+                  key="services"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.35 }}
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    zIndex: 2,
+                  }}
+                >
+                  <div className="page-wrap">
+                    <ServicesGrid />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-          </motion.div>
         ) : mode === "photo-viewer" && isAuthenticated ? (
           <motion.div
             key="photo-viewer"

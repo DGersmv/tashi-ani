@@ -38,6 +38,22 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
           gap: 16px;
           align-items: start;
         }
+        .svc {
+          min-width: 0; /* чтобы длинные слова не раздували колонку */
+        }
+        .svc-card-title {
+          font-weight: 800;
+          line-height: 1.2;
+          margin: 0;
+          font-size: 0.82rem;
+          max-width: 100%;
+        }
+        .svc-card-subtitle {
+          margin: 0;
+          color: rgba(255, 255, 255, 0.9);
+          font-size: 0.75rem;
+          max-width: 100%;
+        }
         @media (min-width: 640px) { /* узкие экраны: по 3 панели */
           .servicesGrid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -71,9 +87,9 @@ function ServiceCard({ title, subtitle }: { title: string; subtitle?: string }) 
         transition={{ duration: 0.5, ease: [0.44, 0.13, 0.35, 1.08] }}
         style={{ position: "relative", width: "100%", borderRadius: 16 }}
       >
-        {/* Высота = ширина * 1.41 (aspect-ratio: width / height = 1 / 1.41) */}
+        {/* Высота = ширина * 1.41; контейнер для размера шрифта по ширине панели */}
         <div
-          className="group"
+          className="group svc-card"
           style={{
             position: "relative",
             width: "100%",
@@ -89,19 +105,24 @@ function ServiceCard({ title, subtitle }: { title: string; subtitle?: string }) 
           }}
         >
           <div
+            className="svc-card-inner"
             style={{
               position: "relative",
               zIndex: 2,
               width: "100%",
-              padding: "16px 18px",
+              minWidth: 0,
+              maxWidth: "100%",
+              padding: "14px 12px",
               color: "white",
               display: "grid",
               gap: 8,
+              overflow: "hidden",
+              boxSizing: "border-box",
             }}
           >
-            <h3 style={{ fontWeight: 800, fontSize: "1.1rem", lineHeight: 1.2 }}>{title}</h3>
+            <h3 className="svc-card-title" style={{ fontSize: "0.82rem", maxWidth: "100%" }}>{title}</h3>
             {subtitle ? (
-              <p style={{ fontSize: 14, color: "rgba(255,255,255,.9)" }}>{subtitle}</p>
+              <p className="svc-card-subtitle" style={{ fontSize: "0.75rem" }}>{subtitle}</p>
             ) : null}
           </div>
         </div>
