@@ -126,6 +126,38 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
     loadServices();
   }, [loadSettings, loadBg, loadPoints, loadPortfolio, loadServices]);
 
+  // Инъекция @font-face для загруженных шрифтов прямо в панели — чтобы предпросмотр показывал их сразу после загрузки
+  useEffect(() => {
+    const customFonts = settings?.customFonts ?? [];
+    const id = "admin-panel-custom-fonts";
+    if (customFonts.length === 0) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+      return;
+    }
+    const format = (url: string) => {
+      if (url.endsWith(".woff2")) return "woff2";
+      if (url.endsWith(".woff")) return "woff";
+      return "truetype";
+    };
+    let el = document.getElementById(id) as HTMLStyleElement | null;
+    if (!el) {
+      el = document.createElement("style");
+      el.id = id;
+      document.head.appendChild(el);
+    }
+    el.textContent = customFonts
+      .map(
+        (f) =>
+          `@font-face{font-family:'${f.fontFamily.replace(/'/g, "\\'")}';src:url('${f.url}') format('${format(f.url)}');font-display:swap;}`
+      )
+      .join("\n");
+    return () => {
+      const style = document.getElementById(id);
+      if (style) style.remove();
+    };
+  }, [settings?.customFonts]);
+
   const handleFontUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     const input = fontFileInputRef.current;
