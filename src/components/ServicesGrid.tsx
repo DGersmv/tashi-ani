@@ -92,7 +92,7 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
             >
               <div className="servicesGalleryModal" onClick={(e) => e.stopPropagation()}>
                 <div className="servicesGalleryHeader">
-                  <h2 style={{ fontFamily: "ChinaCyr, sans-serif", margin: 0, color: "white" }}>{openProject.name}</h2>
+                  <h2 style={{ fontFamily: "var(--font-heading, ChinaCyr), sans-serif", margin: 0, color: "white" }}>{openProject.name}</h2>
                   <button type="button" className="servicesGalleryClose" aria-label="Закрыть" onClick={() => setOpenProject(null)}>✕</button>
                 </div>
                 {galleryItems.length === 0 ? (

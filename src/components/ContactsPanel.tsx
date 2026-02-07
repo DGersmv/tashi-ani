@@ -140,7 +140,7 @@ export default function ContactsPanel({ isOpen, onClose }: ContactsPanelProps) {
                   fontSize: "1.25rem",
                   fontWeight: 800,
                   color: "white",
-                  fontFamily: "var(--font-menu, ChinaCyr), var(--font-montserrat), sans-serif",
+                  fontFamily: "var(--font-heading, ChinaCyr), var(--font-montserrat), sans-serif",
                 }}
               >
                 Контакты

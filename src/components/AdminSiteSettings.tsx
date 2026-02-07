@@ -501,6 +501,7 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
             )}
           </div>
           <label style={labelStyle}>Шрифт меню</label>
+          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.85rem", marginBottom: 6 }}>Пункты в шапке: Главная, Услуги, Портфолио, Контакты</p>
           <select
             style={inputStyle}
             value={settings.menuFont ?? "ChinaCyr"}
@@ -516,7 +517,8 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
               Главная Услуги Портфолио Контакты
             </p>
           </div>
-          <label style={labelStyle}>Шрифт заголовков</label>
+          <label style={labelStyle}>Шрифт заголовков и названий панелей</label>
+          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.85rem", marginBottom: 6 }}>Заголовок панели «Контакты», названия разделов Услуг и Портфолио, заголовки в личном кабинете</p>
           <select
             style={inputStyle}
             value={settings.headingFont ?? "ChinaCyr"}
