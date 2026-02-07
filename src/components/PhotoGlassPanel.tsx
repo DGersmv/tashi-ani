@@ -74,10 +74,10 @@ export default function PhotoGlassPanel({ project }: { project: Project }) {
             background: "rgba(255,255,255,0.15)",
             backdropFilter: "blur(32px)", // стеклянный эффект
             border: "2.5px solid rgba(211,163,115,0.6)",
-            
             display: "flex",
             alignItems: "flex-end",
             justifyContent: "stretch",
+            cursor: items.length ? "pointer" : "default",
           }}
         >
           {/* фон-постер */}
@@ -91,6 +91,7 @@ export default function PhotoGlassPanel({ project }: { project: Project }) {
               filter: "saturate(105%) brightness(0.9)",
               transform: "scale(1)",
               transition: "transform .6s",
+              pointerEvents: "none",
             }}
             className="group-hover:scale-[1.03]"
           />
@@ -100,6 +101,7 @@ export default function PhotoGlassPanel({ project }: { project: Project }) {
               position: "absolute",
               inset: 0,
               background: "linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,.25))",
+              pointerEvents: "none",
             }}
           />
           {/* подписи */}

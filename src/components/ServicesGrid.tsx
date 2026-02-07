@@ -150,6 +150,9 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
         .svc {
           min-width: 0; /* чтобы длинные слова не раздували колонку */
         }
+        .svc-card {
+          cursor: pointer !important;
+        }
         .svc-card-title {
           font-weight: 800;
           line-height: 1.2;
@@ -275,6 +278,7 @@ function ServiceCard({
           type="button"
           className="group svc-card"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick?.(); }}
+          onPointerDown={(e) => { e.preventDefault(); onClick?.(); }}
           style={{
             position: "relative",
             width: "100%",
@@ -333,6 +337,7 @@ function ServiceCard({
               gap: 8,
               overflow: "hidden",
               boxSizing: "border-box",
+              pointerEvents: "none",
             }}
           >
             <h3 className="svc-card-title" style={{ fontSize: "0.82rem", maxWidth: "100%", fontFamily: "var(--font-heading, ChinaCyr), sans-serif" }}>{title}</h3>
