@@ -14,6 +14,7 @@ import ObjectDetailView from "@/components/ObjectDetailView";
 import AdminObjectsManager from "@/components/AdminObjectsManager";
 import AdminObjectDetailView from "@/components/AdminObjectDetailView";
 import CustomerPhotoViewer from "@/components/CustomerPhotoViewer";
+import NewsPanel from "@/components/NewsPanel";
 import { useAuth } from "@/components/ui/AuthContext";
 import NotificationToast from "@/components/NotificationToast";
 
@@ -138,7 +139,7 @@ export default function Home() {
           >
             <AdminObjectDetailView adminToken={typeof window !== 'undefined' ? localStorage.getItem('adminToken') || '' : ''} />
           </motion.div>
-        ) : mode === "home" || mode === "portfolio" || mode === "services" ? (
+        ) : mode === "home" || mode === "portfolio" || mode === "services" || mode === "news" ? (
           <div key="main-with-home" style={{ position: "relative" }}>
             {/* Главная (текст + карта) всегда в DOM при home/portfolio/services — карта не перезагружается */}
             {/* Слой главной всегда в потоке (задаёт высоту), при Услуги/Портфолио просто скрыт */}
@@ -218,6 +219,28 @@ export default function Home() {
                 >
                   <div className="page-wrap" style={{ pointerEvents: "auto" }}>
                     <ServicesGrid />
+                  </div>
+                </motion.div>
+              )}
+              {mode === "news" && (
+                <motion.div
+                  key="news"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.35 }}
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    zIndex: 2,
+                    pointerEvents: "auto",
+                  }}
+                >
+                  <div className="page-wrap" style={{ pointerEvents: "auto" }}>
+                    <NewsPanel />
                   </div>
                 </motion.div>
               )}

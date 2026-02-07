@@ -467,6 +467,26 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
             value={settings.contactTelegram ?? ""}
             onChange={(e) => setSettings((s) => (s ? { ...s, contactTelegram: e.target.value } : null))}
           />
+          <label style={labelStyle}>Адрес канала для новостей</label>
+          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.85rem", marginBottom: 6 }}>
+            Username канала (tashiani) или полная ссылка (https://t.me/s/tashiani) — ссылка «Открыть в Telegram»
+          </p>
+          <input
+            style={inputStyle}
+            value={settings.telegramNewsChannel ?? ""}
+            onChange={(e) => setSettings((s) => (s ? { ...s, telegramNewsChannel: e.target.value.trim() } : null))}
+            placeholder="tashiani или https://t.me/s/tashiani"
+          />
+          <label style={labelStyle}>RSS-лента новостей (отображение на сайте)</label>
+          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.85rem", marginBottom: 6 }}>
+            URL RSS-ленты канала — посты с фото и видео будут показываться прямо на странице. Создать ленту: rss.app → Telegram → вставьте ссылку на канал
+          </p>
+          <input
+            style={inputStyle}
+            value={settings.telegramNewsRssUrl ?? ""}
+            onChange={(e) => setSettings((s) => (s ? { ...s, telegramNewsRssUrl: e.target.value.trim() } : null))}
+            placeholder="https://rss.app/feeds/..."
+          />
           <label style={labelStyle}>Email</label>
           <input
             style={inputStyle}

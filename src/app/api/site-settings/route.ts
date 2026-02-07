@@ -38,7 +38,7 @@ export async function PUT(request: NextRequest) {
     const body = (await request.json()) as SiteSettingsPayload;
     const allowed: (keyof SiteSettingsPayload)[] = [
       'menuFont', 'headingFont', 'contactPhone', 'contactWhatsApp',
-      'contactTelegram', 'contactEmail', 'mapCenterLon', 'mapCenterLat', 'mapLogoPath', 'siteLogoPath',
+      'contactTelegram', 'contactEmail', 'telegramNewsChannel', 'telegramNewsRssUrl', 'mapCenterLon', 'mapCenterLat', 'mapLogoPath', 'siteLogoPath',
       'customFonts', 'mainPageHeadingFont', 'mainPageTextFont', 'mainPageTextMaxWidth',
       'mainPageTitle', 'mainPageBlocks',
     ];

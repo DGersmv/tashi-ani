@@ -13,6 +13,9 @@ export type SiteSettingsPayload = {
   mapCenterLat?: number;
   mapLogoPath?: string;
   siteLogoPath?: string;
+  telegramNewsChannel?: string;
+  /** URL RSS-ленты канала (например из rss.app) — для отображения постов с фото/видео на сайте */
+  telegramNewsRssUrl?: string;
   customFonts?: CustomFontItem[];
   mainPageHeadingFont?: string;
   mainPageTextFont?: string;
@@ -45,6 +48,7 @@ export const SITE_SETTINGS_DEFAULTS: SiteSettingsPayload = {
   contactWhatsApp: 'https://wa.me/79219526117',
   contactTelegram: 'https://t.me/tashiani',
   contactEmail: 'info@tashi-ani.ru',
+  telegramNewsChannel: 'tashiani',
   mapCenterLon: 30.36,
   mapCenterLat: 59.94,
   mapLogoPath: '/points/default.png',

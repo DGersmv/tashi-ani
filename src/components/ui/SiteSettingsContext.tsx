@@ -10,6 +10,7 @@ const defaultSettings: SiteSettingsPayload = {
   contactWhatsApp: "https://wa.me/79219526117",
   contactTelegram: "https://t.me/tashiani",
   contactEmail: "info@tashi-ani.ru",
+  telegramNewsChannel: "tashiani",
   mapCenterLon: 30.36,
   mapCenterLat: 59.94,
   mapLogoPath: "/points/default.png",

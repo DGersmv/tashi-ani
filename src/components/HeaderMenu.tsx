@@ -192,6 +192,15 @@ export default function HeaderMenu({ isMobile: propIsMobile, isTablet: propIsTab
             Портфолио
           </button>
 
+          <button
+            type="button"
+            className={`menu-link ${mode === "news" ? 'active' : ''}`}
+            onClick={() => setMode("news")}
+            style={linkFont}
+          >
+            Новости и рекомендации
+          </button>
+
               {!isLoggedIn ? (
                 <button
                   type="button"

@@ -2,7 +2,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-type Mode = "home" | "portfolio" | "services" | "dashboard" | "admin-dashboard" | "objects" | "object-detail" | "admin-objects" | "admin-object-detail" | "photo-viewer";
+type Mode = "home" | "portfolio" | "services" | "news" | "dashboard" | "admin-dashboard" | "objects" | "object-detail" | "admin-objects" | "admin-object-detail" | "photo-viewer";
 type Ctx = { mode: Mode; setMode: (m: Mode) => void };
 
 const ViewModeContext = createContext<Ctx>({ mode: "home", setMode: () => {} });
