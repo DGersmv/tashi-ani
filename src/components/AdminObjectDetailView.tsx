@@ -2607,24 +2607,38 @@ useEffect(() => {
               Проекты
             </h3>
 
-            {/* Список проектов: статус (завершён / в работе и т.д.) */}
-            {object.projects?.length > 0 && (
-              <div style={{
-                marginBottom: "24px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px"
-              }}>
-                {object.projects.map((project) => (
-                  <ProjectStatusRow
-                    key={project.id}
-                    project={project}
-                    objectId={objectId || ""}
-                    adminToken={adminToken}
-                    onUpdated={fetchObjectDetail}
-                  />
-                ))}
-              </div>
+            {/* Статусы проектов: завершён / в работе — меняйте в выпадающем списке */}
+            {object.projects?.length > 0 ? (
+              <>
+                <p style={{
+                  color: "rgba(255,255,255,0.75)",
+                  fontSize: "0.95rem",
+                  marginBottom: "12px",
+                  fontFamily: "Arial, sans-serif"
+                }}>
+                  Статус каждого проекта можно изменить в списке ниже (Завершён / В работе / Планирование).
+                </p>
+                <div style={{
+                  marginBottom: "24px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px"
+                }}>
+                    {object.projects.map((project) => (
+                    <ProjectStatusRow
+                      key={project.id}
+                      project={project}
+                      objectId={objectId || ""}
+                      adminToken={adminToken}
+                      onUpdated={fetchObjectDetail}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p style={{ color: "rgba(255,255,255,0.6)", marginBottom: "24px", fontSize: "0.95rem" }}>
+                У этого объекта пока нет проектов. Создайте проект в разделе документов или через API.
+              </p>
             )}
 
             {/* Документы проектов с проверкой оплаты */}
