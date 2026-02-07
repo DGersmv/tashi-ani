@@ -210,6 +210,8 @@ function ServiceCardWithGallery({
 
   const coverSrc = coverFile ? normalizeSrc(coverFile) : undefined;
 
+  const openGallery = () => setOpen(true);
+
   return (
     <div className="w-full">
       <motion.div
@@ -218,26 +220,43 @@ function ServiceCardWithGallery({
         transition={{ duration: 0.5, ease: [0.44, 0.13, 0.35, 1.08] }}
         style={{ position: "relative", width: "100%", borderRadius: 16 }}
       >
-        <motion.div
-          className="group svc-card"
-          onClick={() => setOpen(true)}
-          whileHover={{ y: -6, scale: 1.015, filter: "saturate(1.06)" }}
-          transition={{ type: "spring", stiffness: 220, damping: 20 }}
+        {/* Кнопка как область клика — клики срабатывают надёжно во всех браузерах */}
+        <button
+          type="button"
+          onClick={openGallery}
           style={{
             position: "relative",
             width: "100%",
             aspectRatio: "1 / 1.41",
             borderRadius: 16,
-            overflow: "hidden",
-            background: coverSrc ? undefined : "rgba(255,255,255,0.15)",
-            backdropFilter: "blur(28px)",
-            border: "2.5px solid rgba(211,163,115,0.6)",
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "stretch",
             cursor: "pointer",
+            padding: 0,
+            margin: 0,
+            border: "none",
+            background: "none",
+            font: "inherit",
+            color: "inherit",
+            textAlign: "left",
+            display: "block",
           }}
         >
+          <motion.div
+            className="group svc-card"
+            whileHover={{ y: -6, scale: 1.015, filter: "saturate(1.06)" }}
+            transition={{ type: "spring", stiffness: 220, damping: 20 }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: 16,
+              overflow: "hidden",
+              background: coverSrc ? undefined : "rgba(255,255,255,0.15)",
+              backdropFilter: "blur(28px)",
+              border: "2.5px solid rgba(211,163,115,0.6)",
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "stretch",
+            }}
+          >
           {coverSrc && (
             <>
               <div
@@ -287,6 +306,7 @@ function ServiceCardWithGallery({
             )}
           </div>
         </motion.div>
+        </button>
       </motion.div>
 
       <AnimatePresence>
