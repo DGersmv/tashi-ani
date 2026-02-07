@@ -59,21 +59,29 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
   }, [openProject, galleryItems.length]);
 
   return (
-    <section className="mt-40 md:mt-44">
-      <div className="mx-auto max-w-screen-2xl px-4 md:px-6">
-        <div className="servicesGrid">
+    <section className="mt-40 md:mt-44" style={{ pointerEvents: "auto" }}>
+      <div className="mx-auto max-w-screen-2xl px-4 md:px-6" style={{ pointerEvents: "auto" }}>
+        <div className="servicesGrid" style={{ pointerEvents: "auto" }}>
           {items.map((svc, idx) => {
             const project = getProjectByTitle(svc.title);
             const firstImage = project.items.find((i) => i.type === "image");
             const coverFile = firstImage?.file ?? (project.items[0]?.type === "video" ? project.items[0].file : undefined);
             return (
-              <div key={svc.id} className={`svc svc--${idx + 1}`}>
+              <div
+                key={svc.id}
+                className={`svc svc--${idx + 1}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => setOpenProject(project)}
+                onPointerDown={(e) => { e.preventDefault(); setOpenProject(project); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenProject(project); } }}
+                style={{ cursor: "pointer", pointerEvents: "auto" }}
+              >
                 <ServiceCard
                   title={svc.title}
                   subtitle={svc.subtitle}
                   itemCount={project.items.length}
                   coverFile={coverFile}
-                  onClick={() => setOpenProject(project)}
                 />
               </div>
             );
@@ -257,28 +265,23 @@ function ServiceCard({
   subtitle,
   itemCount,
   coverFile,
-  onClick,
 }: {
   title: string;
   subtitle?: string;
   itemCount?: number;
   coverFile?: string;
-  onClick?: () => void;
 }) {
   const coverSrc = coverFile ? normalizeSrc(coverFile) : undefined;
   return (
-    <div className="w-full" style={{ pointerEvents: "auto" }}>
+    <div className="w-full">
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.44, 0.13, 0.35, 1.08] }}
-        style={{ position: "relative", width: "100%", borderRadius: 16, pointerEvents: "auto" }}
+        style={{ position: "relative", width: "100%", borderRadius: 16 }}
       >
-        <button
-          type="button"
+        <div
           className="group svc-card"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick?.(); }}
-          onPointerDown={(e) => { e.preventDefault(); onClick?.(); }}
           style={{
             position: "relative",
             width: "100%",
@@ -291,13 +294,6 @@ function ServiceCard({
             display: "flex",
             alignItems: "flex-end",
             justifyContent: "stretch",
-            cursor: "pointer",
-            pointerEvents: "auto",
-            padding: 0,
-            margin: 0,
-            font: "inherit",
-            color: "inherit",
-            textAlign: "left",
           }}
         >
           {coverSrc && (
@@ -348,7 +344,7 @@ function ServiceCard({
               <span style={{ fontSize: "0.7rem", opacity: 0.9 }}>Фото: {itemCount}</span>
             )}
           </div>
-        </button>
+        </div>
       </motion.div>
     </div>
   );
