@@ -26,8 +26,8 @@ export async function GET() {
           return ac - bc;
         });
         const items = files.map((fname) => {
-          // Путь без encodeURIComponent: браузер сам кодирует при запросе, сервер декодирует при раздаче из public/
-          const url = `/services/${folderName}/${fname}`;
+          // Раздаём через API: декодируем путь на сервере и отдаём файл (кириллица в URL иначе даёт 404 на хостинге)
+          const url = `/api/services/file/${folderName}/${fname}`;
           return {
             file: url,
             type: isVideo(fname) ? ('video' as const) : ('image' as const),
