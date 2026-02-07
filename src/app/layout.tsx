@@ -8,6 +8,7 @@ import { OpenSiteSettingsProvider } from "@/components/ui/OpenSiteSettingsContex
 import { AuthProvider } from "@/components/ui/AuthContext";
 import ModeSync from "@/components/ui/ModeSync";           // ← синхронизация режима по URL
 import HtmlModeClass from "@/components/ui/HtmlModeClass"; // ← класс на <html> для глобальных стилей
+import { getSiteSettings, buildFontStack } from "@/lib/siteSettings";
 
 const montserrat = Montserrat_Alternates({
   subsets: ["latin", "cyrillic"],
@@ -21,12 +22,22 @@ export const metadata = {
   description: "Ландшафтная архитектура, портфолио и проекты",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const initialSettings = await getSiteSettings();
+  const fontMenu = buildFontStack(initialSettings.menuFont || "ChinaCyr");
+  const fontHeading = buildFontStack(initialSettings.headingFont || "ChinaCyr");
+
   return (
     <html lang="ru" className={montserrat.variable}>
       <head>
         {/* Предзагрузка первого фона как плейсхолдера, чтобы не было «чёрного кадра» */}
         <link rel="preload" as="image" href="/portfolio/01.jpg" />
+        {/* Шрифты меню и заголовков с первого кадра (без мерцания) */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `:root{--font-menu:${fontMenu};--font-heading:${fontHeading};}`,
+          }}
+        />
       </head>
       <body
         className="min-h-screen bg-black"
@@ -42,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ViewModeProvider>
           <LoginFlowProvider>
             <OpenSiteSettingsProvider>
-            <SiteSettingsProvider>
+            <SiteSettingsProvider initialSettings={initialSettings}>
             <AuthProvider>
             {/* синхронизация режима по маршруту + глобальный data-атрибут на <html> */}
             <ModeSync />

@@ -24,7 +24,7 @@ const defaultSettings: SiteSettingsPayload = {
 
 const CYRILLIC_FALLBACK = "ChinaCyr, Arial, Helvetica, sans-serif";
 
-function buildFontStack(selectedFont: string): string {
+export function buildFontStack(selectedFont: string): string {
   const font = selectedFont?.trim() || "ChinaCyr";
   return `${font}, ${CYRILLIC_FALLBACK}`;
 }
@@ -36,8 +36,15 @@ export type SiteSettingsContextValue = SiteSettingsPayload & {
 const noopUpdate = () => {};
 const SiteSettingsContext = createContext<SiteSettingsContextValue>({ ...defaultSettings, updateSettings: noopUpdate });
 
-export function SiteSettingsProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<SiteSettingsPayload>(defaultSettings);
+export function SiteSettingsProvider({
+  children,
+  initialSettings = null,
+}: {
+  children: React.ReactNode;
+  /** Настройки с сервера для первого рендера (без мерцания шрифта) */
+  initialSettings?: SiteSettingsPayload | null;
+}) {
+  const [settings, setSettings] = useState<SiteSettingsPayload>(initialSettings ?? defaultSettings);
   const updateSettings = React.useCallback((partial: Partial<SiteSettingsPayload>) => {
     setSettings((prev) => ({ ...prev, ...partial }));
   }, []);
