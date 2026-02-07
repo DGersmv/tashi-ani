@@ -14,7 +14,7 @@ import ObjectDetailView from "@/components/ObjectDetailView";
 import AdminObjectsManager from "@/components/AdminObjectsManager";
 import AdminObjectDetailView from "@/components/AdminObjectDetailView";
 import CustomerPhotoViewer from "@/components/CustomerPhotoViewer";
-import Header from "@/components/Header";
+import { useAuth } from "@/components/ui/AuthContext";
 import NotificationToast from "@/components/NotificationToast";
 
 export default function Home() {
@@ -27,8 +27,7 @@ export default function Home() {
     prevModeRef.current = mode;
   }, [mode]);
 
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { isLoggedIn: isAuthenticated, isAdmin } = useAuth();
   const [isClient, setIsClient] = useState(false);
   const [showNotificationToast, setShowNotificationToast] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -37,23 +36,6 @@ export default function Home() {
   useEffect(() => {
     setIsClient(true);
   }, []);
-
-  useEffect(() => {
-    if (!isClient) return;
-    
-    const checkAuth = () => {
-      const userEmail = localStorage.getItem('userEmail');
-      const isLoggedIn = localStorage.getItem('isLoggedIn');
-      const userToken = localStorage.getItem('userToken');
-      const adminToken = localStorage.getItem('adminToken');
-      const isAdminStatus = localStorage.getItem('isAdmin');
-      
-      setIsAuthenticated(!!(userEmail && (isLoggedIn === 'true' || userToken)));
-      setIsAdmin(!!(adminToken || isAdminStatus === 'true'));
-    };
-
-    checkAuth();
-  }, [isClient]);
 
   // Функция для загрузки непрочитанных уведомлений
   const loadUnreadNotifications = async () => {
@@ -77,20 +59,9 @@ export default function Home() {
     }
   };
 
-  // Функция для обновления состояния после входа
-  const handleAuthUpdate = () => {
-    const userEmail = localStorage.getItem('userEmail');
-    const isLoggedIn = localStorage.getItem('isLoggedIn');
-    const userToken = localStorage.getItem('userToken');
-    const adminToken = localStorage.getItem('adminToken');
-    const isAdminStatus = localStorage.getItem('isAdmin');
-    
-    setIsAuthenticated(!!(userEmail && (isLoggedIn === 'true' || userToken)));
-    setIsAdmin(!!(adminToken || isAdminStatus === 'true'));
-    
-    // Загружаем уведомления после входа
-    loadUnreadNotifications();
-  };
+  useEffect(() => {
+    if (isAuthenticated) loadUnreadNotifications();
+  }, [isAuthenticated]);
 
   return (
     <main className="relative main-content">
@@ -98,13 +69,6 @@ export default function Home() {
       <div className="fixed inset-0 -z-20">
         <BackgroundSlideshow3D enable3D={false} />
       </div>
-
-      {/* Header */}
-      <Header 
-        isLoggedIn={isAuthenticated}
-        isAdmin={isAdmin}
-        onAuthUpdate={handleAuthUpdate}
-      />
 
       {/* Затемняющий слой для режима портфолио */}
       <motion.div

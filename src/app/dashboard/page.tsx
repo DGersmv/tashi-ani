@@ -1,6 +1,5 @@
 "use client";
 
-import HeaderMenu from "@/components/HeaderMenu";
 import UserObjectsGrid from "@/components/UserObjectsGrid";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -81,7 +80,6 @@ export default function DashboardPage() {
       minHeight: "100vh",
       width: "100%"
     }}>
-      <HeaderMenu />
       <UserObjectsGrid userEmail={userEmail} />
     </div>
   );

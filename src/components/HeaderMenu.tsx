@@ -4,19 +4,16 @@ import { useViewMode } from "@/components/ui/ViewMode";
 import { useLoginFlow } from "@/components/ui/LoginFlowContext";
 import { useSiteSettings } from "@/components/ui/SiteSettingsContext";
 import { useOpenSiteSettings } from "@/components/ui/OpenSiteSettingsContext";
+import { useAuth } from "@/components/ui/AuthContext";
 import LoginPanel from "@/components/LoginPanel";
 import ContactsPanel from "@/components/ContactsPanel";
 
 interface HeaderMenuProps {
-  isLoggedIn?: boolean;
-  isAdmin?: boolean;
-  onAuthUpdate?: () => void;
-  onBeforeNavigateToHome?: () => void;
   isMobile?: boolean;
   isTablet?: boolean;
 }
 
-export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIsAdmin, onAuthUpdate, onBeforeNavigateToHome, isMobile: propIsMobile, isTablet: propIsTablet }: HeaderMenuProps = {}) {
+export default function HeaderMenu({ isMobile: propIsMobile, isTablet: propIsTablet }: HeaderMenuProps = {}) {
   const [open, setOpen] = useState(false);
   const [isWide, setIsWide] = useState(false);
   const [isMobileLocal, setIsMobileLocal] = useState(typeof window !== "undefined" ? window.innerWidth <= 650 : false);
@@ -25,9 +22,7 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
   const isTablet = propIsTablet ?? isTabletLocal;
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isContactsOpen, setIsContactsOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(propIsLoggedIn || false);
-  const [userEmail, setUserEmail] = useState("");
-  const [isAdmin, setIsAdmin] = useState(propIsAdmin || false);
+  const { isLoggedIn, isAdmin, userEmail, refreshAuth } = useAuth();
   const { setMode, mode } = useViewMode();
   const { setLoginRequested } = useLoginFlow();
   const { setOpenSiteSettings } = useOpenSiteSettings();
@@ -49,34 +44,6 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
     return () => window.removeEventListener("resize", on);
   }, []);
 
-  // Синхронизация с пропсами
-  useEffect(() => {
-    if (propIsLoggedIn !== undefined) {
-      setIsLoggedIn(propIsLoggedIn);
-    }
-    if (propIsAdmin !== undefined) {
-      setIsAdmin(propIsAdmin);
-    }
-  }, [propIsLoggedIn, propIsAdmin]);
-
-  // Проверяем статус входа при загрузке
-  useEffect(() => {
-    const savedEmail = localStorage.getItem('userEmail');
-    const savedLoginStatus = localStorage.getItem('isLoggedIn');
-    const adminToken = localStorage.getItem('adminToken');
-    
-    if (savedEmail && savedLoginStatus === 'true') {
-      setIsLoggedIn(true);
-      setUserEmail(savedEmail);
-    }
-    
-    if (adminToken) {
-      setIsAdmin(true);
-      setIsLoggedIn(true);
-      setUserEmail('2277277@bk.ru');
-    }
-  }, []);
-
   useEffect(() => {
     const t = setTimeout(() => setOpen(true), 60);
     return () => clearTimeout(t);
@@ -89,43 +56,22 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
     };
   }, []);
 
-  const handleLoginSuccess = (email: string, isAdmin?: boolean) => {
-    setUserEmail(email);
-    setIsLoggedIn(true);
-    
-    if (isAdmin) {
-      setIsAdmin(true);
-      setMode("admin-dashboard");
-    } else {
-      setIsAdmin(false);
-      setMode("dashboard");
-    }
-    
-    // Сохраняем данные в localStorage для персистентности
-    localStorage.setItem('userEmail', email);
-    localStorage.setItem('isLoggedIn', 'true');
-    
-    if (isAdmin) {
-      localStorage.setItem('isAdmin', 'true');
-    }
-    
-    // Вызываем обновление состояния в родительском компоненте
-    if (onAuthUpdate) {
-      onAuthUpdate();
-    }
+  const handleLoginSuccess = (email: string, admin?: boolean) => {
+    localStorage.setItem("userEmail", email);
+    localStorage.setItem("isLoggedIn", "true");
+    if (admin) localStorage.setItem("isAdmin", "true");
+    refreshAuth();
+    setMode(admin ? "admin-dashboard" : "dashboard");
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUserEmail("");
-    setIsAdmin(false);
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("isAdmin");
+    refreshAuth();
     setMode("home");
-
-    // Очищаем localStorage
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('isAdmin');
-    localStorage.removeItem('adminToken');
   };
 
   const bar: React.CSSProperties = {

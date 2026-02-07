@@ -5,6 +5,7 @@ import { ViewModeProvider } from "@/components/ui/ViewMode";
 import { LoginFlowProvider } from "@/components/ui/LoginFlowContext";
 import { SiteSettingsProvider } from "@/components/ui/SiteSettingsContext";
 import { OpenSiteSettingsProvider } from "@/components/ui/OpenSiteSettingsContext";
+import { AuthProvider } from "@/components/ui/AuthContext";
 import ModeSync from "@/components/ui/ModeSync";           // ← синхронизация режима по URL
 import HtmlModeClass from "@/components/ui/HtmlModeClass"; // ← класс на <html> для глобальных стилей
 
@@ -42,18 +43,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <LoginFlowProvider>
             <OpenSiteSettingsProvider>
             <SiteSettingsProvider>
+            <AuthProvider>
             {/* синхронизация режима по маршруту + глобальный data-атрибут на <html> */}
             <ModeSync />
             <HtmlModeClass />
 
-            {/* Header */}
+            {/* Один общий Header для всего приложения */}
             <Header />
 
             {/* контент страниц */}
             <div className="main-content">
               {children}
             </div>
-          </SiteSettingsProvider>
+            </AuthProvider>
+            </SiteSettingsProvider>
             </OpenSiteSettingsProvider>
           </LoginFlowProvider>
         </ViewModeProvider>

@@ -5,14 +5,7 @@ import Image from "next/image";
 import HeaderMenu from "./HeaderMenu";
 import { useSiteSettings } from "@/components/ui/SiteSettingsContext";
 
-interface HeaderProps {
-  isLoggedIn?: boolean;
-  isAdmin?: boolean;
-  onAuthUpdate?: () => void;
-  onBeforeNavigateToHome?: () => void;
-}
-
-export default function Header({ isLoggedIn, isAdmin, onAuthUpdate, onBeforeNavigateToHome }: HeaderProps) {
+export default function Header() {
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
   const settings = useSiteSettings();
@@ -104,13 +97,7 @@ export default function Header({ isLoggedIn, isAdmin, onAuthUpdate, onBeforeNavi
           overflow: "hidden",
         }}
       >
-        <HeaderMenu 
-          isLoggedIn={isLoggedIn}
-          isAdmin={isAdmin}
-          onAuthUpdate={onAuthUpdate}
-          isMobile={isMobile}
-          isTablet={isTablet}
-        />
+        <HeaderMenu isMobile={isMobile} isTablet={isTablet} />
       </div>
     </header>
   );
