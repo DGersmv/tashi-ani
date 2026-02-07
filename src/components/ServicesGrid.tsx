@@ -22,6 +22,7 @@ function normalizeSrc(src: string) {
 export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services?: Service[] }) {
   const items = services.slice(0, 4);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [openProjectTitle, setOpenProjectTitle] = useState<string | null>(null);
 
   useEffect(() => {
     let c = false;
@@ -45,8 +46,21 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
             const firstImage = project.items.find((i) => i.type === "image");
             const coverFile = firstImage?.file ?? (project.items[0]?.type === "video" ? project.items[0].file : undefined);
             return (
-              <div key={svc.id} className={`svc svc--${idx + 1}`}>
-                <ServiceCardWithGallery
+              <div
+                key={svc.id}
+                className={`svc svc--${idx + 1}`}
+                onClick={() => setOpenProjectTitle(svc.title)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setOpenProjectTitle(svc.title);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                style={{ cursor: "pointer" }}
+              >
+                <ServiceCard
                   project={project}
                   title={svc.title}
                   subtitle={svc.subtitle}
@@ -59,15 +73,23 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
         </div>
       </div>
 
+      {/* Модалка галереи — один раз в родителе, открывается по клику на div выше */}
+      {openProjectTitle !== null && (
+        <ServicesGalleryModal
+          project={getProjectByTitle(openProjectTitle)}
+          onClose={() => setOpenProjectTitle(null)}
+        />
+      )}
+
       <style jsx>{`
         .servicesGrid {
           display: grid;
-          grid-template-columns: 1fr; /* по умолчанию: мобильные — одна колонка */
+          grid-template-columns: 1fr;
           gap: 16px;
           align-items: start;
         }
         .svc {
-          min-width: 0; /* чтобы длинные слова не раздували колонку */
+          min-width: 0;
         }
         .svc-card {
           cursor: pointer !important;
@@ -85,17 +107,17 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
           font-size: 0.75rem;
           max-width: 100%;
         }
-        @media (min-width: 640px) { /* узкие экраны: по 3 панели */
+        @media (min-width: 640px) {
           .servicesGrid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 16px;
           }
           .svc { grid-column: auto / span 1; }
         }
-        @media (min-width: 1024px) { /* широкие экраны: 13 колонок, 4 панели по 2 колонки с отступами */
+        @media (min-width: 1024px) {
           .servicesGrid {
             grid-template-columns: repeat(13, minmax(0, 1fr));
-            column-gap: 0; /* зазоры формируем пустыми колонками */
+            column-gap: 0;
             row-gap: 0;
           }
           .svc { grid-row: 1; }
@@ -171,8 +193,8 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
   );
 }
 
-/** Карточка услуги с галереей — как PhotoGlassPanel: клик и hover на самой карточке, своя модалка */
-function ServiceCardWithGallery({
+/** Только визуал карточки; клик обрабатывает родительский div в сетке */
+function ServiceCard({
   project,
   title,
   subtitle,
@@ -185,45 +207,16 @@ function ServiceCardWithGallery({
   itemCount: number;
   coverFile?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const [lightboxIdx, setLightboxIdx] = useState(0);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const galleryItems = project.items ?? [];
-  const currentItem = galleryItems[lightboxIdx];
-
-  useEffect(() => {
-    if (open) {
-      setLightboxIdx(0);
-      setLightboxOpen(false);
-    }
-  }, [open]);
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-      if (e.key === "ArrowLeft") setLightboxIdx((k) => (k - 1 + galleryItems.length) % galleryItems.length);
-      if (e.key === "ArrowRight") setLightboxIdx((k) => (k + 1) % galleryItems.length);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, galleryItems.length]);
-
   const coverSrc = coverFile ? normalizeSrc(coverFile) : undefined;
-
-  const openGallery = () => setOpen(true);
-
   return (
-    <div className="w-full">
+    <div className="w-full" style={{ position: "relative", pointerEvents: "none" }}>
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.44, 0.13, 0.35, 1.08] }}
         style={{ position: "relative", width: "100%", borderRadius: 16 }}
       >
-        {/* motion.button: и клик, и hover на одном элементе; внутренний div только рисование, не перехватывает клик */}
-        <motion.button
-          type="button"
-          onClick={openGallery}
+        <motion.div
           whileHover={{ y: -6, scale: 1.015, filter: "saturate(1.06)" }}
           transition={{ type: "spring", stiffness: 220, damping: 20 }}
           style={{
@@ -231,15 +224,6 @@ function ServiceCardWithGallery({
             width: "100%",
             aspectRatio: "1 / 1.41",
             borderRadius: 16,
-            cursor: "pointer",
-            padding: 0,
-            margin: 0,
-            border: "none",
-            background: "none",
-            font: "inherit",
-            color: "inherit",
-            textAlign: "left",
-            display: "block",
           }}
         >
           <div
@@ -255,119 +239,138 @@ function ServiceCardWithGallery({
               display: "flex",
               alignItems: "flex-end",
               justifyContent: "stretch",
-              pointerEvents: "none",
             }}
           >
-          {coverSrc && (
-            <>
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundImage: `url(${coverSrc})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                  filter: "saturate(1.05) brightness(0.85)",
-                  pointerEvents: "none",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "linear-gradient(to top, rgba(0,0,0,.7), rgba(0,0,0,.2))",
-                  pointerEvents: "none",
-                }}
-              />
-            </>
-          )}
-          <div
-            className="svc-card-inner"
-            style={{
-              position: "relative",
-              zIndex: 2,
-              width: "100%",
-              minWidth: 0,
-              maxWidth: "100%",
-              padding: "14px 12px",
-              color: "white",
-              display: "grid",
-              gap: 8,
-              overflow: "hidden",
-              boxSizing: "border-box",
-              pointerEvents: "none",
-            }}
-          >
-            <h3 className="svc-card-title" style={{ fontSize: "0.82rem", maxWidth: "100%", fontFamily: "var(--font-heading, ChinaCyr), sans-serif" }}>{title}</h3>
-            {subtitle ? (
-              <p className="svc-card-subtitle" style={{ fontSize: "0.75rem" }}>{subtitle}</p>
-            ) : null}
-            {itemCount > 0 && (
-              <span style={{ fontSize: "0.7rem", opacity: 0.9 }}>Фото: {itemCount}</span>
+            {coverSrc && (
+              <>
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    backgroundImage: `url(${coverSrc})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    filter: "saturate(1.05) brightness(0.85)",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "linear-gradient(to top, rgba(0,0,0,.7), rgba(0,0,0,.2))",
+                  }}
+                />
+              </>
             )}
-          </div>
-          </div>
-        </motion.button>
-      </motion.div>
-
-      <AnimatePresence>
-        {open &&
-          createPortal(
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="servicesGalleryOverlay"
-              role="dialog"
-              aria-modal="true"
-              onClick={() => setOpen(false)}
+            <div
+              className="svc-card-inner"
+              style={{
+                position: "relative",
+                zIndex: 2,
+                width: "100%",
+                minWidth: 0,
+                maxWidth: "100%",
+                padding: "14px 12px",
+                color: "white",
+                display: "grid",
+                gap: 8,
+                overflow: "hidden",
+                boxSizing: "border-box",
+              }}
             >
-              <div className="servicesGalleryModal" onClick={(e) => e.stopPropagation()}>
-                <div className="servicesGalleryHeader">
-                  <h2 style={{ fontFamily: "var(--font-heading, ChinaCyr), sans-serif", margin: 0, color: "white" }}>{project.name}</h2>
-                  <button type="button" className="servicesGalleryClose" aria-label="Закрыть" onClick={() => setOpen(false)}>✕</button>
-                </div>
-                {galleryItems.length === 0 ? (
-                  <p style={{ color: "rgba(255,255,255,0.7)", padding: 24 }}>
-                    Нет фото в этом разделе. Загрузите их в настройках сайта (Админка → Услуги).
-                  </p>
-                ) : (
-                  <>
-                    <div className="servicesGalleryGrid">
-                      {galleryItems.map((item, i) => (
-                        <button
-                          key={item.file}
-                          type="button"
-                          className="servicesGalleryThumb"
-                          onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }}
-                        >
-                          {item.type === "video" ? (
-                            <video src={normalizeSrc(item.file)} muted />
-                          ) : (
-                            <img src={normalizeSrc(item.file)} alt={item.captionRu || ""} />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    {lightboxOpen && (
-                      <div className="servicesGalleryLightbox" onClick={() => setLightboxOpen(false)}>
-                        <button type="button" className="servicesNav left" aria-label="Предыдущее" onClick={(e) => { e.stopPropagation(); setLightboxIdx((k) => (k - 1 + galleryItems.length) % galleryItems.length); }}>⟨</button>
-                        {currentItem?.type === "video" ? (
-                          <video src={normalizeSrc(currentItem.file)} className="servicesMedia" controls autoPlay loop playsInline onClick={(e) => e.stopPropagation()} />
-                        ) : (
-                          <img src={normalizeSrc(currentItem?.file ?? "")} alt="" className="servicesMedia" onClick={(e) => e.stopPropagation()} />
-                        )}
-                        <button type="button" className="servicesNav right" aria-label="Следующее" onClick={(e) => { e.stopPropagation(); setLightboxIdx((k) => (k + 1) % galleryItems.length); }}>⟩</button>
-                        <button type="button" className="servicesGalleryClose servicesGalleryCloseLightbox" aria-label="Закрыть" onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}>✕</button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </motion.div>,
-            document.body
-          )}
-      </AnimatePresence>
+              <h3 className="svc-card-title" style={{ fontSize: "0.82rem", maxWidth: "100%", fontFamily: "var(--font-heading, ChinaCyr), sans-serif" }}>{title}</h3>
+              {subtitle ? (
+                <p className="svc-card-subtitle" style={{ fontSize: "0.75rem" }}>{subtitle}</p>
+              ) : null}
+              {itemCount > 0 && (
+                <span style={{ fontSize: "0.7rem", opacity: 0.9 }}>Фото: {itemCount}</span>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
+}
+
+/** Модалка галереи — рендер в портале, состояние внутри */
+function ServicesGalleryModal({ project, onClose }: { project: Project; onClose: () => void }) {
+  const [lightboxIdx, setLightboxIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const galleryItems = project.items ?? [];
+  const currentItem = galleryItems[lightboxIdx];
+
+  useEffect(() => {
+    setLightboxIdx(0);
+    setLightboxOpen(false);
+  }, [project.name]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") setLightboxIdx((k) => (k - 1 + galleryItems.length) % galleryItems.length);
+      if (e.key === "ArrowRight") setLightboxIdx((k) => (k + 1) % galleryItems.length);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, galleryItems.length]);
+
+  const overlay = (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="servicesGalleryOverlay"
+        role="dialog"
+        aria-modal="true"
+        onClick={onClose}
+      >
+        <div className="servicesGalleryModal" onClick={(e) => e.stopPropagation()}>
+          <div className="servicesGalleryHeader">
+            <h2 style={{ fontFamily: "var(--font-heading, ChinaCyr), sans-serif", margin: 0, color: "white" }}>{project.name}</h2>
+            <button type="button" className="servicesGalleryClose" aria-label="Закрыть" onClick={onClose}>✕</button>
+          </div>
+          {galleryItems.length === 0 ? (
+            <p style={{ color: "rgba(255,255,255,0.7)", padding: 24 }}>
+              В этом разделе пока нет фото.
+            </p>
+          ) : (
+            <>
+              <div className="servicesGalleryGrid">
+                {galleryItems.map((item, i) => (
+                  <button
+                    key={item.file}
+                    type="button"
+                    className="servicesGalleryThumb"
+                    onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }}
+                  >
+                    {item.type === "video" ? (
+                      <video src={normalizeSrc(item.file)} muted />
+                    ) : (
+                      <img src={normalizeSrc(item.file)} alt={item.captionRu || ""} />
+                    )}
+                  </button>
+                ))}
+              </div>
+              {lightboxOpen && (
+                <div className="servicesGalleryLightbox" onClick={() => setLightboxOpen(false)}>
+                  <button type="button" className="servicesNav left" aria-label="Предыдущее" onClick={(e) => { e.stopPropagation(); setLightboxIdx((k) => (k - 1 + galleryItems.length) % galleryItems.length); }}>⟨</button>
+                  {currentItem?.type === "video" ? (
+                    <video src={normalizeSrc(currentItem.file)} className="servicesMedia" controls autoPlay loop playsInline onClick={(e) => e.stopPropagation()} />
+                  ) : (
+                    <img src={normalizeSrc(currentItem?.file ?? "")} alt="" className="servicesMedia" onClick={(e) => e.stopPropagation()} />
+                  )}
+                  <button type="button" className="servicesNav right" aria-label="Следующее" onClick={(e) => { e.stopPropagation(); setLightboxIdx((k) => (k + 1) % galleryItems.length); }}>⟩</button>
+                  <button type="button" className="servicesGalleryClose servicesGalleryCloseLightbox" aria-label="Закрыть" onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}>✕</button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+
+  return createPortal(overlay, document.body);
 }
