@@ -45,6 +45,7 @@ function destPoint(lon: number, lat: number, bearingDeg: number, distM: number) 
 export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef     = useRef<any | null>(null);
+  const ogRef        = useRef<any | null>(null);
   const loopRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [mapSettings, setMapSettings] = useState({
@@ -52,6 +53,10 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
     centerLat: DEFAULT_CENTER.lat,
     mapLogoPath: DEFAULT_LOGO,
   });
+  const mapSettingsRef = useRef(mapSettings);
+  useEffect(() => {
+    mapSettingsRef.current = mapSettings;
+  }, [mapSettings]);
   useEffect(() => {
     let cancelled = false;
     fetch('/api/site-settings', { cache: 'no-store' })
@@ -95,6 +100,7 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
         console.error('OpenGlobus ESM: отсутствуют классы', { Globe, XYZ, Vector, Entity, LonLat });
         return;
       }
+      ogRef.current = og;
 
       const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
 
@@ -137,9 +143,10 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
       // Подгон под контейнер
       setTimeout(() => window.dispatchEvent(new Event('resize')), 0);
 
-      // ===== Подлёт к центру (из настроек) =====
-      const centerLon = mapSettings.centerLon;
-      const centerLat = mapSettings.centerLat;
+      // ===== Подлёт к центру (из настроек; ref чтобы не пересоздавать глобус при смене настроек — иначе createTextureDefault null) =====
+      const settings = mapSettingsRef.current;
+      const centerLon = settings.centerLon;
+      const centerLat = settings.centerLat;
       const ell = globe.planet.ellipsoid;
 
       const centerLL = new LonLat(centerLon, centerLat, Math.max(200, EYE_ALT_M * Math.max(LOOK_REL_UP, 0.06)));
@@ -199,9 +206,27 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
       destroyed = true;
       try { globeRef.current?.destroy?.(); } catch {}
       globeRef.current = null;
+      ogRef.current = null;
       stopLoop();
     };
-  }, [ready, tourPts, mapSettings]);
+    // Не добавляем mapSettings: иначе при загрузке настроек с сервера глобус уничтожается и создаётся заново,
+    // а старые тайлы OpenGlobus ещё грузятся → onload вызывает createTextureDefault у уже null handler.
+  }, [ready, tourPts]);
+
+  // Когда с сервера пришли новые центр/настройки — летим туда без пересоздания глобуса
+  useEffect(() => {
+    const globe = globeRef.current;
+    const og = ogRef.current;
+    if (!og?.LonLat || !globe?.planet?.camera || !globe.planet.ellipsoid) return;
+    const ell = globe.planet.ellipsoid;
+    const centerLL = new og.LonLat(mapSettings.centerLon, mapSettings.centerLat, 200);
+    const eye0 = destPoint(mapSettings.centerLon, mapSettings.centerLat, 315, ORBIT_R_M);
+    const eyeLL0 = new og.LonLat(eye0.lon, eye0.lat, EYE_ALT_M);
+    globe.planet.camera.flyCartesian(ell.lonLatToCartesian(eyeLL0), {
+      look: ell.lonLatToCartesian(centerLL),
+      duration: 1500,
+    });
+  }, [mapSettings.centerLon, mapSettings.centerLat]);
 
   // Сняли паузу — мягкий рестарт
   useEffect(() => {
