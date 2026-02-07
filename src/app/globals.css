@@ -21,10 +21,12 @@ body {
   font-family: var(--font-montserrat), Arial, Helvetica, sans-serif;
 }
 
-/* заголовки и меню — декоративный шрифт ChinaCyr */
-h1, h2, h3,
+/* заголовки и меню — шрифт из настроек (--font-menu, --font-heading задаются SiteSettingsProvider) */
 .menu-strip {
-  font-family: 'ChinaCyr', Arial, Helvetica, sans-serif;
+  font-family: var(--font-menu, 'ChinaCyr', Arial, Helvetica, sans-serif);
+}
+h1, h2, h3 {
+  font-family: var(--font-heading, 'ChinaCyr', Arial, Helvetica, sans-serif);
 }
 
 /* =================== ГЛОБАЛЬНЫЕ УТИЛИТЫ =================== */
@@ -33,6 +35,8 @@ html, body { overflow-x: hidden; }
 
 /* =================== ПЕРЕМЕННЫЕ ОТСТУПОВ =================== */
 :root {
+  --font-menu: 'ChinaCyr', Arial, Helvetica, sans-serif;
+  --font-heading: 'ChinaCyr', Arial, Helvetica, sans-serif;
   --hero-top: 16px;
   --content-gutter: clamp(20px, 5vw, 48px);  /* одинаковый отступ слева и справа */
   --content-max: 1400px;                    /* макс. ширина контентной зоны */

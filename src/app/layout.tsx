@@ -3,6 +3,8 @@ import Header from "@/components/Header";
 import { Montserrat_Alternates } from "next/font/google";
 import { ViewModeProvider } from "@/components/ui/ViewMode";
 import { LoginFlowProvider } from "@/components/ui/LoginFlowContext";
+import { SiteSettingsProvider } from "@/components/ui/SiteSettingsContext";
+import { OpenSiteSettingsProvider } from "@/components/ui/OpenSiteSettingsContext";
 import ModeSync from "@/components/ui/ModeSync";           // ← синхронизация режима по URL
 import HtmlModeClass from "@/components/ui/HtmlModeClass"; // ← класс на <html> для глобальных стилей
 
@@ -38,6 +40,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         <ViewModeProvider>
           <LoginFlowProvider>
+            <OpenSiteSettingsProvider>
+            <SiteSettingsProvider>
             {/* синхронизация режима по маршруту + глобальный data-атрибут на <html> */}
             <ModeSync />
             <HtmlModeClass />
@@ -49,6 +53,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="main-content">
               {children}
             </div>
+          </SiteSettingsProvider>
+            </OpenSiteSettingsProvider>
           </LoginFlowProvider>
         </ViewModeProvider>
       </body>

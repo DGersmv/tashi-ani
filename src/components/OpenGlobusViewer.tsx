@@ -3,22 +3,17 @@
 import { useEffect, useRef, useState } from 'react';
 import useTourPoints from '@/lib/useTourPoints';
 
-// ====== НАСТРОЙКИ ОРБИТЫ И ВЗГЛЯДА (РЕДАКТИРУЕМ В КОДЕ) ======
-const CENTER_LON = 30.36;         // центр — Санкт-Петербург (можно поправить)
-const CENTER_LAT = 59.94;
-
+// ====== НАСТРОЙКИ ОРБИТЫ И ВЗГЛЯДА ======
 const EYE_ALT_M  = 10_000;        // высота зависания камеры (м)
-const ORBIT_R_M  = 5_000;        // радиус орбиты (м) — расстояние от центра
+const ORBIT_R_M  = 5_000;        // радиус орбиты (м)
 const ORBIT_DEG_PER_SEC = 6;      // скорость вращения (град/сек)
+const LOOK_REL_UP = 0.1;
+const LOOK_AHEAD_M = 50_000;
+const TICK_MS = 40;
 
-const LOOK_REL_UP = 0.1;         // «поднять взгляд»: доля от высоты камеры (0..0.4)
-const LOOK_AHEAD_M = 50_000;      // смотреть немного вперёд по курсу (м); 0 — строго в центр
-
-const TICK_MS = 40;               // шаг обновления анимации (мс)
-
-// ====== РЕСУРСЫ ======
-const DEFAULT_PATH = '/points/default.png';
-const OG_MARKER    = '/external/og/lib/res/marker.png';
+const OG_MARKER = '/external/og/lib/res/marker.png';
+const DEFAULT_CENTER = { lon: 30.36, lat: 59.94 };
+const DEFAULT_LOGO = '/points/default.png';
 
 type TourPoint = { lon: number; lat: number; img?: string; name?: string };
 
@@ -52,25 +47,39 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
   const globeRef     = useRef<any | null>(null);
   const loopRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Точки (для пинов), без перелётов
+  const [mapSettings, setMapSettings] = useState({
+    centerLon: DEFAULT_CENTER.lon,
+    centerLat: DEFAULT_CENTER.lat,
+    mapLogoPath: DEFAULT_LOGO,
+  });
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/site-settings', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled || !d) return;
+        setMapSettings({
+          centerLon: typeof d.mapCenterLon === 'number' ? d.mapCenterLon : DEFAULT_CENTER.lon,
+          centerLat: typeof d.mapCenterLat === 'number' ? d.mapCenterLat : DEFAULT_CENTER.lat,
+          mapLogoPath: typeof d.mapLogoPath === 'string' && d.mapLogoPath ? d.mapLogoPath : DEFAULT_LOGO,
+        });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   const tourPts = (useTourPoints() || []) as TourPoint[];
   const ptsRef  = useRef<TourPoint[]>([]);
   useEffect(() => { ptsRef.current = tourPts; }, [tourPts]);
 
-  // Пауза анимации
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
   useEffect(() => { pausedRef.current = paused; }, [paused]);
 
-  // Кастомная иконка пина?
   const pinSrcRef = useRef<string>(OG_MARKER);
   useEffect(() => {
-    let ignore = false;
-    fetch(DEFAULT_PATH, { method: 'HEAD' })
-      .then(r => { if (!ignore && r.ok) pinSrcRef.current = DEFAULT_PATH; })
-      .catch(() => {});
-    return () => { ignore = true; };
-  }, []);
+    pinSrcRef.current = mapSettings.mapLogoPath || OG_MARKER;
+  }, [mapSettings.mapLogoPath]);
 
   useEffect(() => {
     if (!ready || !containerRef.current) return;
@@ -128,12 +137,14 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
       // Подгон под контейнер
       setTimeout(() => window.dispatchEvent(new Event('resize')), 0);
 
-      // ===== Подлёт к СПб =====
+      // ===== Подлёт к центру (из настроек) =====
+      const centerLon = mapSettings.centerLon;
+      const centerLat = mapSettings.centerLat;
       const ell = globe.planet.ellipsoid;
 
-      const centerLL = new LonLat(CENTER_LON, CENTER_LAT, Math.max(200, EYE_ALT_M * Math.max(LOOK_REL_UP, 0.06)));
-      const startAz  = 315; // северо-запад
-      const eye0     = destPoint(CENTER_LON, CENTER_LAT, startAz, ORBIT_R_M);
+      const centerLL = new LonLat(centerLon, centerLat, Math.max(200, EYE_ALT_M * Math.max(LOOK_REL_UP, 0.06)));
+      const startAz  = 315;
+      const eye0     = destPoint(centerLon, centerLat, startAz, ORBIT_R_M);
       const eyeLL0   = new LonLat(eye0.lon, eye0.lat, EYE_ALT_M);
 
       await new Promise<void>((resolve) => {
@@ -157,13 +168,12 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
         angle = (angle + stepDeg) % 360;
 
         // Позиция камеры по орбите
-        const eyeGeo = destPoint(CENTER_LON, CENTER_LAT, angle, ORBIT_R_M);
+        const eyeGeo = destPoint(centerLon, centerLat, angle, ORBIT_R_M);
         const eyeLL  = new og.LonLat(eyeGeo.lon, eyeGeo.lat, EYE_ALT_M);
 
-        // Куда смотреть: вперёд по курсу или строго в центр
-        let lookLon = CENTER_LON, lookLat = CENTER_LAT;
+        let lookLon = centerLon, lookLat = centerLat;
         if (LOOK_AHEAD_M > 0.1) {
-          const ahead = destPoint(CENTER_LON, CENTER_LAT, angle, LOOK_AHEAD_M);
+          const ahead = destPoint(centerLon, centerLat, angle, LOOK_AHEAD_M);
           lookLon = ahead.lon; lookLat = ahead.lat;
         }
         const lookLL = new og.LonLat(lookLon, lookLat, Math.max(50, EYE_ALT_M * LOOK_REL_UP));
@@ -191,7 +201,7 @@ export default function OpenGlobusViewer({ ready = true }: { ready?: boolean }) 
       globeRef.current = null;
       stopLoop();
     };
-  }, [ready, tourPts]);
+  }, [ready, tourPts, mapSettings]);
 
   // Сняли паузу — мягкий рестарт
   useEffect(() => {

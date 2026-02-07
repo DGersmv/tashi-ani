@@ -1,31 +1,53 @@
 import { useEffect, useState } from 'react';
 
-/** lon;lat;file? → {lon,lat,img}  (img — ALWAYS valid dataURL или /points/default.png) */
+/** Точки с API или CSV; img — dataURL или путь к маркеру */
 export default function useTourPoints() {
   const [pts, setPts] = useState<
     { lon: number; lat: number; img: string }[]
   >([]);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      const raw  = await fetch('/points/coords.csv').then(r => r.text());
-      const rows = raw.trim().split(/\r?\n/);
-
-      const list = await Promise.all(
-        rows.map(async row => {
-          const [lonStr, latStr, file = ''] =
-            row.split(/[,;]/).map(s => s.trim());
-
-          const src = file ? `/points/${file}` : '/points/default.png';
-          return { lon: +lonStr, lat: +latStr, img: await normalize(src) };
-        })
-      );
-
-      setPts(list);
+      try {
+        const res = await fetch('/api/site/points', { cache: 'no-store' });
+        const data = await res.json();
+        if (cancelled || !Array.isArray(data.points)) {
+          if (!cancelled) loadFromCsv(setPts);
+          return;
+        }
+        const list = await Promise.all(
+          data.points.map(async (p: { lon: number; lat: number; file?: string }) => {
+            const src = p.file ? `/points/${p.file}` : '/points/default.png';
+            return { lon: Number(p.lon), lat: Number(p.lat), img: await normalize(src) };
+          })
+        );
+        if (!cancelled) setPts(list);
+      } catch {
+        if (!cancelled) loadFromCsv(setPts);
+      }
     })();
+    return () => { cancelled = true; };
   }, []);
 
   return pts;
+}
+
+async function loadFromCsv(setPts: (p: { lon: number; lat: number; img: string }[]) => void) {
+  try {
+    const raw = await fetch('/points/coords.csv').then((r) => r.text());
+    const rows = raw.trim().split(/\r?\n/);
+    const list = await Promise.all(
+      rows.map(async (row) => {
+        const [lonStr, latStr, file = ''] = row.split(/[,;]/).map((s) => s.trim());
+        const src = file ? `/points/${file}` : '/points/default.png';
+        return { lon: +lonStr, lat: +latStr, img: await normalize(src) };
+      })
+    );
+    setPts(list);
+  } catch {
+    setPts([]);
+  }
 }
 
 /* ----------------- helper ----------------- */

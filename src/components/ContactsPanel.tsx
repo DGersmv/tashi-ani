@@ -2,10 +2,7 @@
 
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-
-const WHATSAPP_URL = "https://wa.me/79219526117";
-const TELEGRAM_URL = "https://t.me/tashiani";
-const EMAIL = "info@tashi-ani.ru";
+import { useSiteSettings } from "@/components/ui/SiteSettingsContext";
 
 interface ContactsPanelProps {
   isOpen: boolean;
@@ -13,6 +10,11 @@ interface ContactsPanelProps {
 }
 
 export default function ContactsPanel({ isOpen, onClose }: ContactsPanelProps) {
+  const settings = useSiteSettings();
+  const whatsAppUrl = settings.contactWhatsApp ?? "https://wa.me/79219526117";
+  const telegramUrl = settings.contactTelegram ?? "https://t.me/tashiani";
+  const email = settings.contactEmail ?? "info@tashi-ani.ru";
+
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
@@ -31,7 +33,7 @@ export default function ContactsPanel({ isOpen, onClose }: ContactsPanelProps) {
     textDecoration: "none",
     fontSize: "1rem",
     fontWeight: 600,
-    fontFamily: "ChinaCyr, var(--font-montserrat), sans-serif",
+    fontFamily: "var(--font-menu, ChinaCyr), var(--font-montserrat), sans-serif",
     transition: "background 0.2s, border-color 0.2s",
   };
 
@@ -138,7 +140,7 @@ export default function ContactsPanel({ isOpen, onClose }: ContactsPanelProps) {
                   fontSize: "1.25rem",
                   fontWeight: 800,
                   color: "white",
-                  fontFamily: "ChinaCyr, var(--font-montserrat), sans-serif",
+                  fontFamily: "var(--font-menu, ChinaCyr), var(--font-montserrat), sans-serif",
                 }}
               >
                 Контакты
@@ -146,7 +148,7 @@ export default function ContactsPanel({ isOpen, onClose }: ContactsPanelProps) {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <a
-                  href={WHATSAPP_URL}
+                  href={whatsAppUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={linkStyle}
@@ -162,7 +164,7 @@ export default function ContactsPanel({ isOpen, onClose }: ContactsPanelProps) {
                   WhatsApp
                 </a>
                 <a
-                  href={TELEGRAM_URL}
+                  href={telegramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={linkStyle}
@@ -178,7 +180,7 @@ export default function ContactsPanel({ isOpen, onClose }: ContactsPanelProps) {
                   Telegram
                 </a>
                 <a
-                  href={`mailto:${EMAIL}`}
+                  href={`mailto:${email}`}
                   style={linkStyle}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = "rgba(255,255,255,0.15)";
@@ -189,7 +191,7 @@ export default function ContactsPanel({ isOpen, onClose }: ContactsPanelProps) {
                     e.currentTarget.style.borderColor = "rgba(211,163,115,0.4)";
                   }}
                 >
-                  {EMAIL}
+                  {email}
                 </a>
               </div>
             </div>

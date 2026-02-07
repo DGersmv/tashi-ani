@@ -1,0 +1,618 @@
+"use client";
+
+import React, { useState, useEffect, useCallback } from "react";
+import type { SiteSettingsPayload } from "@/app/api/site-settings/route";
+import type { MapPoint } from "@/app/api/site/points/route";
+
+const FONT_OPTIONS = [
+  { value: "ChinaCyr", label: "ChinaCyr" },
+  { value: "Montserrat", label: "Montserrat" },
+  { value: "var(--font-montserrat)", label: "Montserrat (системный)" },
+];
+
+const SERVICE_FOLDERS = ["Проектирование", "Визуализация", "Реализация", "Сопровождение"];
+
+const panelStyle: React.CSSProperties = {
+  backgroundColor: "rgba(255, 255, 255, 0.08)",
+  borderRadius: 12,
+  padding: 20,
+  marginBottom: 16,
+  border: "1px solid rgba(211, 163, 115, 0.3)",
+};
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  maxWidth: 400,
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: "1px solid rgba(255,255,255,0.3)",
+  background: "rgba(0,0,0,0.3)",
+  color: "white",
+  fontFamily: "Arial, sans-serif",
+};
+const labelStyle: React.CSSProperties = { display: "block", marginBottom: 6, color: "rgba(255,255,255,0.9)", fontFamily: "ChinaCyr, sans-serif" };
+const btnStyle: React.CSSProperties = {
+  padding: "10px 16px",
+  borderRadius: 8,
+  border: "none",
+  background: "rgba(211, 163, 115, 0.8)",
+  color: "white",
+  fontFamily: "ChinaCyr, sans-serif",
+  fontWeight: 600,
+  cursor: "pointer",
+  marginRight: 8,
+  marginTop: 8,
+};
+
+type SettingsTab = "contacts" | "map" | "bg" | "portfolio" | "services";
+
+const TABS: { id: SettingsTab; label: string }[] = [
+  { id: "contacts", label: "Контакты и шрифты" },
+  { id: "map", label: "Карта" },
+  { id: "bg", label: "Фоны" },
+  { id: "portfolio", label: "Портфолио" },
+  { id: "services", label: "Услуги" },
+];
+
+interface AdminSiteSettingsProps {
+  adminToken: string;
+  panelMode?: boolean;
+}
+
+export default function AdminSiteSettings({ adminToken, panelMode = false }: AdminSiteSettingsProps) {
+  const [settings, setSettings] = useState<SiteSettingsPayload | null>(null);
+  const [bgImages, setBgImages] = useState<string[]>([]);
+  const [points, setPoints] = useState<MapPoint[]>([]);
+  const [portfolioProjects, setPortfolioProjects] = useState<{ name: string; items: { file: string }[] }[]>([]);
+  const [servicesProjects, setServicesProjects] = useState<{ name: string; items: { file: string }[] }[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [activeServiceFolder, setActiveServiceFolder] = useState(SERVICE_FOLDERS[0]);
+  const [activePortfolioFolder, setActivePortfolioFolder] = useState("");
+  const [activeTab, setActiveTab] = useState<SettingsTab>("contacts");
+  const [mapLogoVersion, setMapLogoVersion] = useState(0);
+  const [headerLogoVersion, setHeaderLogoVersion] = useState(0);
+
+  const headers = { Authorization: `Bearer ${adminToken}` };
+
+  const loadSettings = useCallback(() => {
+    fetch("/api/site-settings", { cache: "no-store" })
+      .then((r) => r.json())
+      .then(setSettings)
+      .catch(() => setSettings(null));
+  }, []);
+  const loadBg = useCallback(() => {
+    fetch("/api/bg", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setBgImages(Array.isArray(d.images) ? d.images : []))
+      .catch(() => setBgImages([]));
+  }, []);
+  const loadPoints = useCallback(() => {
+    fetch("/api/site/points", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setPoints(Array.isArray(d.points) ? d.points : []))
+      .catch(() => setPoints([]));
+  }, []);
+  const loadPortfolio = useCallback(() => {
+    fetch("/api/portfolio/projects", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        const list = Array.isArray(d.projects) ? d.projects : [];
+        setPortfolioProjects(list);
+        setActivePortfolioFolder((prev) => (list.some((p: { name: string }) => p.name === prev) ? prev : list[0]?.name ?? ""));
+      })
+      .catch(() => setPortfolioProjects([]));
+  }, []);
+  const loadServices = useCallback(() => {
+    fetch("/api/services/projects", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setServicesProjects(Array.isArray(d.projects) ? d.projects : []))
+      .catch(() => setServicesProjects([]));
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+    loadBg();
+    loadPoints();
+    loadPortfolio();
+    loadServices();
+  }, [loadSettings, loadBg, loadPoints, loadPortfolio, loadServices]);
+
+  const saveSettings = async (partial: Partial<SiteSettingsPayload>) => {
+    if (!settings) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/site-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify(partial),
+      });
+      const data = await res.json();
+      if (data.menuFont !== undefined) setSettings(data);
+      else setSettings((s) => (s ? { ...s, ...partial } : null));
+      setMessage("Сохранено");
+    } catch {
+      setMessage("Ошибка сохранения");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const uploadBg = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/admin/bg", { method: "POST", headers, body: fd });
+      const data = await res.json();
+      if (data.images) setBgImages(data.images);
+      else setMessage(data.message || "Ошибка загрузки");
+    } catch {
+      setMessage("Ошибка загрузки фона");
+    }
+    e.target.value = "";
+  };
+
+  const deleteBg = async (url: string) => {
+    const file = url.replace(/^\/bg\//, "");
+    if (!file) return;
+    try {
+      const res = await fetch(`/api/admin/bg?file=${encodeURIComponent(file)}`, { method: "DELETE", headers });
+      const data = await res.json();
+      if (data.images) setBgImages(data.images);
+      else setMessage(data.message || "Ошибка удаления");
+    } catch {
+      setMessage("Ошибка удаления");
+    }
+  };
+
+  const uploadMapLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/admin/site/map-logo", { method: "POST", headers, body: fd });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setSettings((s) => (s ? { ...s, mapLogoPath: data.url } : null));
+        setMapLogoVersion((v) => v + 1);
+        await saveSettings({ ...settings!, mapLogoPath: data.url });
+      } else {
+        setMessage(data.message || "Ошибка загрузки");
+      }
+    } catch {
+      setMessage("Ошибка загрузки логотипа");
+    }
+    e.target.value = "";
+  };
+
+  const resetMapLogo = () => {
+    const defaultPath = "/points/default.png";
+    setSettings((s) => (s ? { ...s, mapLogoPath: defaultPath } : null));
+    setMapLogoVersion((v) => v + 1);
+    saveSettings({ mapLogoPath: defaultPath });
+  };
+
+  const uploadHeaderLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/admin/site/header-logo", { method: "POST", headers, body: fd });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setSettings((s) => (s ? { ...s, siteLogoPath: data.url } : null));
+        setHeaderLogoVersion((v) => v + 1);
+        await saveSettings({ ...settings!, siteLogoPath: data.url });
+      } else {
+        setMessage(data.message || "Ошибка загрузки");
+      }
+    } catch {
+      setMessage("Ошибка загрузки логотипа");
+    }
+    e.target.value = "";
+  };
+
+  const resetHeaderLogo = () => {
+    const defaultPath = "/logo_new.png";
+    setSettings((s) => (s ? { ...s, siteLogoPath: defaultPath } : null));
+    setHeaderLogoVersion((v) => v + 1);
+    saveSettings({ siteLogoPath: defaultPath });
+  };
+
+  const savePoints = async () => {
+    try {
+      const res = await fetch("/api/admin/site/points", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ points }),
+      });
+      const data = await res.json();
+      if (data.success) setMessage("Точки карты сохранены");
+      else setMessage(data.message || "Ошибка");
+    } catch {
+      setMessage("Ошибка сохранения точек");
+    }
+  };
+
+  const uploadPortfolio = async (folder: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch(`/api/admin/portfolio/${encodeURIComponent(folder)}`, { method: "POST", headers, body: fd });
+      const data = await res.json();
+      if (data.success) loadPortfolio();
+      else setMessage(data.message || "Ошибка");
+    } catch {
+      setMessage("Ошибка загрузки");
+    }
+    e.target.value = "";
+  };
+
+  const deletePortfolio = async (folder: string, fileUrl: string) => {
+    const filename = fileUrl.split("/").pop() || "";
+    try {
+      const res = await fetch(`/api/admin/portfolio/${encodeURIComponent(folder)}/${encodeURIComponent(filename)}`, { method: "DELETE", headers });
+      const data = await res.json();
+      if (data.success) loadPortfolio();
+      else setMessage(data.message || "Ошибка");
+    } catch {
+      setMessage("Ошибка удаления");
+    }
+  };
+
+  const uploadService = async (folder: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch(`/api/admin/services/${encodeURIComponent(folder)}`, { method: "POST", headers, body: fd });
+      const data = await res.json();
+      if (data.success) loadServices();
+      else setMessage(data.message || "Ошибка");
+    } catch {
+      setMessage("Ошибка загрузки");
+    }
+    e.target.value = "";
+  };
+
+  const deleteService = async (folder: string, fileUrl: string) => {
+    const filename = fileUrl.split("/").pop() || "";
+    try {
+      const res = await fetch(`/api/admin/services/${encodeURIComponent(folder)}/${encodeURIComponent(filename)}`, { method: "DELETE", headers });
+      const data = await res.json();
+      if (data.success) loadServices();
+      else setMessage(data.message || "Ошибка");
+    } catch {
+      setMessage("Ошибка удаления");
+    }
+  };
+
+  if (!settings) {
+    return (
+      <div style={{ ...panelStyle, margin: panelMode ? 20 : 0 }}>
+        <p style={{ color: "rgba(255,255,255,0.7)" }}>Загрузка настроек…</p>
+      </div>
+    );
+  }
+
+  const tabRow = panelMode ? (
+    <div style={{ display: "flex", gap: 4, padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.1)", flexWrap: "wrap" }}>
+      {TABS.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => setActiveTab(tab.id)}
+          style={{
+            padding: "8px 14px",
+            borderRadius: 8,
+            border: "none",
+            background: activeTab === tab.id ? "rgba(211, 163, 115, 0.5)" : "rgba(255,255,255,0.08)",
+            color: "white",
+            fontFamily: "ChinaCyr, sans-serif",
+            fontSize: "0.9rem",
+            cursor: "pointer",
+          }}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
+  const contentWrap = (content: React.ReactNode, tab: SettingsTab) => {
+    if (panelMode && activeTab !== tab) return null;
+    return content;
+  };
+
+  return (
+    <div style={{ marginTop: panelMode ? 0 : 24, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+      {!panelMode && (
+        <h2 style={{ fontFamily: "ChinaCyr, sans-serif", fontSize: "1.75rem", color: "white", marginBottom: 16 }}>
+          Настройки сайта
+        </h2>
+      )}
+      {tabRow}
+      <div style={{ overflow: "auto", padding: panelMode ? 20 : 0, flex: 1 }}>
+        {message && <p style={{ color: "rgba(211,163,115,1)", marginBottom: 12 }}>{message}</p>}
+
+        {contentWrap(
+      <div style={panelStyle}>
+        <h3 style={{ fontFamily: "ChinaCyr, sans-serif", color: "white", marginBottom: 12 }}>Контакты и шрифты</h3>
+        <div style={{ display: "grid", gap: 12, maxWidth: 500 }}>
+          <label style={labelStyle}>Телефон (в меню)</label>
+          <input
+            style={inputStyle}
+            value={settings.contactPhone ?? ""}
+            onChange={(e) => setSettings((s) => (s ? { ...s, contactPhone: e.target.value } : null))}
+          />
+          <label style={labelStyle}>WhatsApp (ссылка)</label>
+          <input
+            style={inputStyle}
+            value={settings.contactWhatsApp ?? ""}
+            onChange={(e) => setSettings((s) => (s ? { ...s, contactWhatsApp: e.target.value } : null))}
+          />
+          <label style={labelStyle}>Telegram (ссылка)</label>
+          <input
+            style={inputStyle}
+            value={settings.contactTelegram ?? ""}
+            onChange={(e) => setSettings((s) => (s ? { ...s, contactTelegram: e.target.value } : null))}
+          />
+          <label style={labelStyle}>Email</label>
+          <input
+            style={inputStyle}
+            value={settings.contactEmail ?? ""}
+            onChange={(e) => setSettings((s) => (s ? { ...s, contactEmail: e.target.value } : null))}
+          />
+          <label style={labelStyle}>Шрифт меню</label>
+          <select
+            style={inputStyle}
+            value={settings.menuFont ?? "ChinaCyr"}
+            onChange={(e) => setSettings((s) => (s ? { ...s, menuFont: e.target.value } : null))}
+          >
+            {FONT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <div style={{ marginTop: 8 }}>
+            <span style={labelStyle}>Образец меню:</span>
+            <p style={{ fontFamily: `${settings.menuFont ?? "ChinaCyr"}, Arial, sans-serif`, fontSize: "1.1rem", color: "white" }}>
+              Главная Услуги Портфолио Контакты
+            </p>
+          </div>
+          <label style={labelStyle}>Шрифт заголовков</label>
+          <select
+            style={inputStyle}
+            value={settings.headingFont ?? "ChinaCyr"}
+            onChange={(e) => setSettings((s) => (s ? { ...s, headingFont: e.target.value } : null))}
+          >
+            {FONT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <div style={{ marginTop: 8 }}>
+            <span style={labelStyle}>Образец заголовка:</span>
+            <p style={{ fontFamily: `${settings.headingFont ?? "ChinaCyr"}, Arial, sans-serif`, fontSize: "1.5rem", color: "white" }}>
+              Таши-Ани
+            </p>
+          </div>
+          <button style={btnStyle} onClick={() => saveSettings(settings)} disabled={saving}>
+            {saving ? "Сохранение…" : "Сохранить контакты и шрифты"}
+          </button>
+        </div>
+      </div>,
+      "contacts"
+        )}
+
+        {contentWrap(
+      <div style={panelStyle}>
+        <h3 style={{ fontFamily: "ChinaCyr, sans-serif", color: "white", marginBottom: 12 }}>Карта</h3>
+        <div style={{ display: "grid", gap: 12, maxWidth: 400 }}>
+          <label style={labelStyle}>Центр карты: долгота</label>
+          <input
+            style={inputStyle}
+            type="number"
+            step="any"
+            value={settings.mapCenterLon ?? ""}
+            onChange={(e) => setSettings((s) => (s ? { ...s, mapCenterLon: parseFloat(e.target.value) || undefined } : null))}
+          />
+          <label style={labelStyle}>Центр карты: широта</label>
+          <input
+            style={inputStyle}
+            type="number"
+            step="any"
+            value={settings.mapCenterLat ?? ""}
+            onChange={(e) => setSettings((s) => (s ? { ...s, mapCenterLat: parseFloat(e.target.value) || undefined } : null))}
+          />
+          <label style={labelStyle}>Логотип на карте</label>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ flex: "0 0 auto" }}>
+              <img
+                src={(settings.mapLogoPath || "/points/default.png") + "?v=" + mapLogoVersion}
+                alt="Логотип"
+                style={{ width: 64, height: 64, objectFit: "contain", borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.2)" }}
+                onError={(e) => { (e.target as HTMLImageElement).src = "/points/default.png"; }}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <input
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp"
+                onChange={uploadMapLogo}
+                style={{ fontSize: "0.9rem" }}
+              />
+              <button type="button" style={{ ...btnStyle, marginTop: 0 }} onClick={resetMapLogo}>
+                Сбросить на стандартный
+              </button>
+            </div>
+          </div>
+          <button style={btnStyle} onClick={() => saveSettings({ mapCenterLon: settings.mapCenterLon, mapCenterLat: settings.mapCenterLat, mapLogoPath: settings.mapLogoPath, siteLogoPath: settings.siteLogoPath })} disabled={saving}>
+            Сохранить настройки карты
+          </button>
+        </div>
+        <div style={{ marginTop: 20 }}>
+          <h4 style={{ fontFamily: "ChinaCyr, sans-serif", color: "white", marginBottom: 12 }}>Логотип в шапке (в круге)</h4>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ flex: "0 0 auto" }}>
+              <img
+                src={(settings.siteLogoPath || "/logo_new.png") + "?v=" + headerLogoVersion}
+                alt="Логотип сайта"
+                style={{ width: 64, height: 64, objectFit: "contain", borderRadius: "50%", border: "2px solid rgba(211,163,115,0.5)", background: "rgba(0,0,0,0.2)" }}
+                onError={(e) => { (e.target as HTMLImageElement).src = "/logo_new.png"; }}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <input
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp"
+                onChange={uploadHeaderLogo}
+                style={{ fontSize: "0.9rem" }}
+              />
+              <button type="button" style={{ ...btnStyle, marginTop: 0 }} onClick={resetHeaderLogo}>
+                Сбросить на стандартный
+              </button>
+            </div>
+          </div>
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <h4 style={{ fontFamily: "ChinaCyr, sans-serif", color: "rgba(255,255,255,0.9)", marginBottom: 8 }}>Точки (координаты)</h4>
+          <p style={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>
+            Формат: lon;lat;файл_маркера (файл опционален). Редактируйте и сохраняйте.
+          </p>
+          <textarea
+            style={{ ...inputStyle, minHeight: 120, fontFamily: "monospace" }}
+            value={points.map((p) => `${p.lon};${p.lat}${p.file ? ";" + p.file : ""}`).join("\n")}
+            onChange={(e) =>
+              setPoints(
+                e.target.value
+                  .trim()
+                  .split(/\r?\n/)
+                  .filter(Boolean)
+                  .map((row) => {
+                    const [lonStr, latStr, file] = row.split(/[,;]/).map((s) => s.trim());
+                    return { lon: parseFloat(lonStr) || 0, lat: parseFloat(latStr) || 0, ...(file ? { file } : {}) };
+                  })
+              )
+            }
+          />
+          <button style={btnStyle} onClick={savePoints}>Сохранить точки</button>
+        </div>
+      </div>,
+      "map"
+        )}
+
+        {contentWrap(
+      <div style={panelStyle}>
+        <h3 style={{ fontFamily: "ChinaCyr, sans-serif", color: "white", marginBottom: 12 }}>Фоновые фото</h3>
+        <input type="file" accept=".jpg,.jpeg,.png,.webp,.avif" onChange={uploadBg} style={{ marginBottom: 12 }} />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+          {bgImages.map((url) => (
+            <div key={url} style={{ position: "relative" }}>
+              <img src={url} alt="" style={{ width: 120, height: 80, objectFit: "cover", borderRadius: 8 }} />
+              <button
+                type="button"
+                style={{ position: "absolute", top: 4, right: 4, width: 24, height: 24, borderRadius: "50%", border: "none", background: "rgba(239,68,68,0.9)", color: "white", cursor: "pointer", fontSize: 14 }}
+                onClick={() => deleteBg(url)}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>,
+      "bg"
+        )}
+
+        {contentWrap(
+      <div style={panelStyle}>
+        <h3 style={{ fontFamily: "ChinaCyr, sans-serif", color: "white", marginBottom: 12 }}>Портфолио (фото по разделам)</h3>
+        <select
+          style={{ ...inputStyle, maxWidth: 300, marginBottom: 12 }}
+          value={activePortfolioFolder}
+          onChange={(e) => setActivePortfolioFolder(e.target.value)}
+        >
+          {portfolioProjects.map((p) => (
+            <option key={p.name} value={p.name}>{p.name}</option>
+          ))}
+        </select>
+        {activePortfolioFolder && (
+          <>
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,.avif,.mp4,.webm,.mov"
+              onChange={(e) => uploadPortfolio(activePortfolioFolder, e)}
+              style={{ marginBottom: 12 }}
+            />
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+              {(portfolioProjects.find((p) => p.name === activePortfolioFolder)?.items ?? []).map((item) => (
+                <div key={item.file} style={{ position: "relative" }}>
+                  {item.file.match(/\.(mp4|webm|mov)$/i) ? (
+                    <video src={item.file} style={{ width: 100, height: 70, objectFit: "cover", borderRadius: 8 }} muted />
+                  ) : (
+                    <img src={item.file} alt="" style={{ width: 100, height: 70, objectFit: "cover", borderRadius: 8 }} />
+                  )}
+                  <button
+                    type="button"
+                    style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: "50%", border: "none", background: "rgba(239,68,68,0.9)", color: "white", cursor: "pointer", fontSize: 12 }}
+                    onClick={() => deletePortfolio(activePortfolioFolder, item.file)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>,
+      "portfolio"
+        )}
+
+        {contentWrap(
+      <div style={panelStyle}>
+        <h3 style={{ fontFamily: "ChinaCyr, sans-serif", color: "white", marginBottom: 12 }}>Фото на панелях Услуг</h3>
+        <select
+          style={{ ...inputStyle, maxWidth: 300, marginBottom: 12 }}
+          value={activeServiceFolder}
+          onChange={(e) => setActiveServiceFolder(e.target.value)}
+        >
+          {SERVICE_FOLDERS.map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
+        <input
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp,.avif,.mp4,.webm,.mov"
+          onChange={(e) => uploadService(activeServiceFolder, e)}
+          style={{ marginBottom: 12 }}
+        />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+          {(servicesProjects.find((p) => p.name === activeServiceFolder)?.items ?? []).map((item) => (
+            <div key={item.file} style={{ position: "relative" }}>
+              {item.file.match(/\.(mp4|webm|mov)$/i) ? (
+                <video src={item.file} style={{ width: 100, height: 70, objectFit: "cover", borderRadius: 8 }} muted />
+              ) : (
+                <img src={item.file} alt="" style={{ width: 100, height: 70, objectFit: "cover", borderRadius: 8 }} />
+              )}
+              <button
+                type="button"
+                style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: "50%", border: "none", background: "rgba(239,68,68,0.9)", color: "white", cursor: "pointer", fontSize: 12 }}
+                onClick={() => deleteService(activeServiceFolder, item.file)}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>,
+      "services"
+        )}
+      </div>
+    </div>
+  );
+}

@@ -380,3 +380,12 @@ model BimModelComment {
 
   @@map("bim_model_comments")
 }
+
+// Настройки сайта (singleton: один ряд)
+model SiteSettings {
+  id        Int      @id @default(autoincrement())
+  json      String   // JSON: menuFont, headingFont, contactPhone, contactWhatsApp, contactTelegram, contactEmail, mapCenterLon, mapCenterLat, mapLogoPath
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}

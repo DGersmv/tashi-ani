@@ -2,11 +2,10 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useViewMode } from "@/components/ui/ViewMode";
 import { useLoginFlow } from "@/components/ui/LoginFlowContext";
+import { useSiteSettings } from "@/components/ui/SiteSettingsContext";
+import { useOpenSiteSettings } from "@/components/ui/OpenSiteSettingsContext";
 import LoginPanel from "@/components/LoginPanel";
 import ContactsPanel from "@/components/ContactsPanel";
-
-const PHONE = "+7 921 952-61-17";
-const WHATSAPP_URL = `https://wa.me/79219526117`;
 
 interface HeaderMenuProps {
   isLoggedIn?: boolean;
@@ -31,6 +30,10 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
   const [isAdmin, setIsAdmin] = useState(propIsAdmin || false);
   const { setMode, mode } = useViewMode();
   const { setLoginRequested } = useLoginFlow();
+  const { setOpenSiteSettings } = useOpenSiteSettings();
+  const settings = useSiteSettings();
+
+  const displayName = userEmail ? (userEmail.includes("@") ? userEmail.split("@")[0] : userEmail).slice(0, 16) : "";
   const loginOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contactsOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -177,7 +180,7 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
 
   // единый шрифт для всех пунктов — ChinaCyr (fallback Montserrat)
   const linkFont: React.CSSProperties = {
-    fontFamily: "ChinaCyr, var(--font-montserrat), sans-serif",
+    fontFamily: "var(--font-menu, ChinaCyr), var(--font-montserrat), sans-serif",
     whiteSpace: "nowrap",
     flexShrink: 1, // Позволяет элементам сжиматься
     minWidth: 0, // Позволяет тексту обрезаться
@@ -213,7 +216,7 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
               }, 520);
             }}
           >
-            {PHONE}
+            {settings.contactPhone ?? "+7 921 952-61-17"}
           </button>
 
           <button
@@ -269,9 +272,23 @@ export default function HeaderMenu({ isLoggedIn: propIsLoggedIn, isAdmin: propIs
                       ...linkFont, 
                       color: mode === "dashboard" || mode === "admin-dashboard" ? "rgba(211, 163, 115, 1)" : "rgba(211, 163, 115, 0.9)",
                     }}
+                    title={userEmail}
                   >
-                    {isAdmin ? "Админ" : "Кабинет"}
+                    {displayName || userEmail || (isAdmin ? "Админ" : "Кабинет")}
                   </button>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      className={`menu-link ${mode === "admin-dashboard" ? '' : ''}`}
+                      onClick={() => {
+                        setOpenSiteSettings(true);
+                        setMode("admin-dashboard");
+                      }}
+                      style={linkFont}
+                    >
+                      Настройки
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="menu-link"

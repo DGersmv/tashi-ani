@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import HeaderMenu from "./HeaderMenu";
+import { useSiteSettings } from "@/components/ui/SiteSettingsContext";
 
 interface HeaderProps {
   isLoggedIn?: boolean;
@@ -14,6 +15,8 @@ interface HeaderProps {
 export default function Header({ isLoggedIn, isAdmin, onAuthUpdate, onBeforeNavigateToHome }: HeaderProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  const settings = useSiteSettings();
+  const logoSrc = settings.siteLogoPath || "/logo_new.png";
 
   useEffect(() => {
     const handleResize = () => {
@@ -76,7 +79,7 @@ export default function Header({ isLoggedIn, isAdmin, onAuthUpdate, onBeforeNavi
         }}
       >
         <Image
-          src="/logo_new.png"
+          src={logoSrc}
           alt="TASHI ANI STUDIO"
           width={logoSize * 0.9}
           height={logoSize * 0.9}
