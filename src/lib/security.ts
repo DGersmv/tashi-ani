@@ -1,6 +1,7 @@
 /**
  * Security utilities for validating and sanitizing user input
  */
+import path from 'path';
 
 /**
  * Validates and sanitizes a filename to prevent path traversal attacks
@@ -53,9 +54,6 @@ export function sanitizeFilename(filename: string): string | null {
  */
 export function validateFilePath(filePath: string, allowedBaseDir: string): boolean {
   try {
-    const path = require('path');
-    const fs = require('fs');
-    
     // Resolve both paths to absolute
     const resolvedPath = path.resolve(filePath);
     const resolvedBase = path.resolve(allowedBaseDir);
@@ -86,7 +84,7 @@ export function validateFilePath(filePath: string, allowedBaseDir: string): bool
  */
 export function logSuspiciousActivity(
   type: string,
-  details: Record<string, any>,
+  details: Record<string, unknown>,
   request?: Request
 ): void {
   const logData = {

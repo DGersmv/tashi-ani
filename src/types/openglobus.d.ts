@@ -9,6 +9,7 @@ export {};
 
 declare global {
   interface Window {
-    og: any; // глобальный объект из og.js
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- globals from og.js
+    og: any;
   }
 }
