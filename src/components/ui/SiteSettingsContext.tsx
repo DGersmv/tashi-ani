@@ -29,10 +29,18 @@ function buildFontStack(selectedFont: string): string {
   return `${font}, ${CYRILLIC_FALLBACK}`;
 }
 
-const SiteSettingsContext = createContext<SiteSettingsPayload>(defaultSettings);
+export type SiteSettingsContextValue = SiteSettingsPayload & {
+  updateSettings: (partial: Partial<SiteSettingsPayload>) => void;
+};
+
+const noopUpdate = () => {};
+const SiteSettingsContext = createContext<SiteSettingsContextValue>({ ...defaultSettings, updateSettings: noopUpdate });
 
 export function SiteSettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<SiteSettingsPayload>(defaultSettings);
+  const updateSettings = React.useCallback((partial: Partial<SiteSettingsPayload>) => {
+    setSettings((prev) => ({ ...prev, ...partial }));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,13 +96,18 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     };
   }, [settings.customFonts]);
 
+  const contextValue: SiteSettingsContextValue = React.useMemo(
+    () => ({ ...settings, updateSettings }),
+    [settings, updateSettings]
+  );
+
   return (
-    <SiteSettingsContext.Provider value={settings}>
+    <SiteSettingsContext.Provider value={contextValue}>
       {children}
     </SiteSettingsContext.Provider>
   );
 }
 
-export function useSiteSettings() {
+export function useSiteSettings(): SiteSettingsContextValue {
   return useContext(SiteSettingsContext);
 }

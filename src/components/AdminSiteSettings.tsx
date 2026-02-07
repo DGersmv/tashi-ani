@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import type { SiteSettingsPayload, CustomFontItem } from "@/app/api/site-settings/route";
 import type { MapPoint } from "@/app/api/site/points/route";
+import { useSiteSettings } from "@/components/ui/SiteSettingsContext";
 
 const FONT_OPTIONS = [
   { value: "ChinaCyr", label: "ChinaCyr" },
@@ -60,6 +61,7 @@ interface AdminSiteSettingsProps {
 }
 
 export default function AdminSiteSettings({ adminToken, panelMode = false }: AdminSiteSettingsProps) {
+  const { updateSettings: updateGlobalSettings } = useSiteSettings();
   const [settings, setSettings] = useState<SiteSettingsPayload | null>(null);
   const [bgImages, setBgImages] = useState<string[]>([]);
   const [points, setPoints] = useState<MapPoint[]>([]);
@@ -220,8 +222,17 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
         body: JSON.stringify(partial),
       });
       const data = await res.json();
-      if (data.menuFont !== undefined) setSettings(data);
-      else setSettings((s) => (s ? { ...s, ...partial } : null));
+      if (!res.ok) {
+        setMessage("Ошибка сохранения");
+        return;
+      }
+      if (data && typeof data === "object") {
+        setSettings(data);
+        updateGlobalSettings(data);
+      } else {
+        setSettings((s) => (s ? { ...s, ...partial } : null));
+        updateGlobalSettings(partial);
+      }
       setMessage("Сохранено");
     } catch {
       setMessage("Ошибка сохранения");
