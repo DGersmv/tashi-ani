@@ -24,7 +24,28 @@ export type SiteSettingsPayload = {
   mainPageTextFont?: string;
   /** Макс. ширина блока текста на главной (px), строки переносятся в пределах этой ширины */
   mainPageTextMaxWidth?: number;
+  /** Заголовок блока на главной */
+  mainPageTitle?: string;
+  /** Блоки текста на главной: 0,4,7,12 — подзаголовки (жирнее), 5 — список (пункты через \n) */
+  mainPageBlocks?: string[];
 };
+
+const DEFAULT_MAIN_PAGE_TITLE = 'Ландшафт, который рекомендуют';
+const DEFAULT_MAIN_PAGE_BLOCKS = [
+  'Нам доверяют уже более 15 лет',
+  '90% наших клиентов приходят по личным рекомендациям — потому что мы создаём',
+  'не просто красивые пространства, а действительно комфортные и функциональные',
+  'участки, которые работают на ваш стиль жизни.',
+  'Мы умеем решать сложные задачи:',
+  'Перепады высот, затопление, сложные грунты — решаем.\nИндивидуальный подход: отражение вкусов и привычек клиента.\nПодбор растений по цвету, простоте ухода и эксклюзивности.\nОриентация только на реальные примеры в нашем климате.',
+  'Наши принципы: логика, функциональность, эстетика.',
+  'Личный онлайн-кабинет заказчика',
+  'Все этапы, документы, фото- и видеоотчёты, комментарии — в одном месте, с любого устройства.',
+  'Мы ведём проект от первого выезда до сдачи и последующего сервиса.',
+  'Архитектурное образование и опыт позволяют принимать грамотные решения на всех стадиях.',
+  'Экономим бюджет за счёт продуманной последовательности и прозрачных процессов.',
+  'Вы получаете не просто проект, а надёжного партнёра на всех этапах.',
+];
 
 const DEFAULTS: SiteSettingsPayload = {
   menuFont: 'ChinaCyr',
@@ -41,6 +62,8 @@ const DEFAULTS: SiteSettingsPayload = {
   mainPageHeadingFont: 'ChinaCyr',
   mainPageTextFont: 'ChinaCyr',
   mainPageTextMaxWidth: 720,
+  mainPageTitle: DEFAULT_MAIN_PAGE_TITLE,
+  mainPageBlocks: DEFAULT_MAIN_PAGE_BLOCKS,
 };
 
 function ensureAdmin(request: NextRequest) {
@@ -80,6 +103,7 @@ export async function PUT(request: NextRequest) {
       'menuFont', 'headingFont', 'contactPhone', 'contactWhatsApp',
       'contactTelegram', 'contactEmail', 'mapCenterLon', 'mapCenterLat', 'mapLogoPath', 'siteLogoPath',
       'customFonts', 'mainPageHeadingFont', 'mainPageTextFont', 'mainPageTextMaxWidth',
+      'mainPageTitle', 'mainPageBlocks',
     ];
     const update: SiteSettingsPayload = {};
     for (const key of allowed) {

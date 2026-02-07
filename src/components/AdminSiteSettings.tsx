@@ -569,9 +569,92 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
           <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.85rem" }}>
             Строки переносятся в пределах этой ширины; длинные слова при необходимости разбиваются.
           </p>
+
+          <div style={{ marginTop: 16, padding: 16, background: "rgba(0,0,0,0.25)", borderRadius: 8, maxWidth: settings.mainPageTextMaxWidth ?? 720 }}>
+            <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.8rem", marginBottom: 10 }}>Как будет выглядеть:</p>
+            <div style={{ color: "white", maxWidth: "100%", overflowWrap: "break-word", wordBreak: "break-word" }}>
+              <div
+                style={{
+                  fontFamily: `${settings.mainPageHeadingFont ?? "ChinaCyr"}, ChinaCyr, Arial, sans-serif`,
+                  fontSize: "1.5rem",
+                  fontWeight: 800,
+                  letterSpacing: "0.04em",
+                  background: "linear-gradient(90deg, #faecd1 0%, #d3a373 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  marginBottom: 12,
+                  lineHeight: 1.2,
+                }}
+              >
+                {settings.mainPageTitle || "Ландшафт, который рекомендуют"}
+              </div>
+              <p
+                style={{
+                  fontFamily: `${settings.mainPageTextFont ?? "ChinaCyr"}, ChinaCyr, Arial, sans-serif`,
+                  fontSize: "1rem",
+                  lineHeight: 1.5,
+                  margin: 0,
+                }}
+              >
+                {(settings.mainPageBlocks ?? [])[0] || "Нам доверяют уже более 15 лет"}
+              </p>
+            </div>
+          </div>
+
           <button style={btnStyle} onClick={() => saveSettings({ mainPageHeadingFont: settings.mainPageHeadingFont, mainPageTextFont: settings.mainPageTextFont, mainPageTextMaxWidth: settings.mainPageTextMaxWidth })} disabled={saving}>
-            {saving ? "Сохранение…" : "Сохранить настройки текста"}
+            {saving ? "Сохранение…" : "Сохранить шрифты и ширину"}
           </button>
+        </div>
+
+        <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.2)" }}>
+          <h4 style={{ fontFamily: "ChinaCyr, sans-serif", color: "white", marginBottom: 8 }}>Редактировать текст на главной</h4>
+          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.9rem", marginBottom: 12 }}>Заголовок и блоки текста. Блок 6 — список: каждый пункт с новой строки.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 600 }}>
+            <label style={labelStyle}>Заголовок</label>
+            <input
+              style={inputStyle}
+              value={settings.mainPageTitle ?? ""}
+              onChange={(e) => setSettings((s) => (s ? { ...s, mainPageTitle: e.target.value } : null))}
+              placeholder="Ландшафт, который рекомендуют"
+            />
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => {
+              const blocks = settings.mainPageBlocks ?? [];
+              const label = i === 5 ? "Блок 6 (список — каждый пункт с новой строки)" : [0, 4, 7, 12].includes(i) ? `Блок ${i + 1} (подзаголовок)` : `Блок ${i + 1}`;
+              const isList = i === 5;
+              return (
+                <div key={i}>
+                  <label style={{ ...labelStyle, fontSize: "0.9rem" }}>{label}</label>
+                  {isList ? (
+                    <textarea
+                      style={{ ...inputStyle, minHeight: 100 }}
+                      value={blocks[i] ?? ""}
+                      onChange={(e) => {
+                        const next = [...blocks];
+                        while (next.length <= i) next.push("");
+                        next[i] = e.target.value;
+                        setSettings((s) => (s ? { ...s, mainPageBlocks: next } : null));
+                      }}
+                      placeholder={"Пункт 1\nПункт 2\nПункт 3"}
+                    />
+                  ) : (
+                    <input
+                      style={inputStyle}
+                      value={blocks[i] ?? ""}
+                      onChange={(e) => {
+                        const next = [...blocks];
+                        while (next.length <= i) next.push("");
+                        next[i] = e.target.value;
+                        setSettings((s) => (s ? { ...s, mainPageBlocks: next } : null));
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            <button style={btnStyle} onClick={() => saveSettings({ mainPageTitle: settings.mainPageTitle, mainPageBlocks: settings.mainPageBlocks })} disabled={saving}>
+              {saving ? "Сохранение…" : "Сохранить текст"}
+            </button>
+          </div>
         </div>
       </div>,
       "text"

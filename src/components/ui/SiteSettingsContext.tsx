@@ -18,6 +18,8 @@ const defaultSettings: SiteSettingsPayload = {
   mainPageHeadingFont: "ChinaCyr",
   mainPageTextFont: "ChinaCyr",
   mainPageTextMaxWidth: 720,
+  mainPageTitle: "Ландшафт, который рекомендуют",
+  mainPageBlocks: [],
 };
 
 const CYRILLIC_FALLBACK = "ChinaCyr, Arial, Helvetica, sans-serif";
