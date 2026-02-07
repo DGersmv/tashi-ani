@@ -37,6 +37,8 @@ html, body { overflow-x: hidden; }
 :root {
   --font-menu: 'ChinaCyr', Arial, Helvetica, sans-serif;
   --font-heading: 'ChinaCyr', Arial, Helvetica, sans-serif;
+  --font-main-heading: 'ChinaCyr', Arial, Helvetica, sans-serif;
+  --font-main-text: 'ChinaCyr', Arial, Helvetica, sans-serif;
   --hero-top: 16px;
   --content-gutter: clamp(20px, 5vw, 48px);  /* одинаковый отступ слева и справа */
   --content-max: 1400px;                    /* макс. ширина контентной зоны */

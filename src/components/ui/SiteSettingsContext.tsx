@@ -61,6 +61,8 @@ export function SiteSettingsProvider({
           if (typeof document !== "undefined") {
             document.documentElement.style.setProperty("--font-menu", buildFontStack(next.menuFont || "ChinaCyr"));
             document.documentElement.style.setProperty("--font-heading", buildFontStack(next.headingFont || "ChinaCyr"));
+            document.documentElement.style.setProperty("--font-main-heading", buildFontStack(next.mainPageHeadingFont || "ChinaCyr"));
+            document.documentElement.style.setProperty("--font-main-text", buildFontStack(next.mainPageTextFont || "ChinaCyr"));
           }
         }
       })
@@ -74,7 +76,9 @@ export function SiteSettingsProvider({
     if (typeof document === "undefined") return;
     document.documentElement.style.setProperty("--font-menu", buildFontStack(settings.menuFont || "ChinaCyr"));
     document.documentElement.style.setProperty("--font-heading", buildFontStack(settings.headingFont || "ChinaCyr"));
-  }, [settings.menuFont, settings.headingFont]);
+    document.documentElement.style.setProperty("--font-main-heading", buildFontStack(settings.mainPageHeadingFont || "ChinaCyr"));
+    document.documentElement.style.setProperty("--font-main-text", buildFontStack(settings.mainPageTextFont || "ChinaCyr"));
+  }, [settings.menuFont, settings.headingFont, settings.mainPageHeadingFont, settings.mainPageTextFont]);
 
   // Инъекция @font-face для загруженных шрифтов (customFonts)
   useEffect(() => {

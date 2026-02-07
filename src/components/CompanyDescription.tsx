@@ -70,8 +70,6 @@ const LIST_INDEX = 5;
 
 export default function CompanyDescription({ enteredHome = false, forceHidden = false }: { enteredHome?: boolean; forceHidden?: boolean }) {
   const settings = useSiteSettings();
-  const headingFont = settings.mainPageHeadingFont || "ChinaCyr";
-  const textFont = settings.mainPageTextFont || "ChinaCyr";
   const maxWidth = settings.mainPageTextMaxWidth ?? 720;
   const title = settings.mainPageTitle ?? DEFAULT_MAIN_PAGE_TITLE;
   const blocks = settings.mainPageBlocks ?? DEFAULT_MAIN_PAGE_BLOCKS;
@@ -86,7 +84,7 @@ export default function CompanyDescription({ enteredHome = false, forceHidden = 
       style={{
         width: "100%",
         maxWidth: maxWidth,
-        fontFamily: `${textFont}, ChinaCyr, Arial, Helvetica, sans-serif`,
+        fontFamily: "var(--font-main-text, ChinaCyr, Arial, Helvetica, sans-serif)",
         marginLeft: 0,
         alignSelf: "flex-start",
         overflowWrap: "break-word",
@@ -97,7 +95,7 @@ export default function CompanyDescription({ enteredHome = false, forceHidden = 
         <h2
           className="font-extrabold text-[clamp(1.8rem,5vw,2.8rem)] mb-6"
           style={{
-            fontFamily: `${headingFont}, ChinaCyr, Arial, sans-serif`,
+            fontFamily: "var(--font-main-heading, ChinaCyr, Arial, sans-serif)",
             letterSpacing: "0.04em",
             background: "linear-gradient(90deg, #faecd1 0%, #d3a373 100%)",
             WebkitBackgroundClip: "text",

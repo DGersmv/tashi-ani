@@ -26,16 +26,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const initialSettings = await getSiteSettings();
   const fontMenu = buildFontStack(initialSettings.menuFont || "ChinaCyr");
   const fontHeading = buildFontStack(initialSettings.headingFont || "ChinaCyr");
+  const fontMainHeading = buildFontStack(initialSettings.mainPageHeadingFont || "ChinaCyr");
+  const fontMainText = buildFontStack(initialSettings.mainPageTextFont || "ChinaCyr");
 
   return (
     <html lang="ru" className={montserrat.variable}>
       <head>
         {/* Предзагрузка первого фона как плейсхолдера, чтобы не было «чёрного кадра» */}
         <link rel="preload" as="image" href="/portfolio/01.jpg" />
-        {/* Шрифты меню и заголовков с первого кадра (без мерцания) */}
+        {/* Шрифты меню, заголовков и главной страницы с первого кадра (без мерцания) */}
         <style
           dangerouslySetInnerHTML={{
-            __html: `:root{--font-menu:${fontMenu};--font-heading:${fontHeading};}`,
+            __html: `:root{--font-menu:${fontMenu};--font-heading:${fontHeading};--font-main-heading:${fontMainHeading};--font-main-text:${fontMainText};}`,
           }}
         />
       </head>
