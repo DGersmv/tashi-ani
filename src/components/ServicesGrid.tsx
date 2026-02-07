@@ -64,12 +64,15 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
         <div className="servicesGrid">
           {items.map((svc, idx) => {
             const project = getProjectByTitle(svc.title);
+            const firstImage = project.items.find((i) => i.type === "image");
+            const coverFile = firstImage?.file ?? (project.items[0]?.type === "video" ? project.items[0].file : undefined);
             return (
               <div key={svc.id} className={`svc svc--${idx + 1}`}>
                 <ServiceCard
                   title={svc.title}
                   subtitle={svc.subtitle}
                   itemCount={project.items.length}
+                  coverFile={coverFile}
                   onClick={() => setOpenProject(project)}
                 />
               </div>
@@ -96,7 +99,9 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
                   <button type="button" className="servicesGalleryClose" aria-label="Закрыть" onClick={() => setOpenProject(null)}>✕</button>
                 </div>
                 {galleryItems.length === 0 ? (
-                  <p style={{ color: "rgba(255,255,255,0.7)", padding: 24 }}>Нет фото в этом разделе.</p>
+                  <p style={{ color: "rgba(255,255,255,0.7)", padding: 24 }}>
+                    Нет фото в этом разделе. Загрузите их в настройках сайта (Админка → Услуги).
+                  </p>
                 ) : (
                   <>
                     <div className="servicesGalleryGrid">
@@ -244,7 +249,20 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
   );
 }
 
-function ServiceCard({ title, subtitle, itemCount, onClick }: { title: string; subtitle?: string; itemCount?: number; onClick?: () => void }) {
+function ServiceCard({
+  title,
+  subtitle,
+  itemCount,
+  coverFile,
+  onClick,
+}: {
+  title: string;
+  subtitle?: string;
+  itemCount?: number;
+  coverFile?: string;
+  onClick?: () => void;
+}) {
+  const coverSrc = coverFile ? normalizeSrc(coverFile) : undefined;
   return (
     <div className="w-full">
       <motion.div
@@ -265,7 +283,7 @@ function ServiceCard({ title, subtitle, itemCount, onClick }: { title: string; s
             aspectRatio: "1 / 1.41",
             borderRadius: 16,
             overflow: "hidden",
-            background: "rgba(255,255,255,0.15)",
+            background: coverSrc ? undefined : "rgba(255,255,255,0.15)",
             backdropFilter: "blur(28px)",
             border: "2.5px solid rgba(211,163,115,0.6)",
             display: "flex",
@@ -274,6 +292,27 @@ function ServiceCard({ title, subtitle, itemCount, onClick }: { title: string; s
             cursor: "pointer",
           }}
         >
+          {coverSrc && (
+            <>
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  backgroundImage: `url(${coverSrc})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  filter: "saturate(1.05) brightness(0.85)",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "linear-gradient(to top, rgba(0,0,0,.7), rgba(0,0,0,.2))",
+                }}
+              />
+            </>
+          )}
           <div
             className="svc-card-inner"
             style={{
@@ -290,7 +329,7 @@ function ServiceCard({ title, subtitle, itemCount, onClick }: { title: string; s
               boxSizing: "border-box",
             }}
           >
-            <h3 className="svc-card-title" style={{ fontSize: "0.82rem", maxWidth: "100%" }}>{title}</h3>
+            <h3 className="svc-card-title" style={{ fontSize: "0.82rem", maxWidth: "100%", fontFamily: "var(--font-heading, ChinaCyr), sans-serif" }}>{title}</h3>
             {subtitle ? (
               <p className="svc-card-subtitle" style={{ fontSize: "0.75rem" }}>{subtitle}</p>
             ) : null}
