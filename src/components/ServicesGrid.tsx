@@ -264,19 +264,17 @@ function ServiceCard({
 }) {
   const coverSrc = coverFile ? normalizeSrc(coverFile) : undefined;
   return (
-    <div className="w-full">
+    <div className="w-full" style={{ pointerEvents: "auto" }}>
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.44, 0.13, 0.35, 1.08] }}
-        style={{ position: "relative", width: "100%", borderRadius: 16 }}
+        style={{ position: "relative", width: "100%", borderRadius: 16, pointerEvents: "auto" }}
       >
-        <div
+        <button
+          type="button"
           className="group svc-card"
-          role="button"
-          tabIndex={0}
-          onClick={onClick}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick?.()}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick?.(); }}
           style={{
             position: "relative",
             width: "100%",
@@ -290,6 +288,12 @@ function ServiceCard({
             alignItems: "flex-end",
             justifyContent: "stretch",
             cursor: "pointer",
+            pointerEvents: "auto",
+            padding: 0,
+            margin: 0,
+            font: "inherit",
+            color: "inherit",
+            textAlign: "left",
           }}
         >
           {coverSrc && (
@@ -302,6 +306,7 @@ function ServiceCard({
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                   filter: "saturate(1.05) brightness(0.85)",
+                  pointerEvents: "none",
                 }}
               />
               <div
@@ -309,6 +314,7 @@ function ServiceCard({
                   position: "absolute",
                   inset: 0,
                   background: "linear-gradient(to top, rgba(0,0,0,.7), rgba(0,0,0,.2))",
+                  pointerEvents: "none",
                 }}
               />
             </>
@@ -337,7 +343,7 @@ function ServiceCard({
               <span style={{ fontSize: "0.7rem", opacity: 0.9 }}>Фото: {itemCount}</span>
             )}
           </div>
-        </div>
+        </button>
       </motion.div>
     </div>
   );

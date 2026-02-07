@@ -212,9 +212,10 @@ export default function Home() {
                     top: 0,
                     bottom: 0,
                     zIndex: 2,
+                    pointerEvents: "auto",
                   }}
                 >
-                  <div className="page-wrap">
+                  <div className="page-wrap" style={{ pointerEvents: "auto" }}>
                     <ServicesGrid />
                   </div>
                 </motion.div>
