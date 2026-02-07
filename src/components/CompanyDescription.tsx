@@ -2,6 +2,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useLoginFlow } from "@/components/ui/LoginFlowContext";
+import { useSiteSettings } from "@/components/ui/SiteSettingsContext";
 
 const LINE_DELAY = 0.06;
 const DURATION = 0.35;
@@ -48,27 +49,36 @@ function AnimatedLine({
 }
 
 export default function CompanyDescription({ enteredHome = false, forceHidden = false }: { enteredHome?: boolean; forceHidden?: boolean }) {
+  const settings = useSiteSettings();
+  const headingFont = settings.mainPageHeadingFont || "ChinaCyr";
+  const textFont = settings.mainPageTextFont || "ChinaCyr";
+  const maxWidth = settings.mainPageTextMaxWidth ?? 720;
+
   return (
     <div
       className="text-white flex flex-col space-y-6 text-left"
       style={{
         width: "100%",
-        fontFamily: "'Montserrat Alternates', sans-serif",
+        maxWidth: maxWidth,
+        fontFamily: `${textFont}, ChinaCyr, Arial, Helvetica, sans-serif`,
         marginLeft: 0,
         alignSelf: "flex-start",
+        overflowWrap: "break-word",
+        wordBreak: "break-word",
       }}
     >
       <AnimatedLine index={0} totalLines={TOTAL_LINES} enteredHome={enteredHome} forceHidden={forceHidden}>
         <h2
           className="font-extrabold text-[clamp(1.8rem,5vw,2.8rem)] mb-6"
           style={{
-            fontFamily: "'ChinaCyr', Arial, sans-serif",
+            fontFamily: `${headingFont}, ChinaCyr, Arial, sans-serif`,
             letterSpacing: "0.04em",
             background: "linear-gradient(90deg, #faecd1 0%, #d3a373 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             display: "inline-block",
             lineHeight: 1.1,
+            maxWidth: "100%",
           }}
         >
           Ландшафт, который рекомендуют

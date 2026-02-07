@@ -15,6 +15,9 @@ const defaultSettings: SiteSettingsPayload = {
   mapLogoPath: "/points/default.png",
   siteLogoPath: "/logo_new.png",
   customFonts: [],
+  mainPageHeadingFont: "ChinaCyr",
+  mainPageTextFont: "ChinaCyr",
+  mainPageTextMaxWidth: 720,
 };
 
 const CYRILLIC_FALLBACK = "ChinaCyr, Arial, Helvetica, sans-serif";

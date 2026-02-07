@@ -18,6 +18,12 @@ export type SiteSettingsPayload = {
   mapLogoPath?: string;
   siteLogoPath?: string;
   customFonts?: CustomFontItem[];
+  /** Шрифт заголовка на главной */
+  mainPageHeadingFont?: string;
+  /** Шрифт основного текста на главной */
+  mainPageTextFont?: string;
+  /** Макс. ширина блока текста на главной (px), строки переносятся в пределах этой ширины */
+  mainPageTextMaxWidth?: number;
 };
 
 const DEFAULTS: SiteSettingsPayload = {
@@ -32,6 +38,9 @@ const DEFAULTS: SiteSettingsPayload = {
   mapLogoPath: '/points/default.png',
   siteLogoPath: '/logo_new.png',
   customFonts: [],
+  mainPageHeadingFont: 'ChinaCyr',
+  mainPageTextFont: 'ChinaCyr',
+  mainPageTextMaxWidth: 720,
 };
 
 function ensureAdmin(request: NextRequest) {
@@ -70,7 +79,7 @@ export async function PUT(request: NextRequest) {
     const allowed: (keyof SiteSettingsPayload)[] = [
       'menuFont', 'headingFont', 'contactPhone', 'contactWhatsApp',
       'contactTelegram', 'contactEmail', 'mapCenterLon', 'mapCenterLat', 'mapLogoPath', 'siteLogoPath',
-      'customFonts',
+      'customFonts', 'mainPageHeadingFont', 'mainPageTextFont', 'mainPageTextMaxWidth',
     ];
     const update: SiteSettingsPayload = {};
     for (const key of allowed) {

@@ -43,10 +43,11 @@ const btnStyle: React.CSSProperties = {
   marginTop: 8,
 };
 
-type SettingsTab = "contacts" | "map" | "bg" | "portfolio" | "services";
+type SettingsTab = "contacts" | "map" | "bg" | "portfolio" | "services" | "text";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "contacts", label: "Контакты и шрифты" },
+  { id: "text", label: "Текст на главной" },
   { id: "map", label: "Карта" },
   { id: "bg", label: "Фоны" },
   { id: "portfolio", label: "Портфолио" },
@@ -526,6 +527,54 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
         </div>
       </div>,
       "contacts"
+        )}
+
+        {contentWrap(
+      <div style={panelStyle}>
+        <h3 style={{ fontFamily: "ChinaCyr, sans-serif", color: "white", marginBottom: 12 }}>Текст на главной</h3>
+        <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.9rem", marginBottom: 16 }}>
+          Шрифты и максимальная ширина блока. Строки не выходят за эту ширину и переносятся автоматически.
+        </p>
+        <div style={{ display: "grid", gap: 12, maxWidth: 500 }}>
+          <label style={labelStyle}>Шрифт заголовка на главной</label>
+          <select
+            style={inputStyle}
+            value={settings.mainPageHeadingFont ?? "ChinaCyr"}
+            onChange={(e) => setSettings((s) => (s ? { ...s, mainPageHeadingFont: e.target.value } : null))}
+          >
+            {allFontOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <label style={labelStyle}>Шрифт основного текста на главной</label>
+          <select
+            style={inputStyle}
+            value={settings.mainPageTextFont ?? "ChinaCyr"}
+            onChange={(e) => setSettings((s) => (s ? { ...s, mainPageTextFont: e.target.value } : null))}
+          >
+            {allFontOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <label style={labelStyle}>Макс. ширина блока текста (px)</label>
+          <input
+            style={inputStyle}
+            type="number"
+            min={320}
+            max={1200}
+            step={8}
+            value={settings.mainPageTextMaxWidth ?? 720}
+            onChange={(e) => setSettings((s) => (s ? { ...s, mainPageTextMaxWidth: parseInt(e.target.value, 10) || undefined } : null))}
+          />
+          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.85rem" }}>
+            Строки переносятся в пределах этой ширины; длинные слова при необходимости разбиваются.
+          </p>
+          <button style={btnStyle} onClick={() => saveSettings({ mainPageHeadingFont: settings.mainPageHeadingFont, mainPageTextFont: settings.mainPageTextFont, mainPageTextMaxWidth: settings.mainPageTextMaxWidth })} disabled={saving}>
+            {saving ? "Сохранение…" : "Сохранить настройки текста"}
+          </button>
+        </div>
+      </div>,
+      "text"
         )}
 
         {contentWrap(
