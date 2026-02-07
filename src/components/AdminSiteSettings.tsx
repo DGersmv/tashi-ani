@@ -370,10 +370,10 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
   };
 
   const uploadService = async (folder: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const fileList = e.target.files;
+    if (!fileList?.length) return;
     const fd = new FormData();
-    fd.append("file", file);
+    for (let i = 0; i < fileList.length; i++) fd.append("file", fileList[i]);
     try {
       const res = await fetch(`/api/admin/services/${encodeURIComponent(folder)}`, { method: "POST", headers, body: fd });
       const data = await res.json();
@@ -851,9 +851,11 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
         <input
           type="file"
           accept=".jpg,.jpeg,.png,.webp,.avif,.mp4,.webm,.mov"
+          multiple
           onChange={(e) => uploadService(activeServiceFolder, e)}
           style={{ marginBottom: 12 }}
         />
+        <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.85rem", marginTop: -6, marginBottom: 12 }}>Можно выбрать несколько файлов сразу</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
           {(servicesProjects.find((p) => p.name === activeServiceFolder)?.items ?? []).map((item) => (
             <div key={item.file} style={{ position: "relative" }}>

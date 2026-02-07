@@ -40,18 +40,21 @@ export async function POST(
   try {
     const dir = path.join(SERVICES_ROOT, safe);
     const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-    if (!file) {
-      return NextResponse.json({ success: false, message: 'Файл не найден' }, { status: 400 });
-    }
-    const fname = path.basename(file.name).replace(/[^a-zA-Z0-9._-]/g, '_');
-    if (!MEDIA_RE.test(fname)) {
-      return NextResponse.json({ success: false, message: 'Разрешены только изображения и видео' }, { status: 400 });
+    const files = formData.getAll('file') as (File | string)[];
+    const toUpload = files.filter((f): f is File => f instanceof File && f.size > 0);
+    if (toUpload.length === 0) {
+      return NextResponse.json({ success: false, message: 'Файлы не выбраны' }, { status: 400 });
     }
     await fs.mkdir(dir, { recursive: true });
-    const filePath = path.join(dir, fname);
-    await fs.writeFile(filePath, Buffer.from(await file.arrayBuffer()));
-    return NextResponse.json({ success: true, file: `/services/${encodeURIComponent(safe)}/${encodeURIComponent(fname)}` });
+    const uploaded: string[] = [];
+    for (const file of toUpload) {
+      const fname = path.basename(file.name).replace(/[^a-zA-Z0-9._-]/g, '_');
+      if (!MEDIA_RE.test(fname)) continue;
+      const filePath = path.join(dir, fname);
+      await fs.writeFile(filePath, Buffer.from(await file.arrayBuffer()));
+      uploaded.push(`/services/${safe}/${fname}`);
+    }
+    return NextResponse.json({ success: true, files: uploaded });
   } catch (e) {
     console.error('admin services upload', e);
     return NextResponse.json({ success: false, message: 'Ошибка загрузки' }, { status: 500 });
