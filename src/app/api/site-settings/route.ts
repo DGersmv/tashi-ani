@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/userManagement';
 
+export type CustomFontItem = { fontFamily: string; url: string };
+
 export type SiteSettingsPayload = {
   menuFont?: string;
   headingFont?: string;
@@ -15,6 +17,7 @@ export type SiteSettingsPayload = {
   mapCenterLat?: number;
   mapLogoPath?: string;
   siteLogoPath?: string;
+  customFonts?: CustomFontItem[];
 };
 
 const DEFAULTS: SiteSettingsPayload = {
@@ -28,6 +31,7 @@ const DEFAULTS: SiteSettingsPayload = {
   mapCenterLat: 59.94,
   mapLogoPath: '/points/default.png',
   siteLogoPath: '/logo_new.png',
+  customFonts: [],
 };
 
 function ensureAdmin(request: NextRequest) {
@@ -66,6 +70,7 @@ export async function PUT(request: NextRequest) {
     const allowed: (keyof SiteSettingsPayload)[] = [
       'menuFont', 'headingFont', 'contactPhone', 'contactWhatsApp',
       'contactTelegram', 'contactEmail', 'mapCenterLon', 'mapCenterLat', 'mapLogoPath', 'siteLogoPath',
+      'customFonts',
     ];
     const update: SiteSettingsPayload = {};
     for (const key of allowed) {

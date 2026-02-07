@@ -14,7 +14,15 @@ const defaultSettings: SiteSettingsPayload = {
   mapCenterLat: 59.94,
   mapLogoPath: "/points/default.png",
   siteLogoPath: "/logo_new.png",
+  customFonts: [],
 };
+
+const CYRILLIC_FALLBACK = "ChinaCyr, Arial, Helvetica, sans-serif";
+
+function buildFontStack(selectedFont: string): string {
+  const font = selectedFont?.trim() || "ChinaCyr";
+  return `${font}, ${CYRILLIC_FALLBACK}`;
+}
 
 const SiteSettingsContext = createContext<SiteSettingsPayload>(defaultSettings);
 
@@ -30,10 +38,8 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
           const next = { ...defaultSettings, ...data };
           setSettings(next);
           if (typeof document !== "undefined") {
-            const menuStack = `${next.menuFont || "ChinaCyr"}, Arial, Helvetica, sans-serif`;
-            const headingStack = `${next.headingFont || "ChinaCyr"}, Arial, Helvetica, sans-serif`;
-            document.documentElement.style.setProperty("--font-menu", menuStack);
-            document.documentElement.style.setProperty("--font-heading", headingStack);
+            document.documentElement.style.setProperty("--font-menu", buildFontStack(next.menuFont || "ChinaCyr"));
+            document.documentElement.style.setProperty("--font-heading", buildFontStack(next.headingFont || "ChinaCyr"));
           }
         }
       })
@@ -45,11 +51,37 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const menuStack = `${settings.menuFont || "ChinaCyr"}, Arial, Helvetica, sans-serif`;
-    const headingStack = `${settings.headingFont || "ChinaCyr"}, Arial, Helvetica, sans-serif`;
-    document.documentElement.style.setProperty("--font-menu", menuStack);
-    document.documentElement.style.setProperty("--font-heading", headingStack);
+    document.documentElement.style.setProperty("--font-menu", buildFontStack(settings.menuFont || "ChinaCyr"));
+    document.documentElement.style.setProperty("--font-heading", buildFontStack(settings.headingFont || "ChinaCyr"));
   }, [settings.menuFont, settings.headingFont]);
+
+  // Инъекция @font-face для загруженных шрифтов (customFonts)
+  useEffect(() => {
+    const customFonts = settings.customFonts ?? [];
+    if (customFonts.length === 0) return;
+    const id = "custom-fonts-style";
+    let el = document.getElementById(id) as HTMLStyleElement | null;
+    if (!el) {
+      el = document.createElement("style");
+      el.id = id;
+      document.head.appendChild(el);
+    }
+    const format = (url: string) => {
+      if (url.endsWith(".woff2")) return "woff2";
+      if (url.endsWith(".woff")) return "woff";
+      return "truetype";
+    };
+    el.textContent = customFonts
+      .map(
+        (f) =>
+          `@font-face{font-family:'${f.fontFamily.replace(/'/g, "\\'")}';src:url('${f.url}') format('${format(f.url)}');font-display:swap;}`
+      )
+      .join("\n");
+    return () => {
+      const style = document.getElementById(id);
+      if (style) style.remove();
+    };
+  }, [settings.customFonts]);
 
   return (
     <SiteSettingsContext.Provider value={settings}>

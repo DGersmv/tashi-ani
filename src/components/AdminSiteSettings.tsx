@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import type { SiteSettingsPayload } from "@/app/api/site-settings/route";
+import type { SiteSettingsPayload, CustomFontItem } from "@/app/api/site-settings/route";
 import type { MapPoint } from "@/app/api/site/points/route";
 
 const FONT_OPTIONS = [
@@ -71,8 +71,17 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
   const [activeTab, setActiveTab] = useState<SettingsTab>("contacts");
   const [mapLogoVersion, setMapLogoVersion] = useState(0);
   const [headerLogoVersion, setHeaderLogoVersion] = useState(0);
+  const [fontUploading, setFontUploading] = useState(false);
+  const [fontUploadError, setFontUploadError] = useState<string | null>(null);
+  const fontFileInputRef = React.useRef<HTMLInputElement>(null);
 
   const headers = { Authorization: `Bearer ${adminToken}` };
+
+  const allFontOptions = React.useMemo(() => {
+    const base = [...FONT_OPTIONS];
+    const custom = (settings?.customFonts ?? []).map((f: CustomFontItem) => ({ value: f.fontFamily, label: `${f.fontFamily} (загружен)` }));
+    return [...base, ...custom];
+  }, [settings?.customFonts]);
 
   const loadSettings = useCallback(() => {
     fetch("/api/site-settings", { cache: "no-store" })
@@ -116,6 +125,56 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
     loadPortfolio();
     loadServices();
   }, [loadSettings, loadBg, loadPoints, loadPortfolio, loadServices]);
+
+  const handleFontUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const input = fontFileInputRef.current;
+    const file = input?.files?.[0];
+    if (!file) {
+      setFontUploadError("Выберите файл шрифта (TTF, WOFF, WOFF2)");
+      return;
+    }
+    setFontUploadError(null);
+    setFontUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/admin/site/upload-font", {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setFontUploadError(data.message || "Ошибка загрузки");
+        return;
+      }
+      const customFonts = [...(settings?.customFonts ?? []), { fontFamily: data.fontFamily, url: data.url }];
+      await saveSettings({ customFonts });
+      if (input) input.value = "";
+    } catch (err) {
+      setFontUploadError("Ошибка сети");
+    } finally {
+      setFontUploading(false);
+    }
+  };
+
+  const removeCustomFont = async (fontFamily: string) => {
+    if (!settings) return;
+    const customFonts = (settings.customFonts ?? []).filter((f) => f.fontFamily !== fontFamily);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/site-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ ...settings, customFonts }),
+      });
+      const data = await res.json();
+      if (data && typeof data === "object") setSettings(data);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const saveSettings = async (partial: Partial<SiteSettingsPayload>) => {
     if (!settings) return;
@@ -370,19 +429,46 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
             value={settings.contactEmail ?? ""}
             onChange={(e) => setSettings((s) => (s ? { ...s, contactEmail: e.target.value } : null))}
           />
+          <div style={{ marginTop: 16, marginBottom: 8, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.2)" }}>
+            <span style={labelStyle}>Загрузить свой шрифт</span>
+            <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.9rem", marginBottom: 8 }}>TTF, WOFF, WOFF2 — сразу появится в списке и в образце ниже</p>
+            <form onSubmit={handleFontUpload} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              <input
+                ref={fontFileInputRef}
+                type="file"
+                accept=".ttf,.otf,.woff,.woff2"
+                style={{ ...inputStyle, maxWidth: 220 }}
+              />
+              <button type="submit" style={btnStyle} disabled={fontUploading}>
+                {fontUploading ? "Загрузка…" : "Загрузить"}
+              </button>
+            </form>
+            {fontUploadError && <p style={{ color: "rgba(239,68,68,0.9)", fontSize: "0.9rem", marginTop: 8 }}>{fontUploadError}</p>}
+            {(settings.customFonts ?? []).length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <span style={labelStyle}>Загруженные шрифты:</span>
+                {(settings.customFonts ?? []).map((f) => (
+                  <div key={f.fontFamily + f.url} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                    <span style={{ color: "white", fontFamily: "Arial, sans-serif", fontSize: "0.9rem" }}>{f.fontFamily}</span>
+                    <button type="button" onClick={() => removeCustomFont(f.fontFamily)} style={{ ...btnStyle, padding: "4px 10px", fontSize: "0.85rem" }} disabled={saving}>Удалить</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <label style={labelStyle}>Шрифт меню</label>
           <select
             style={inputStyle}
             value={settings.menuFont ?? "ChinaCyr"}
             onChange={(e) => setSettings((s) => (s ? { ...s, menuFont: e.target.value } : null))}
           >
-            {FONT_OPTIONS.map((o) => (
+            {allFontOptions.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
           <div style={{ marginTop: 8 }}>
             <span style={labelStyle}>Образец меню:</span>
-            <p style={{ fontFamily: `${settings.menuFont ?? "ChinaCyr"}, Arial, sans-serif`, fontSize: "1.1rem", color: "white" }}>
+            <p style={{ fontFamily: `${settings.menuFont ?? "ChinaCyr"}, ChinaCyr, Arial, sans-serif`, fontSize: "1.1rem", color: "white" }}>
               Главная Услуги Портфолио Контакты
             </p>
           </div>
@@ -392,13 +478,13 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
             value={settings.headingFont ?? "ChinaCyr"}
             onChange={(e) => setSettings((s) => (s ? { ...s, headingFont: e.target.value } : null))}
           >
-            {FONT_OPTIONS.map((o) => (
+            {allFontOptions.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
           <div style={{ marginTop: 8 }}>
             <span style={labelStyle}>Образец заголовка:</span>
-            <p style={{ fontFamily: `${settings.headingFont ?? "ChinaCyr"}, Arial, sans-serif`, fontSize: "1.5rem", color: "white" }}>
+            <p style={{ fontFamily: `${settings.headingFont ?? "ChinaCyr"}, ChinaCyr, Arial, sans-serif`, fontSize: "1.5rem", color: "white" }}>
               Таши-Ани
             </p>
           </div>
