@@ -22,9 +22,6 @@ function normalizeSrc(src: string) {
 export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services?: Service[] }) {
   const items = services.slice(0, 4);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [openProject, setOpenProject] = useState<Project | null>(null);
-  const [lightboxIdx, setLightboxIdx] = useState(0);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     let c = false;
@@ -38,25 +35,6 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
   }, []);
 
   const getProjectByTitle = (title: string) => projects.find((p) => p.name === title) ?? { name: title, items: [] };
-  const galleryItems = openProject?.items ?? [];
-  const currentItem = galleryItems[lightboxIdx];
-
-  useEffect(() => {
-    if (openProject) {
-      setLightboxIdx(0);
-      setLightboxOpen(false);
-    }
-  }, [openProject]);
-  useEffect(() => {
-    if (!openProject) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenProject(null);
-      if (e.key === "ArrowLeft") setLightboxIdx((k) => (k - 1 + galleryItems.length) % galleryItems.length);
-      if (e.key === "ArrowRight") setLightboxIdx((k) => (k + 1) % galleryItems.length);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [openProject, galleryItems.length]);
 
   return (
     <section className="mt-40 md:mt-44" style={{ pointerEvents: "auto" }}>
@@ -67,17 +45,9 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
             const firstImage = project.items.find((i) => i.type === "image");
             const coverFile = firstImage?.file ?? (project.items[0]?.type === "video" ? project.items[0].file : undefined);
             return (
-              <div
-                key={svc.id}
-                className={`svc svc--${idx + 1}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => setOpenProject(project)}
-                onPointerDown={(e) => { e.preventDefault(); setOpenProject(project); }}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenProject(project); } }}
-                style={{ cursor: "pointer", pointerEvents: "auto" }}
-              >
-                <ServiceCard
+              <div key={svc.id} className={`svc svc--${idx + 1}`}>
+                <ServiceCardWithGallery
+                  project={project}
                   title={svc.title}
                   subtitle={svc.subtitle}
                   itemCount={project.items.length}
@@ -88,65 +58,6 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
           })}
         </div>
       </div>
-
-      <AnimatePresence>
-        {openProject &&
-          createPortal(
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="servicesGalleryOverlay"
-              role="dialog"
-              aria-modal="true"
-              onClick={() => setOpenProject(null)}
-            >
-              <div className="servicesGalleryModal" onClick={(e) => e.stopPropagation()}>
-                <div className="servicesGalleryHeader">
-                  <h2 style={{ fontFamily: "var(--font-heading, ChinaCyr), sans-serif", margin: 0, color: "white" }}>{openProject.name}</h2>
-                  <button type="button" className="servicesGalleryClose" aria-label="Закрыть" onClick={() => setOpenProject(null)}>✕</button>
-                </div>
-                {galleryItems.length === 0 ? (
-                  <p style={{ color: "rgba(255,255,255,0.7)", padding: 24 }}>
-                    Нет фото в этом разделе. Загрузите их в настройках сайта (Админка → Услуги).
-                  </p>
-                ) : (
-                  <>
-                    <div className="servicesGalleryGrid">
-                      {galleryItems.map((item, i) => (
-                        <button
-                          key={item.file}
-                          type="button"
-                          className="servicesGalleryThumb"
-                          onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }}
-                        >
-                          {item.type === "video" ? (
-                            <video src={normalizeSrc(item.file)} muted />
-                          ) : (
-                            <img src={normalizeSrc(item.file)} alt={item.captionRu || ""} />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    {lightboxOpen && (
-                      <div className="servicesGalleryLightbox" onClick={() => setLightboxOpen(false)}>
-                        <button type="button" className="servicesNav left" aria-label="Предыдущее" onClick={(e) => { e.stopPropagation(); setLightboxIdx((k) => (k - 1 + galleryItems.length) % galleryItems.length); }}>⟨</button>
-                        {currentItem?.type === "video" ? (
-                          <video src={normalizeSrc(currentItem.file)} className="servicesMedia" controls autoPlay loop playsInline onClick={(e) => e.stopPropagation()} />
-                        ) : (
-                          <img src={normalizeSrc(currentItem?.file ?? "")} alt="" className="servicesMedia" onClick={(e) => e.stopPropagation()} />
-                        )}
-                        <button type="button" className="servicesNav right" aria-label="Следующее" onClick={(e) => { e.stopPropagation(); setLightboxIdx((k) => (k + 1) % galleryItems.length); }}>⟩</button>
-                        <button type="button" className="servicesGalleryClose servicesGalleryCloseLightbox" aria-label="Закрыть" onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}>✕</button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </motion.div>,
-            document.body
-          )}
-      </AnimatePresence>
 
       <style jsx>{`
         .servicesGrid {
@@ -260,18 +171,45 @@ export default function ServicesGrid({ services = DEFAULT_SERVICES }: { services
   );
 }
 
-function ServiceCard({
+/** Карточка услуги с галереей — как PhotoGlassPanel: клик и hover на самой карточке, своя модалка */
+function ServiceCardWithGallery({
+  project,
   title,
   subtitle,
   itemCount,
   coverFile,
 }: {
+  project: Project;
   title: string;
   subtitle?: string;
-  itemCount?: number;
+  itemCount: number;
   coverFile?: string;
 }) {
+  const [open, setOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const galleryItems = project.items ?? [];
+  const currentItem = galleryItems[lightboxIdx];
+
+  useEffect(() => {
+    if (open) {
+      setLightboxIdx(0);
+      setLightboxOpen(false);
+    }
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+      if (e.key === "ArrowLeft") setLightboxIdx((k) => (k - 1 + galleryItems.length) % galleryItems.length);
+      if (e.key === "ArrowRight") setLightboxIdx((k) => (k + 1) % galleryItems.length);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, galleryItems.length]);
+
   const coverSrc = coverFile ? normalizeSrc(coverFile) : undefined;
+
   return (
     <div className="w-full">
       <motion.div
@@ -280,8 +218,11 @@ function ServiceCard({
         transition={{ duration: 0.5, ease: [0.44, 0.13, 0.35, 1.08] }}
         style={{ position: "relative", width: "100%", borderRadius: 16 }}
       >
-        <div
+        <motion.div
           className="group svc-card"
+          onClick={() => setOpen(true)}
+          whileHover={{ y: -6, scale: 1.015, filter: "saturate(1.06)" }}
+          transition={{ type: "spring", stiffness: 220, damping: 20 }}
           style={{
             position: "relative",
             width: "100%",
@@ -294,6 +235,7 @@ function ServiceCard({
             display: "flex",
             alignItems: "flex-end",
             justifyContent: "stretch",
+            cursor: "pointer",
           }}
         >
           {coverSrc && (
@@ -340,12 +282,71 @@ function ServiceCard({
             {subtitle ? (
               <p className="svc-card-subtitle" style={{ fontSize: "0.75rem" }}>{subtitle}</p>
             ) : null}
-            {itemCount !== undefined && itemCount > 0 && (
+            {itemCount > 0 && (
               <span style={{ fontSize: "0.7rem", opacity: 0.9 }}>Фото: {itemCount}</span>
             )}
           </div>
-        </div>
+        </motion.div>
       </motion.div>
+
+      <AnimatePresence>
+        {open &&
+          createPortal(
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="servicesGalleryOverlay"
+              role="dialog"
+              aria-modal="true"
+              onClick={() => setOpen(false)}
+            >
+              <div className="servicesGalleryModal" onClick={(e) => e.stopPropagation()}>
+                <div className="servicesGalleryHeader">
+                  <h2 style={{ fontFamily: "var(--font-heading, ChinaCyr), sans-serif", margin: 0, color: "white" }}>{project.name}</h2>
+                  <button type="button" className="servicesGalleryClose" aria-label="Закрыть" onClick={() => setOpen(false)}>✕</button>
+                </div>
+                {galleryItems.length === 0 ? (
+                  <p style={{ color: "rgba(255,255,255,0.7)", padding: 24 }}>
+                    Нет фото в этом разделе. Загрузите их в настройках сайта (Админка → Услуги).
+                  </p>
+                ) : (
+                  <>
+                    <div className="servicesGalleryGrid">
+                      {galleryItems.map((item, i) => (
+                        <button
+                          key={item.file}
+                          type="button"
+                          className="servicesGalleryThumb"
+                          onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }}
+                        >
+                          {item.type === "video" ? (
+                            <video src={normalizeSrc(item.file)} muted />
+                          ) : (
+                            <img src={normalizeSrc(item.file)} alt={item.captionRu || ""} />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    {lightboxOpen && (
+                      <div className="servicesGalleryLightbox" onClick={() => setLightboxOpen(false)}>
+                        <button type="button" className="servicesNav left" aria-label="Предыдущее" onClick={(e) => { e.stopPropagation(); setLightboxIdx((k) => (k - 1 + galleryItems.length) % galleryItems.length); }}>⟨</button>
+                        {currentItem?.type === "video" ? (
+                          <video src={normalizeSrc(currentItem.file)} className="servicesMedia" controls autoPlay loop playsInline onClick={(e) => e.stopPropagation()} />
+                        ) : (
+                          <img src={normalizeSrc(currentItem?.file ?? "")} alt="" className="servicesMedia" onClick={(e) => e.stopPropagation()} />
+                        )}
+                        <button type="button" className="servicesNav right" aria-label="Следующее" onClick={(e) => { e.stopPropagation(); setLightboxIdx((k) => (k + 1) % galleryItems.length); }}>⟩</button>
+                        <button type="button" className="servicesGalleryClose servicesGalleryCloseLightbox" aria-label="Закрыть" onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}>✕</button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </motion.div>,
+            document.body
+          )}
+      </AnimatePresence>
     </div>
   );
 }
