@@ -127,6 +127,88 @@ interface AdminObjectDetailViewProps {
   adminToken: string;
 }
 
+const PROJECT_STATUS_LABELS: Record<string, string> = {
+  PLANNING: "Планирование",
+  IN_PROGRESS: "В работе",
+  COMPLETED: "Завершён",
+  ON_HOLD: "Приостановлен",
+};
+
+function ProjectStatusRow({
+  project,
+  objectId,
+  adminToken,
+  onUpdated,
+}: {
+  project: Project;
+  objectId: string;
+  adminToken: string;
+  onUpdated: () => Promise<void>;
+}) {
+  const [updating, setUpdating] = useState(false);
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const status = e.target.value as "PLANNING" | "IN_PROGRESS" | "COMPLETED" | "ON_HOLD";
+    if (!status || status === project.status) return;
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/admin/objects/${objectId}/projects/${project.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (data.success) await onUpdated();
+      else alert(data.message || "Ошибка обновления статуса");
+    } catch (err) {
+      alert("Ошибка сети");
+    } finally {
+      setUpdating(false);
+    }
+  };
+  return (
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      flexWrap: "wrap",
+      padding: "12px 16px",
+      backgroundColor: "rgba(255,255,255,0.08)",
+      borderRadius: "12px",
+      border: "1px solid rgba(255,255,255,0.12)",
+    }}>
+      <span style={{ color: "white", fontFamily: "Arial, sans-serif", flex: "1 1 200px", minWidth: 0 }}>
+        {project.title}
+      </span>
+      <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.9rem" }}>
+        {PROJECT_STATUS_LABELS[project.status] ?? project.status}
+      </span>
+      <select
+        value={project.status}
+        onChange={handleStatusChange}
+        disabled={updating}
+        style={{
+          padding: "8px 12px",
+          borderRadius: "8px",
+          border: "1px solid rgba(255,255,255,0.3)",
+          background: "rgba(255,255,255,0.1)",
+          color: "white",
+          fontFamily: "Arial, sans-serif",
+          cursor: updating ? "not-allowed" : "pointer",
+        }}
+      >
+        {(["PLANNING", "IN_PROGRESS", "COMPLETED", "ON_HOLD"] as const).map((s) => (
+          <option key={s} value={s} style={{ background: "#1a1a2e", color: "white" }}>
+            {PROJECT_STATUS_LABELS[s]}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function AdminObjectDetailView({ adminToken }: AdminObjectDetailViewProps) {
   const { setMode } = useViewMode();
   const [object, setObject] = useState<ObjectDetail | null>(null);
@@ -2524,7 +2606,27 @@ useEffect(() => {
             }}>
               Проекты
             </h3>
-            
+
+            {/* Список проектов: статус (завершён / в работе и т.д.) */}
+            {object.projects?.length > 0 && (
+              <div style={{
+                marginBottom: "24px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px"
+              }}>
+                {object.projects.map((project) => (
+                  <ProjectStatusRow
+                    key={project.id}
+                    project={project}
+                    objectId={objectId || ""}
+                    adminToken={adminToken}
+                    onUpdated={fetchObjectDetail}
+                  />
+                ))}
+              </div>
+            )}
+
             {/* Документы проектов с проверкой оплаты */}
             <DocumentsPanel
               objectId={parseInt(objectId || "0")}

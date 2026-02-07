@@ -22,6 +22,7 @@ export default function AdminDashboard({ userEmail, onLogout }: AdminDashboardPr
   const [isLoading, setIsLoading] = useState(true);
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const [panelPos, setPanelPos] = useState({ x: 80, y: 60 });
+  const [projectStats, setProjectStats] = useState({ active: 0, completed: 0 });
   const dragRef = useRef<{ startX: number; startY: number; startLeft: number; startTop: number } | null>(null);
   const { openSiteSettings, setOpenSiteSettings } = useOpenSiteSettings();
 
@@ -72,13 +73,29 @@ export default function AdminDashboard({ userEmail, onLogout }: AdminDashboardPr
   }, [settingsPanelOpen]);
 
   useEffect(() => {
-    // Получаем токен из localStorage
-    const savedToken = localStorage.getItem('adminToken');
+    const savedToken = localStorage.getItem("adminToken");
     if (savedToken) {
       setToken(savedToken);
     }
     setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/admin/stats", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setProjectStats({
+            active: data.activeProjectsCount ?? 0,
+            completed: data.completedProjectsCount ?? 0,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [token]);
 
   if (isLoading) {
     return (
@@ -305,7 +322,7 @@ export default function AdminDashboard({ userEmail, onLogout }: AdminDashboardPr
             fontWeight: "bold",
             color: "rgba(34, 197, 94, 1)"
           }}>
-            0
+            {projectStats.active}
           </p>
         </div>
 
@@ -330,7 +347,7 @@ export default function AdminDashboard({ userEmail, onLogout }: AdminDashboardPr
             fontWeight: "bold",
             color: "rgba(59, 130, 246, 1)"
           }}>
-            0
+            {projectStats.completed}
           </p>
         </div>
       </div>
