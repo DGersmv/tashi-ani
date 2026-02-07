@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Settings } from "lucide-react";
 import { useOpenSiteSettings } from "@/components/ui/OpenSiteSettingsContext";
 import AdminCustomerPanels from "./AdminCustomerPanels";
 import AdminSiteSettings from "./AdminSiteSettings";
@@ -192,32 +191,6 @@ export default function AdminDashboard({ userEmail, onLogout }: AdminDashboardPr
         </p>
       </div>
 
-
-      {/* Кнопка «Настройки сайта» — шестерёнка (z-index выше Header, чтобы клик работал) */}
-      <button
-        type="button"
-        onClick={() => setSettingsPanelOpen(true)}
-        title="Настройки сайта"
-        style={{
-          position: "fixed",
-          top: 24,
-          right: 24,
-          zIndex: 10001,
-          width: 48,
-          height: 48,
-          borderRadius: "50%",
-          border: "2px solid rgba(211, 163, 115, 0.6)",
-          background: "rgba(255, 255, 255, 0.12)",
-          color: "rgba(255, 255, 255, 0.95)",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-        }}
-      >
-        <Settings size={26} strokeWidth={2} />
-      </button>
 
       {/* Панели заказчиков */}
       <AdminCustomerPanels adminToken={token} />

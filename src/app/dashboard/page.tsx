@@ -1,7 +1,7 @@
 "use client";
 
-import DashboardGrid from "@/components/DashboardGrid";
 import HeaderMenu from "@/components/HeaderMenu";
+import UserObjectsGrid from "@/components/UserObjectsGrid";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -9,6 +9,7 @@ export default function DashboardPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -28,9 +29,10 @@ export default function DashboardPage() {
     const checkAuth = async () => {
       try {
         // Пока что просто проверяем, есть ли email в localStorage
-        const userEmail = localStorage.getItem('userEmail');
-        if (userEmail) {
+        const email = localStorage.getItem("userEmail");
+        if (email) {
           setIsAuthenticated(true);
+          setUserEmail(email);
         } else {
           // Если нет аутентификации, перенаправляем на главную
           router.push('/');
@@ -80,8 +82,7 @@ export default function DashboardPage() {
       width: "100%"
     }}>
       <HeaderMenu />
-      <DashboardGrid />
-      
+      <UserObjectsGrid userEmail={userEmail} />
     </div>
   );
 }

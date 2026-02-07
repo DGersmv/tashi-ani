@@ -133,7 +133,7 @@ export default function UserObjectsGrid({ userEmail }: UserObjectsGridProps) {
           marginBottom: "16px"
         }}>
           <button
-            onClick={() => setMode("dashboard")}
+            onClick={() => setMode("home")}
             style={{
               background: "none",
               border: "none",

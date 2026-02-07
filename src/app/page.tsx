@@ -8,7 +8,6 @@ import GlassMapPanel from "@/components/GlassMapPanel";
 import PortfolioMultiPanels from "@/components/PhotoGlassGrid";
 import ServicesGrid from "@/components/ServicesGrid";
 import BackgroundSlideshow3D from "@/components/BackgroundSlideshow3D";
-import DashboardGrid from "@/components/DashboardGrid";
 import AdminDashboard from "@/components/AdminDashboard";
 import UserObjectsGrid from "@/components/UserObjectsGrid";
 import ObjectDetailView from "@/components/ObjectDetailView";
@@ -135,25 +134,15 @@ export default function Home() {
               }}
             />
           </motion.div>
-        ) : mode === "dashboard" && isAuthenticated ? (
+        ) : (mode === "dashboard" || mode === "objects") && isAuthenticated && !isAdmin ? (
           <motion.div
-            key="dashboard"
+            key="customer-dashboard"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35 }}
           >
-            <DashboardGrid />
-          </motion.div>
-        ) : mode === "objects" && isAuthenticated ? (
-          <motion.div
-            key="objects"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.35 }}
-          >
-            <UserObjectsGrid userEmail={localStorage.getItem('userEmail') || ''} />
+            <UserObjectsGrid userEmail={localStorage.getItem("userEmail") || ""} />
           </motion.div>
         ) : mode === "object-detail" && isAuthenticated ? (
           <motion.div
