@@ -220,10 +220,12 @@ function ServiceCardWithGallery({
         transition={{ duration: 0.5, ease: [0.44, 0.13, 0.35, 1.08] }}
         style={{ position: "relative", width: "100%", borderRadius: 16 }}
       >
-        {/* Кнопка как область клика — клики срабатывают надёжно во всех браузерах */}
-        <button
+        {/* motion.button: и клик, и hover на одном элементе; внутренний div только рисование, не перехватывает клик */}
+        <motion.button
           type="button"
           onClick={openGallery}
+          whileHover={{ y: -6, scale: 1.015, filter: "saturate(1.06)" }}
+          transition={{ type: "spring", stiffness: 220, damping: 20 }}
           style={{
             position: "relative",
             width: "100%",
@@ -240,10 +242,8 @@ function ServiceCardWithGallery({
             display: "block",
           }}
         >
-          <motion.div
+          <div
             className="group svc-card"
-            whileHover={{ y: -6, scale: 1.015, filter: "saturate(1.06)" }}
-            transition={{ type: "spring", stiffness: 220, damping: 20 }}
             style={{
               position: "absolute",
               inset: 0,
@@ -255,6 +255,7 @@ function ServiceCardWithGallery({
               display: "flex",
               alignItems: "flex-end",
               justifyContent: "stretch",
+              pointerEvents: "none",
             }}
           >
           {coverSrc && (
@@ -305,8 +306,8 @@ function ServiceCardWithGallery({
               <span style={{ fontSize: "0.7rem", opacity: 0.9 }}>Фото: {itemCount}</span>
             )}
           </div>
-        </motion.div>
-        </button>
+          </div>
+        </motion.button>
       </motion.div>
 
       <AnimatePresence>
