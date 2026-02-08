@@ -21,6 +21,7 @@ model User {
   lastLogin DateTime?
   status    UserStatus @default(ACTIVE)
   metadata  String? // JSON строка с дополнительной информацией (телефон, компания, заметки)
+  fcmToken  String? // FCM токен для push-уведомлений
 
   objects           Object[]
   messages          Message[]
@@ -28,6 +29,7 @@ model User {
   panoramaComments  PanoramaComment[]
   bimModelComments  BimModelComment[]
   uploadedBimModels BimModel[]        @relation("UploadedBimModels")
+  notifications     Notification[]
 
   @@map("users")
 }
@@ -388,4 +390,34 @@ model SiteSettings {
   updatedAt DateTime @updatedAt
 
   @@map("site_settings")
+}
+
+// Уведомления для пользователей
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      NotificationType
+  title     String
+  message   String
+  objectId  Int?
+  photoId   Int?
+  projectId Int?
+  documentId Int?
+  commentId Int?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+  @@index([userId, isRead])
+}
+
+enum NotificationType {
+  PHOTO_COMMENT
+  PANORAMA_COMMENT
+  MESSAGE
+  DOCUMENT_UPLOADED
+  PROJECT_CREATED
+  PHOTO_UPLOADED
 }
