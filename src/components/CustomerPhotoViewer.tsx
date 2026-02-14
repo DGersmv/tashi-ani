@@ -13,6 +13,8 @@ interface Photo {
   isVisibleToCustomer: boolean;
   uploadedAt: string;
   comments: PhotoComment[];
+  objectId?: number;
+  thumbnailUrl?: string | null;
 }
 
 interface PhotoComment {
@@ -336,8 +338,9 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
                 backgroundColor: "rgba(255,255,255,0.1)"
               }}>
                 <img
-                  src={`/api/uploads/objects/${photo.objectId}/${photo.filename}?email=${encodeURIComponent(userEmail)}`}
+                  src={photo.thumbnailUrl || `/api/uploads/objects/${photo.objectId}/${photo.filename}?email=${encodeURIComponent(userEmail)}`}
                   alt={photo.originalName}
+                  loading="lazy"
                   style={{
                     width: "100%",
                     height: "100%",
@@ -345,7 +348,8 @@ export default function CustomerPhotoViewer({ userEmail }: CustomerPhotoViewerPr
                   }}
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
-                    e.currentTarget.nextElementSibling.style.display = "flex";
+                    const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (nextSibling) nextSibling.style.display = "flex";
                   }}
                 />
                 <div style={{

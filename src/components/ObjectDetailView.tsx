@@ -844,6 +844,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                   <img
                     src={photoThumbnailUrls[photo.filename] || (photo as any).url || `/api/uploads/objects/${object.id}/${photo.filename}?email=${encodeURIComponent(userEmail)}`}
                     alt={photo.originalName}
+                    loading="lazy"
                     style={{
                       width: "100%",
                       height: "100%",
@@ -851,7 +852,8 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
                     }}
                     onError={(e) => {
                       e.currentTarget.style.display = "none";
-                      e.currentTarget.nextElementSibling.style.display = "flex";
+                      const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (nextSibling) nextSibling.style.display = "flex";
                     }}
                   />
                   <div style={{
