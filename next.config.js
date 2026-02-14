@@ -17,7 +17,7 @@ const nextConfig = {
   images: {
     domains: ['tile.openstreetmap.org'],
     unoptimized: false,
-    minimumCacheTTL: 60,
+    minimumCacheTTL: 86400,
   },
 
   webpack: (config, { isServer }) => {
