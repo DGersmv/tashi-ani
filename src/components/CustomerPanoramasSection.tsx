@@ -168,12 +168,12 @@ export default function CustomerPanoramasSection({
       const staticUrl = `/uploads/objects/${objectId}/panoramas/${panorama.filename}`;
       let response = await fetch(requestUrl, {
         method: "GET",
-        cache: "no-store",
+        cache: "force-cache",
       });
 
       if (!response.ok) {
         // Fallback to static path when API access fails (e.g. large files or auth edge cases)
-        const fallbackResponse = await fetch(staticUrl, { method: "GET", cache: "no-store" });
+        const fallbackResponse = await fetch(staticUrl, { method: "GET", cache: "force-cache" });
         if (!fallbackResponse.ok) {
           console.warn(`Панорама ${panorama.filename} недоступна (status ${response.status}).`);
           const fallbackMessage = response.status === 404

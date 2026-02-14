@@ -247,7 +247,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
     try {
       const response = await fetch(`/api/uploads/objects/${object.id}/${photo.filename}?email=${encodeURIComponent(userEmail)}`, {
         method: 'GET',
-        cache: 'no-store',
+        cache: 'force-cache',
       });
 
       if (!response.ok) {
