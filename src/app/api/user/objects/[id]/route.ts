@@ -206,10 +206,14 @@ export async function GET(
         }
       });
 
+      const thumbUrl = buildPhotoThumbnailUrl(objectId, photo);
+      const cacheBuster = photo?.uploadedAt ? new Date(photo.uploadedAt).getTime() : Date.now();
       return {
         ...photo,
         url: buildPhotoUrl(objectId, photo),
-        thumbnailUrl: buildPhotoThumbnailUrl(objectId, photo),
+        thumbnailUrl: thumbUrl
+          ? `/api/uploads/objects/${objectId}/thumbnails/${photo.thumbnailFilename}?email=${encodeURIComponent(email)}&v=${cacheBuster}`
+          : null,
         unreadCommentsCount: unreadPhotoComments
       };
     }));

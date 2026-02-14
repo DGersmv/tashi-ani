@@ -529,11 +529,16 @@ useEffect(() => {
     }
 
     const newPreviewUrls: {[key: string]: string} = {};
+    const withAdminToken = (url: string) => {
+      if (!url || !adminToken) return url || '';
+      if (url.includes('/admin') && !url.includes('token=')) return `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(adminToken)}`;
+      return url;
+    };
 
     for (const photo of objectData.photos) {
       if ((photo as any).mimeType?.startsWith('image/')) {
         const previewUrl = (photo as any).thumbnailUrl || (photo as any).url || `/api/uploads/objects/${objectData.id}/${photo.filename}/admin`;
-        newPreviewUrls[photo.filename] = previewUrl;
+        newPreviewUrls[photo.filename] = withAdminToken(previewUrl);
       }
     }
 
@@ -1929,7 +1934,7 @@ useEffect(() => {
                     }}>
                       {(photo as any).mimeType?.startsWith('image/') ? (
                         <img
-                          src={(photo as any).thumbnailUrl || imageUrls[photo.filename] || (photo as any).url || `/api/uploads/objects/${object.id}/${photo.filename}/admin`}
+                          src={(() => { const u = (photo as any).thumbnailUrl || imageUrls[photo.filename] || (photo as any).url || `/api/uploads/objects/${object.id}/${photo.filename}/admin`; return u && u.includes('/admin') && adminToken && !u.includes('token=') ? `${u}${u.includes('?') ? '&' : '?'}token=${encodeURIComponent(adminToken)}` : u; })()}
                           alt={photo.originalName}
                           style={{
                             width: "100%",
@@ -2219,7 +2224,7 @@ useEffect(() => {
                     }}>
                       {(photo as any).mimeType?.startsWith('image/') ? (
                         <img
-                          src={(photo as any).thumbnailUrl || imageUrls[photo.filename] || (photo as any).url || `/api/uploads/objects/${object.id}/${photo.filename}/admin`}
+                          src={(() => { const u = (photo as any).thumbnailUrl || imageUrls[photo.filename] || (photo as any).url || `/api/uploads/objects/${object.id}/${photo.filename}/admin`; return u && u.includes('/admin') && adminToken && !u.includes('token=') ? `${u}${u.includes('?') ? '&' : '?'}token=${encodeURIComponent(adminToken)}` : u; })()}
                           alt={photo.originalName}
                           style={{
                             width: "100%",

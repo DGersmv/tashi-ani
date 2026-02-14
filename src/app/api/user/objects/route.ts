@@ -142,11 +142,17 @@ export async function GET(request: NextRequest) {
 
       const totalMessages = obj._count.messages;
 
-      const photosWithUrls = obj.photos.map(photo => ({
-        ...photo,
-        url: buildPhotoUrl(obj.id, photo),
-        thumbnailUrl: buildPhotoThumbnailUrl(obj.id, photo),
-      }));
+      const photosWithUrls = obj.photos.map(photo => {
+        const thumbUrl = buildPhotoThumbnailUrl(obj.id, photo);
+        const cacheBuster = photo?.uploadedAt ? new Date(photo.uploadedAt).getTime() : Date.now();
+        return {
+          ...photo,
+          url: buildPhotoUrl(obj.id, photo),
+          thumbnailUrl: thumbUrl
+            ? `/api/uploads/objects/${obj.id}/thumbnails/${photo.thumbnailFilename}?email=${encodeURIComponent(email)}&v=${cacheBuster}`
+            : null,
+        };
+      });
 
       const panoramasWithUrls = obj.panoramas.map(panorama => ({
         ...panorama,

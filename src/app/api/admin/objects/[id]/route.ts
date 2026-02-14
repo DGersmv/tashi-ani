@@ -206,7 +206,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return {
         ...photo,
         url: buildPhotoUrl(objectId, photo),
-        thumbnailUrl: buildPhotoThumbnailUrl(objectId, photo),
+        thumbnailUrl: buildPhotoThumbnailUrl(objectId, photo)
+          ? `/api/uploads/objects/${objectId}/thumbnails/${photo.thumbnailFilename}/admin`
+          : null,
         unreadCommentsCount: unreadPhotoComments
       };
     }));
