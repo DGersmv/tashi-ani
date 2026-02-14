@@ -85,6 +85,7 @@ export async function GET(
     });
 
     // Добавляем thumbnail URLs к каждому фото для оптимизации загрузки
+    // Cache buster (v=timestamp) основан на uploadedAt, обеспечивает инвалидацию кэша только при обновлении файла
     const photosWithThumbnails = photos.map(photo => {
       const thumbnailUrl = photo.thumbnailFilename 
         ? `/api/uploads/objects/${objectId}/thumbnails/${photo.thumbnailFilename}?email=${encodeURIComponent(email)}&v=${photo?.uploadedAt ? new Date(photo.uploadedAt).getTime() : Date.now()}`
@@ -93,7 +94,7 @@ export async function GET(
       return {
         ...photo,
         thumbnailUrl,
-        objectId // Добавляем objectId для использования в компоненте
+        objectId // objectId необходим для компонентов, которые отображают фото вне контекста родительского объекта
       };
     });
 
