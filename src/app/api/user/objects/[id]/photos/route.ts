@@ -84,9 +84,23 @@ export async function GET(
       }
     });
 
+    // Добавляем thumbnail URLs к каждому фото для оптимизации загрузки
+    // Cache buster (v=timestamp) основан на uploadedAt, обеспечивает инвалидацию кэша только при обновлении файла
+    const photosWithThumbnails = photos.map(photo => {
+      const thumbnailUrl = photo.thumbnailFilename 
+        ? `/api/uploads/objects/${objectId}/thumbnails/${photo.thumbnailFilename}?email=${encodeURIComponent(email)}&v=${photo?.uploadedAt ? new Date(photo.uploadedAt).getTime() : Date.now()}`
+        : null;
+      
+      return {
+        ...photo,
+        thumbnailUrl,
+        objectId // objectId необходим для компонентов, которые отображают фото вне контекста родительского объекта
+      };
+    });
+
     return NextResponse.json({
       success: true,
-      photos: photos
+      photos: photosWithThumbnails
     });
 
   } catch (error) {

@@ -642,13 +642,13 @@ useEffect(() => {
         headers: {
           Authorization: `Bearer ${adminToken}`,
         },
-        cache: 'no-store',
+        cache: 'force-cache',
       });
 
       if (!response.ok) {
         console.warn(`Не удалось загрузить оригинал фото ${photo.filename}:`, response.statusText);
         const fallbackResponse = await fetch(`/uploads/objects/${object.id}/${photo.filename}`, {
-          cache: 'no-store',
+          cache: 'force-cache',
         });
         if (!fallbackResponse.ok) {
           console.warn(`Файл фото ${photo.filename} недоступен по статическому пути:`, fallbackResponse.statusText);
@@ -697,13 +697,13 @@ useEffect(() => {
         headers: {
           Authorization: `Bearer ${adminToken}`,
         },
-        cache: 'no-store',
+        cache: 'force-cache',
       });
 
       if (!response.ok) {
         console.warn(`Не удалось загрузить оригинал панорамы ${panorama.filename}:`, response.statusText);
         const fallbackResponse = await fetch(`/uploads/objects/${object.id}/panoramas/${panorama.filename}`, {
-          cache: 'no-store',
+          cache: 'force-cache',
         });
         if (!fallbackResponse.ok) {
           console.warn(`Файл панорамы ${panorama.filename} недоступен по статическому пути:`, fallbackResponse.statusText);
