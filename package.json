@@ -24,7 +24,7 @@
     "@photo-sphere-viewer/markers-plugin": "^5.14.0",
     "@prisma/client": "^6.17.1",
     "@tailwindcss/postcss": "^4.1.11",
-    "@thatopen/components": "^3.2.6",
+    "@thatopen/components": "^3.3.1",
     "@thatopen/fragments": "^3.2.11",
     "@thatopen/ui": "^3.2.0",
     "@types/nodemailer": "^7.0.2",
