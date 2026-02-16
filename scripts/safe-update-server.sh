@@ -1,30 +1,33 @@
 #!/bin/bash
 # Безопасное обновление сервера с сохранением данных
+# Запускать из /var/www/tashi-ani
 
 set -e  # Остановка при ошибке
+
+PROJECT_DIR="${PROJECT_DIR:-/var/www/tashi-ani}"
+cd "$PROJECT_DIR" || exit 1
 
 echo "🔍 Проверка текущего состояния..."
 echo ""
 
-# 1. Проверяем текущую БД
+# 1. Проверяем текущую БД (prisma/prod.db или из DATABASE_URL)
+DB_PATH="${PROJECT_DIR}/prisma/prod.db"
 echo "=== Проверка базы данных ==="
-if [ -f "/var/lib/tashi-ani/db/tashi-ani.db" ]; then
-    DB_SIZE=$(du -h /var/lib/tashi-ani/db/tashi-ani.db | cut -f1)
-    echo "✅ БД найдена: /var/lib/tashi-ani/db/tashi-ani.db ($DB_SIZE)"
+if [ -f "$DB_PATH" ]; then
+    DB_SIZE=$(du -h "$DB_PATH" | cut -f1)
+    echo "✅ БД найдена: $DB_PATH ($DB_SIZE)"
 else
-    echo "❌ БД не найдена!"
+    echo "❌ БД не найдена: $DB_PATH"
     exit 1
 fi
 
-# 2. Проверяем .env
+# 2. Проверяем .env.local
 echo ""
-echo "=== Проверка .env ==="
-if [ -f ".env" ]; then
-    DATABASE_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2-)
-    echo "DATABASE_URL: $DATABASE_URL"
+echo "=== Проверка .env.local ==="
+if [ -f ".env.local" ]; then
+    echo "✅ .env.local найден"
 else
-    echo "❌ Файл .env не найден!"
-    exit 1
+    echo "⚠️  .env.local не найден (проверьте вручную)"
 fi
 
 # 3. Создаем бэкап текущего состояния
@@ -33,18 +36,14 @@ echo "=== Создание бэкапа ==="
 BACKUP_DIR="/var/backups/tashi-ani/pre-update-$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR"
 
-# Бэкап БД
-cp /var/lib/tashi-ani/db/tashi-ani.db "$BACKUP_DIR/tashi-ani.db"
+cp "$DB_PATH" "$BACKUP_DIR/prod.db"
 echo "✅ БД скопирована в $BACKUP_DIR"
 
-# Бэкап .env
-cp .env "$BACKUP_DIR/.env"
-echo "✅ .env скопирован"
+[ -f ".env.local" ] && cp .env.local "$BACKUP_DIR/.env.local" && echo "✅ .env.local скопирован"
 
-# Бэкап текущих изменений (если есть)
-if [ -n "$(git status --porcelain)" ]; then
-    git stash push -m "Backup before update $(date +%Y%m%d_%H%M%S)"
-    echo "✅ Локальные изменения сохранены в stash"
+# Бэкап текущих изменений (если есть git)
+if [ -d ".git" ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+    git stash push -m "Backup before update $(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
 fi
 
 # 4. Обновляем код

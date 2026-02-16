@@ -61,18 +61,25 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
+    const errMessage = error instanceof Error ? error.message : String(error);
+    const errName = error instanceof Error ? error.name : "Error";
     console.error("Ошибка аутентификации:", error);
-    return NextResponse.json({ 
-      success: false, 
-      message: "Ошибка аутентификации" 
-    }, { 
-      status: 500,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Ошибка аутентификации",
+        error: errName,
+        detail: errMessage,
+      },
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        },
       }
-    });
+    );
   }
 }
 

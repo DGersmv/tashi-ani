@@ -8,7 +8,7 @@ set -e
 # === НАСТРОЙКИ ===
 PROJECT_NAME="tashi-ani"
 PROJECT_DIR="/var/www/tashi-ani"
-DB_PATH="${PROJECT_DIR}/prisma/dev.db"
+DB_PATH="${PROJECT_DIR}/prisma/prod.db"
 UPLOADS_DIR="${PROJECT_DIR}/public/uploads"
 LOCAL_BACKUP_DIR="/var/backups/tashi-ani"
 DATE=$(date +%Y%m%d_%H%M%S)
@@ -138,7 +138,8 @@ log_success "Локальный бэкап БД создан: ${DB_SIZE}"
 log_info "Загрузка БД в S3..."
 aws s3 cp "${DB_LOCAL_BACKUP}" "s3://${S3_BUCKET}/${S3_PREFIX}${DB_BACKUP_FILE}" \
     --endpoint-url "${S3_ENDPOINT}" \
-    --region "${S3_REGION}"
+    --region "${S3_REGION}" \
+    --no-verify-ssl
 
 if [ $? -eq 0 ]; then
     log_success "БД загружена в S3: s3://${S3_BUCKET}/${S3_PREFIX}${DB_BACKUP_FILE}"
@@ -168,7 +169,8 @@ if [ "${UPLOADS_EXISTS}" = true ]; then
     log_info "Загрузка uploads в S3..."
     aws s3 cp "${UPLOADS_LOCAL_BACKUP}" "s3://${S3_BUCKET}/${S3_PREFIX}${UPLOADS_BACKUP_FILE}" \
         --endpoint-url "${S3_ENDPOINT}" \
-        --region "${S3_REGION}"
+        --region "${S3_REGION}" \
+        --no-verify-ssl
     
     if [ $? -eq 0 ]; then
         log_success "Uploads загружены в S3: s3://${S3_BUCKET}/${S3_PREFIX}${UPLOADS_BACKUP_FILE}"
@@ -191,13 +193,15 @@ echo ""
 # Считаем количество бэкапов БД
 DB_COUNT=$(aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}" \
     --endpoint-url "${S3_ENDPOINT}" \
-    --region "${S3_REGION}" | \
+    --region "${S3_REGION}" \
+    --no-verify-ssl | \
     grep "db-.*\.sqlite" | wc -l)
 
 # Считаем количество бэкапов uploads
 UPLOADS_COUNT=$(aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}" \
     --endpoint-url "${S3_ENDPOINT}" \
-    --region "${S3_REGION}" | \
+    --region "${S3_REGION}" \
+    --no-verify-ssl | \
     grep "uploads-.*\.tar\.gz" | wc -l)
 
 log_info "  • Всего бэкапов БД в S3: ${DB_COUNT}"
@@ -207,8 +211,16 @@ echo ""
 log_info "Последние 5 бэкапов в S3:"
 aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}" \
     --endpoint-url "${S3_ENDPOINT}" \
-    --region "${S3_REGION}" | \
+    --region "${S3_REGION}" \
+    --no-verify-ssl | \
     sort -r | head -5
+
+# === ОЧИСТКА СТАРЫХ ЛОКАЛЬНЫХ БЭКАПОВ (храним только 3 дня, остальное уже в S3) ===
+DAYS_TO_KEEP=3
+log_info "Удаление локальных бэкапов старше ${DAYS_TO_KEEP} дней..."
+find "${LOCAL_BACKUP_DIR}" -maxdepth 1 -name "db-*.sqlite" -mtime +${DAYS_TO_KEEP} -delete 2>/dev/null || true
+find "${LOCAL_BACKUP_DIR}" -maxdepth 1 -name "uploads-*.tar.gz" -mtime +${DAYS_TO_KEEP} -delete 2>/dev/null || true
+log_success "Старые локальные бэкапы удалены"
 
 # === ЛОГИРОВАНИЕ ===
 LOG_FILE="${LOCAL_BACKUP_DIR}/backup.log"
