@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@openglobus/og": "^0.26.6",
-    "@photo-sphere-viewer/markers-plugin": "^5.14.0",
+    "@photo-sphere-viewer/markers-plugin": "^5.14.1",
     "@prisma/client": "^6.17.1",
     "@tailwindcss/postcss": "^4.1.11",
     "@thatopen/components": "^3.2.6",
