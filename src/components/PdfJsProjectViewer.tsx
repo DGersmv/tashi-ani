@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
 
 interface PdfJsProjectViewerProps {
   pdfUrl: string | null;
@@ -26,10 +27,11 @@ export default function PdfJsProjectViewer({ pdfUrl, scale }: PdfJsProjectViewer
 
       try {
         const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        // Локальный worker — тот же origin, без unpkg (меньше сбоев TLS/CORS в консоли).
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
         // Не getDocument({ url }): иначе загрузку делает worker с unpkg — к вашему API это чужой origin (CORS/странные SSL в консоли).
-        const res = await fetch(url, { credentials: "same-origin" });
+        const res = await fetchWithRetry(url, { credentials: "same-origin" });
         if (!res.ok) {
           const text = await res.text();
           let detail = text.slice(0, 200);

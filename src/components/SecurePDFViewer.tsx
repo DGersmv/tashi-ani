@@ -371,6 +371,7 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
               userEmail={userEmail}
               isAdmin={isAdmin}
               adminToken={adminToken}
+              usePdfJsForUnpaidProject={showWatermark}
             />
             
             {/* Водяной знак для неоплаченных документов */}
@@ -478,14 +479,19 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
   );
 }
 
-/** Документы проектов — pdf.js на canvas (без нативной панели «Сохранить» в Chrome). Объектные — iframe. */
-function PDFIframe({ documentId, fileName, scale, userEmail, isAdmin, adminToken }: {
+/**
+ * Проекты: неоплаченные — pdf.js на canvas (сложнее скачать через UI); оплаченные — iframe (стабильно по HTTPS).
+ * Объектные документы — iframe.
+ */
+function PDFIframe({ documentId, fileName, scale, userEmail, isAdmin, adminToken, usePdfJsForUnpaidProject }: {
   documentId: number;
   fileName: string;
   scale: number;
   userEmail?: string;
   isAdmin?: boolean;
   adminToken?: string;
+  /** Только для проектов: true = неоплачен → canvas; false = оплачен → iframe */
+  usePdfJsForUnpaidProject?: boolean;
 }) {
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [projectPdfUrl, setProjectPdfUrl] = useState<string | null>(null);
@@ -541,6 +547,8 @@ function PDFIframe({ documentId, fileName, scale, userEmail, isAdmin, adminToken
     getIframeSrc();
   }, [documentId, fileName, scale, isAdmin, adminToken, userEmail]);
 
+  const zoomHash = `#toolbar=1&navpanes=1&scrollbar=1&zoom=${Math.round(scale * 100)}`;
+
   if (loading) {
     return (
       <div style={{
@@ -587,8 +595,20 @@ function PDFIframe({ documentId, fileName, scale, userEmail, isAdmin, adminToken
   }
 
   if (projectPdfUrl) {
+    if (usePdfJsForUnpaidProject) {
+      return <PdfJsProjectViewer pdfUrl={projectPdfUrl} scale={scale} />;
+    }
     return (
-      <PdfJsProjectViewer pdfUrl={projectPdfUrl} scale={scale} />
+      <iframe
+        src={projectPdfUrl.includes("#") ? projectPdfUrl : `${projectPdfUrl}${zoomHash}`}
+        style={{
+          width: "100%",
+          height: "100%",
+          border: "none",
+          borderRadius: "0 0 8px 8px",
+        }}
+        title={fileName}
+      />
     );
   }
 
