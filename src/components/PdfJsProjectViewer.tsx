@@ -28,7 +28,23 @@ export default function PdfJsProjectViewer({ pdfUrl, scale }: PdfJsProjectViewer
         const pdfjsLib = await import("pdfjs-dist");
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
-        const loadingTask = pdfjsLib.getDocument({ url });
+        // Не getDocument({ url }): иначе загрузку делает worker с unpkg — к вашему API это чужой origin (CORS/странные SSL в консоли).
+        const res = await fetch(url, { credentials: "same-origin" });
+        if (!res.ok) {
+          const text = await res.text();
+          let detail = text.slice(0, 200);
+          try {
+            const j = JSON.parse(text) as { message?: string };
+            if (j.message) detail = j.message;
+          } catch {
+            /* не JSON */
+          }
+          throw new Error(
+            res.status === 401 ? "Нет доступа к файлу" : `Ошибка ${res.status}: ${detail}`
+          );
+        }
+        const data = new Uint8Array(await res.arrayBuffer());
+        const loadingTask = pdfjsLib.getDocument({ data });
         const pdf = await loadingTask.promise;
         if (cancelled) return;
 
