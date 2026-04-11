@@ -61,35 +61,6 @@ export const SITE_SETTINGS_DEFAULTS: SiteSettingsPayload = {
   mainPageBlocks: DEFAULT_MAIN_PAGE_BLOCKS,
 };
 
-const SYSTEM_SANS = 'Arial, Helvetica, sans-serif';
-
-/** Локальный декоративный шрифт — в конце стека, чтобы не мелькал до загрузки веб-шрифта. */
-const CHINA_CYR_STACK = `'ChinaCyr', ${SYSTEM_SANS}`;
-
-/**
- * Строка font-family для меню/заголовков/главной (SSR и клиент).
- * Раньше сразу после Montserrat шёл ChinaCyr из @font-face — пока грузился Montserrat, текст «прыгал» с ChinaCyr на веб-шрифт.
- * Теперь: для Montserrat — var из next/font; иначе системный sans, затем ChinaCyr.
- */
-export function buildFontStack(selectedFont: string): string {
-  const font = selectedFont?.trim() || 'ChinaCyr';
-
-  if (font === 'ChinaCyr') {
-    return CHINA_CYR_STACK;
-  }
-
-  // Подключён в app/layout через next/font (Montserrat_Alternates) — без второго сетевого запроса по имени «Montserrat»
-  if (
-    font === 'var(--font-montserrat)' ||
-    font === 'Montserrat' ||
-    font === 'Montserrat Alternates'
-  ) {
-    return `var(--font-montserrat), ${SYSTEM_SANS}, ${CHINA_CYR_STACK}`;
-  }
-
-  return `${font}, ${SYSTEM_SANS}, ${CHINA_CYR_STACK}`;
-}
-
 /** Server-side: read merged site settings from DB (for layout SSR and API). */
 export async function getSiteSettings(): Promise<SiteSettingsPayload> {
   try {

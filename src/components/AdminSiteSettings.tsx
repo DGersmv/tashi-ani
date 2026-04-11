@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import type { SiteSettingsPayload, CustomFontItem } from "@/app/api/site-settings/route";
 import type { MapPoint } from "@/app/api/site/points/route";
 import { useSiteSettings } from "@/components/ui/SiteSettingsContext";
-import { buildFontStack } from "@/lib/siteSettings";
+import { buildFontStack } from "@/lib/fontStack";
 
 const FONT_OPTIONS = [
   { value: "ChinaCyr", label: "ChinaCyr" },

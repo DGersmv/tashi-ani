@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { SiteSettingsPayload } from "@/app/api/site-settings/route";
-import { buildFontStack } from "@/lib/siteSettings";
+import { buildFontStack } from "@/lib/fontStack";
 
 const defaultSettings: SiteSettingsPayload = {
   menuFont: "ChinaCyr",

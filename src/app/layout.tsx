@@ -8,7 +8,8 @@ import { OpenSiteSettingsProvider } from "@/components/ui/OpenSiteSettingsContex
 import { AuthProvider } from "@/components/ui/AuthContext";
 import ModeSync from "@/components/ui/ModeSync";           // ← синхронизация режима по URL
 import HtmlModeClass from "@/components/ui/HtmlModeClass"; // ← класс на <html> для глобальных стилей
-import { getSiteSettings, buildFontStack } from "@/lib/siteSettings";
+import { getSiteSettings } from "@/lib/siteSettings";
+import { buildFontStack } from "@/lib/fontStack";
 
 const montserrat = Montserrat_Alternates({
   subsets: ["latin", "cyrillic"],
