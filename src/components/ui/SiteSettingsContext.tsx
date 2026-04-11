@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { SiteSettingsPayload } from "@/app/api/site-settings/route";
+import { buildFontStack } from "@/lib/siteSettings";
 
 const defaultSettings: SiteSettingsPayload = {
   menuFont: "ChinaCyr",
@@ -22,13 +23,6 @@ const defaultSettings: SiteSettingsPayload = {
   mainPageTitle: "Ландшафт, который рекомендуют",
   mainPageBlocks: [],
 };
-
-const CYRILLIC_FALLBACK = "ChinaCyr, Arial, Helvetica, sans-serif";
-
-export function buildFontStack(selectedFont: string): string {
-  const font = selectedFont?.trim() || "ChinaCyr";
-  return `${font}, ${CYRILLIC_FALLBACK}`;
-}
 
 export type SiteSettingsContextValue = SiteSettingsPayload & {
   updateSettings: (partial: Partial<SiteSettingsPayload>) => void;

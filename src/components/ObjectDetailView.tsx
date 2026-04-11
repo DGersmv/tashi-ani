@@ -6,6 +6,7 @@ import { useViewMode } from "./ui/ViewMode";
 import SecurePDFViewer from "./SecurePDFViewer";
 import CustomerPanoramasSection from "./CustomerPanoramasSection";
 import BimModelsList from "./BimModelsList";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
 
 interface Project {
   id: number;
@@ -130,7 +131,7 @@ export default function ObjectDetailView({ userEmail }: ObjectDetailViewProps) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/user/objects/${objectId}?email=${encodeURIComponent(userEmail)}`);
+      const response = await fetchWithRetry(`/api/user/objects/${objectId}?email=${encodeURIComponent(userEmail)}`);
       const data = await response.json();
       if (data.success) {
         setObject(data.object);

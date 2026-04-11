@@ -314,6 +314,7 @@ export default function ProjectsPanel({
           onClose={() => setSelectedPDF(null)}
           source="projects"
           isAdmin={true}
+          adminToken={adminToken}
         />
       )}
     </div>

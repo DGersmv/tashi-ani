@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
 
 interface DashboardProps {
   userEmail: string;
@@ -26,7 +27,7 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
     const fetchUserData = async () => {
       try {
         // Загружаем профиль пользователя
-        const profileResponse = await fetch(`/api/user/profile?email=${encodeURIComponent(userEmail)}`);
+        const profileResponse = await fetchWithRetry(`/api/user/profile?email=${encodeURIComponent(userEmail)}`);
         const profileData = await profileResponse.json();
         if (profileData.success) {
           setUserProfile({
@@ -35,8 +36,8 @@ export default function Dashboard({ userEmail, onLogout }: DashboardProps) {
           });
         }
 
-        // Загружаем статистику
-        const statsResponse = await fetch(`/api/user/objects?email=${encodeURIComponent(userEmail)}`);
+        // Загружаем статистику (с повтором при обрыве соединения)
+        const statsResponse = await fetchWithRetry(`/api/user/objects?email=${encodeURIComponent(userEmail)}`);
         const statsData = await statsResponse.json();
         if (statsData.success) {
           const stats = statsData.objects.reduce((acc: any, obj: any) => ({

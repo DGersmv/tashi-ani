@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useViewMode } from "./ui/ViewMode";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
 
 interface Object {
   id: number;
@@ -42,7 +43,7 @@ export default function UserObjectsGrid({ userEmail }: UserObjectsGridProps) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/user/objects?email=${encodeURIComponent(userEmail)}`);
+      const response = await fetchWithRetry(`/api/user/objects?email=${encodeURIComponent(userEmail)}`);
       const data = await response.json();
       if (data.success) {
         setObjects(data.objects);

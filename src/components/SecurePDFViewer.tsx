@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import PdfJsProjectViewer from './PdfJsProjectViewer';
 
 
 interface SecurePDFViewerProps {
@@ -25,7 +26,6 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
   const [error, setError] = useState<string | null>(null);
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus | null>(null);
   const [scale, setScale] = useState(1.0);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     checkDocumentStatus();
@@ -80,14 +80,20 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
       const docResponse = await fetch(`/api/documents/${documentId}/info`);
       const docResult = await docResponse.json();
 
-      if (docResult.success) {
-        let fileUrl;
+        if (docResult.success) {
+        let fileUrl: string;
         if (docResult.document.objectId) {
-          // Документы объектов
           fileUrl = `/api/uploads/objects/${docResult.document.objectId}/${docResult.document.filename}`;
         } else if (docResult.document.projectId) {
-          // Документы проектов
-          fileUrl = `/api/uploads/projects/${docResult.document.projectId}/${docResult.document.filename}`;
+          const base = `/api/uploads/projects/${docResult.document.projectId}/${encodeURIComponent(docResult.document.filename)}`;
+          if (isAdmin && adminToken) {
+            fileUrl = `${base}?token=${encodeURIComponent(adminToken)}`;
+          } else if (userEmail) {
+            fileUrl = `${base}?email=${encodeURIComponent(userEmail)}`;
+          } else {
+            alert('Не удалось скачать: нет данных для доступа к файлу');
+            return;
+          }
         } else {
           alert('Не удалось определить тип документа');
           return;
@@ -322,7 +328,7 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
             justifyContent: "space-between",
             alignItems: "center"
           }}>
-            <span>{fileName} • Оплачен</span>
+            <span>{fileName} • {showWatermark ? 'Не оплачен' : 'Оплачен'}</span>
             <div style={{ display: "flex", gap: "8px" }}>
               <button
                 onClick={zoomOut}
@@ -358,10 +364,9 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
           
           {/* PDF в iframe */}
           <div style={{ flex: 1, position: "relative" }}>
-            <PDFIframe 
+            <PDFIframe
               documentId={documentId}
               fileName={fileName}
-              source={source}
               scale={scale}
               userEmail={userEmail}
               isAdmin={isAdmin}
@@ -473,17 +478,18 @@ export default function SecurePDFViewer({ documentId, fileName, onClose, source 
   );
 }
 
-// Компонент для iframe с правильным URL
-function PDFIframe({ documentId, fileName, source, scale, userEmail, isAdmin, adminToken }: { 
-  documentId: number; 
-  fileName: string; 
-  source: 'documents' | 'projects'; 
+/** Документы проектов — pdf.js на canvas (без нативной панели «Сохранить» в Chrome). Объектные — iframe. */
+function PDFIframe({ documentId, fileName, scale, userEmail, isAdmin, adminToken }: {
+  documentId: number;
+  fileName: string;
   scale: number;
   userEmail?: string;
   isAdmin?: boolean;
   adminToken?: string;
 }) {
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+  const [projectPdfUrl, setProjectPdfUrl] = useState<string | null>(null);
+  const [authError, setAuthError] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -493,25 +499,36 @@ function PDFIframe({ documentId, fileName, source, scale, userEmail, isAdmin, ad
         const docResult = await docResponse.json();
 
         if (docResult.success) {
-          let fileUrl;
+          const enc = encodeURIComponent(docResult.document.filename);
           if (docResult.document.objectId) {
-            // Документы объектов
+            let fileUrl: string;
             if (isAdmin && adminToken) {
-              // Для админа используем роут /admin с токеном в query
               fileUrl = `/api/uploads/objects/${docResult.document.objectId}/${docResult.document.filename}/admin?token=${encodeURIComponent(adminToken)}#toolbar=1&navpanes=1&scrollbar=1&zoom=${Math.round(scale * 100)}`;
             } else {
-              // Для заказчика используем обычный роут с email
               const emailParam = userEmail ? `?email=${encodeURIComponent(userEmail)}` : '';
               fileUrl = `/api/uploads/objects/${docResult.document.objectId}/${docResult.document.filename}${emailParam}#toolbar=1&navpanes=1&scrollbar=1&zoom=${Math.round(scale * 100)}`;
             }
+            setIframeSrc(fileUrl);
+            setProjectPdfUrl(null);
+            setAuthError(false);
           } else if (docResult.document.projectId) {
-            // Документы проектов
-            fileUrl = `/api/uploads/projects/${docResult.document.projectId}/${docResult.document.filename}#toolbar=1&navpanes=1&scrollbar=1&zoom=${Math.round(scale * 100)}`;
+            const base = `/api/uploads/projects/${docResult.document.projectId}/${enc}`;
+            if (isAdmin && adminToken) {
+              setProjectPdfUrl(`${base}?token=${encodeURIComponent(adminToken)}`);
+              setIframeSrc(null);
+              setAuthError(false);
+            } else if (userEmail) {
+              setProjectPdfUrl(`${base}?email=${encodeURIComponent(userEmail)}`);
+              setIframeSrc(null);
+              setAuthError(false);
+            } else {
+              setProjectPdfUrl(null);
+              setIframeSrc(null);
+              setAuthError(true);
+            }
           } else {
             console.error('Не удалось определить тип документа');
-            return;
           }
-          setIframeSrc(fileUrl);
         } else {
           console.error('Не удалось получить информацию о документе');
         }
@@ -522,7 +539,7 @@ function PDFIframe({ documentId, fileName, source, scale, userEmail, isAdmin, ad
     };
 
     getIframeSrc();
-  }, [documentId, fileName, source, scale, isAdmin]);
+  }, [documentId, fileName, scale, isAdmin, adminToken, userEmail]);
 
   if (loading) {
     return (
@@ -548,6 +565,30 @@ function PDFIframe({ documentId, fileName, source, scale, userEmail, isAdmin, ad
           }
         `}</style>
       </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        backgroundColor: '#f5f5f5',
+        padding: '24px',
+        textAlign: 'center',
+        color: '#64748b',
+        fontFamily: 'Arial, sans-serif',
+      }}>
+        Не удалось открыть PDF: укажите email для доступа к файлам проекта.
+      </div>
+    );
+  }
+
+  if (projectPdfUrl) {
+    return (
+      <PdfJsProjectViewer pdfUrl={projectPdfUrl} scale={scale} />
     );
   }
 

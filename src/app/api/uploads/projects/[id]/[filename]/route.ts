@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { prisma } from '@/lib/prisma';
+import { verifyToken } from '@/lib/userManagement';
+import { isValidEmail, sanitizeFilename } from '@/lib/security';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; filename: string }> }
 ) {
   try {
+    const { searchParams } = new URL(request.url);
+    const email = searchParams.get('email');
+    const queryToken = searchParams.get('token');
+    const authHeader = request.headers.get('Authorization');
+    const headerToken = authHeader?.split(' ')[1];
+    const token = queryToken || headerToken;
+
     const { id, filename } = await params;
     const projectId = parseInt(id);
     
@@ -17,8 +27,55 @@ export async function GET(
       }, { status: 400 });
     }
 
-    // Декодируем имя файла для корректной обработки кириллицы
     const decodedFilename = decodeURIComponent(filename);
+    const safeName = sanitizeFilename(decodedFilename);
+    if (!safeName) {
+      return NextResponse.json({ success: false, message: 'Неверное имя файла' }, { status: 400 });
+    }
+
+    const documentRow = await prisma.document.findFirst({
+      where: { projectId, filename: safeName },
+      select: { id: true, projectId: true },
+    });
+
+    if (!documentRow) {
+      return NextResponse.json({ success: false, message: 'Документ не найден' }, { status: 404 });
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { objectId: true },
+    });
+
+    if (!project) {
+      return NextResponse.json({ success: false, message: 'Проект не найден' }, { status: 404 });
+    }
+
+    let authorized = false;
+
+    if (token) {
+      const decoded = verifyToken(token);
+      if (decoded && (decoded.role === 'MASTER' || decoded.role === 'ADMIN')) {
+        authorized = true;
+      }
+    }
+
+    if (!authorized && email && isValidEmail(email)) {
+      const user = await prisma.user.findUnique({
+        where: { email },
+        include: { objects: { where: { id: project.objectId } } },
+      });
+      if (user && user.objects.length > 0) {
+        authorized = true;
+      }
+    }
+
+    if (!authorized) {
+      return NextResponse.json(
+        { success: false, message: 'Требуется авторизация' },
+        { status: 401 }
+      );
+    }
     
     // Путь к файлу
     const filePath = path.join(
@@ -27,7 +84,7 @@ export async function GET(
       'uploads',
       'projects',
       projectId.toString(),
-      decodedFilename
+      safeName
     );
 
     // Проверяем существование файла

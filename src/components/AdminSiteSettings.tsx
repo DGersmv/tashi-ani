@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import type { SiteSettingsPayload, CustomFontItem } from "@/app/api/site-settings/route";
 import type { MapPoint } from "@/app/api/site/points/route";
 import { useSiteSettings } from "@/components/ui/SiteSettingsContext";
+import { buildFontStack } from "@/lib/siteSettings";
 
 const FONT_OPTIONS = [
   { value: "ChinaCyr", label: "ChinaCyr" },
@@ -608,7 +609,7 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
             <div style={{ color: "white", maxWidth: "100%", overflowWrap: "break-word", wordBreak: "break-word" }}>
               <div
                 style={{
-                  fontFamily: `${settings.mainPageHeadingFont ?? "ChinaCyr"}, ChinaCyr, Arial, sans-serif`,
+                  fontFamily: buildFontStack(settings.mainPageHeadingFont ?? "ChinaCyr"),
                   fontSize: "1.5rem",
                   fontWeight: 800,
                   letterSpacing: "0.04em",
@@ -623,7 +624,7 @@ export default function AdminSiteSettings({ adminToken, panelMode = false }: Adm
               </div>
               <p
                 style={{
-                  fontFamily: `${settings.mainPageTextFont ?? "ChinaCyr"}, ChinaCyr, Arial, sans-serif`,
+                  fontFamily: buildFontStack(settings.mainPageTextFont ?? "ChinaCyr"),
                   fontSize: "1rem",
                   lineHeight: 1.5,
                   margin: 0,
