@@ -28,7 +28,7 @@
     "@thatopen/fragments": "^3.2.11",
     "@thatopen/ui": "^3.2.0",
     "@types/nodemailer": "^7.0.2",
-    "autoprefixer": "^10.4.21",
+    "autoprefixer": "^10.4.24",
     "bcryptjs": "^3.0.2",
     "framer-motion": "^12.23.12",
     "jsonwebtoken": "^9.0.2",
