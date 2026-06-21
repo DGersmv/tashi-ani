@@ -26,7 +26,7 @@
     "@tailwindcss/postcss": "^4.1.11",
     "@thatopen/components": "^3.2.6",
     "@thatopen/fragments": "^3.2.11",
-    "@thatopen/ui": "^3.2.0",
+    "@thatopen/ui": "^3.3.3",
     "@types/nodemailer": "^7.0.2",
     "autoprefixer": "^10.4.21",
     "bcryptjs": "^3.0.2",
